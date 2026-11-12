@@ -2,108 +2,109 @@
 
 基于 MaaFramework 的天天象棋 Android 自动化与棋局分析项目。
 
-> 当前目标客户端：腾讯《天天象棋》Android 版  
-> Android 包名（默认配置，运行时需在设备上核实）：`com.tencent.qqgame.xq`  
-> 控制方式：MaaFramework + ADB，截图取自 Android 内部画面  
-> 首期场景：标准对局、残局闯关
+> 目标客户端：腾讯《天天象棋》Android 版  
+> 首期场景：标准对局、残局闯关  
+> 产品 UI：Android 原生 Jetpack Compose / Material 3  
+> 目标运行模式：ADB 开发模式、Android 前台模式、Android 后台虚拟显示模式
 
-## 当前开发状态
+## 产品方向
 
-本仓库当前从空仓库建立第一阶段工程骨架。已规划并逐步实现：
+项目 UI 和后台体验参考 [Aliothmoon/MAA-Meow](https://github.com/Aliothmoon/MAA-Meow) 的公开设计思路：
 
-- ADB 设备发现、设备显示参数读取、应用启动和无损截图。
+- 卡片式首页、任务页、棋谱页和设置页。
+- 清晰的设备、权限、游戏、MAA Core 和任务状态。
+- Android 原生运行 MAA Core。
+- 通过 Shizuku / Root 特权服务创建后台虚拟显示器。
+- 将天天象棋运行在独立显示器上，主界面继续用于其他操作。
+
+本项目只借鉴其架构和交互思路，不复制 MAA-Meow 的源码、资源或品牌素材。参考项目使用 AGPL-3.0，若将来决定直接复用其代码，必须先完成许可证评估。
+
+**重要：后台虚拟显示尚未实现。** 是否可用取决于 Android 版本、模拟器 / ROM、Shizuku 或 Root 权限和游戏对非默认显示器的兼容性。屏幕熄灭和锁屏运行不属于首版承诺。
+
+## 当前代码状态
+
+当前仓库先建立了 Windows Python 开发与诊断工具：
+
+- ADB 设备发现、设备显示参数读取、应用启动和 Android 内部截图。
 - 棋盘四角人工校准、透视坐标映射、90 个交叉点可视化。
 - 棋位图块导出，为后续棋子分类模型建立数据集。
-- 中国象棋棋盘状态、ICCS 坐标和 Pikafish 兼容 FEN 基础表示。
+- BoardState、ICCS 坐标和 Pikafish 兼容 FEN 基础表示。
 - MaaFramework Python Agent 的诊断截图动作。
 - Codex 分阶段实施任务书和测试基线。
 
-**尚未完成：** 天天象棋界面自动识别、14 类棋子模型、完整规则合法性验证、Pikafish 进程管理、自动落子和完整对局闭环。没有模型文件或引擎二进制随仓库发布。
+这些 Python 工具用于开发、截图采集、棋盘校准和算法验证，不代表最终产品 UI 或后台运行能力已经完成。
 
-## 快速开始（Windows）
+**尚未完成：** Android 原生 App、Shizuku / Root 远程服务、虚拟显示器、MAA Core Android 运行时、天天象棋界面自动识别、14 类棋子模型、完整规则校验、Pikafish Android 引擎和自动落子闭环。
 
-### 1. 环境
+## Windows 开发工具快速开始
+
+### 环境
 
 - Windows 10/11
 - Python 3.10+
 - Android 模拟器已开启 ADB 调试
-- Android Platform Tools（`adb.exe`）
-- MaaFramework 通用 UI（需要使用 MAA Pipeline 时）
+- Android Platform Tools（adb.exe）
 
-### 2. 安装
+### 安装
 
-```powershell
-py -3.11 -m venv .venv
-.\.venv\Scripts\Activate.ps1
-python -m pip install --upgrade pip
-pip install -e ".[dev]"
-```
+    py -3.11 -m venv .venv
+    .\.venv\Scripts\Activate.ps1
+    python -m pip install --upgrade pip
+    pip install -e ".[dev]"
 
-### 3. 检查 ADB 设备
+### 检查 ADB 设备
 
-```powershell
-maa-xiangqi devices
-maa-xiangqi device-info --serial <设备序列号>
-```
+    maa-xiangqi devices
+    maa-xiangqi device-info --serial <设备序列号>
 
-如果只有一个处于 `device` 状态的设备，截图命令可以省略 `--serial`。
+### 获取 Android 内部截图
 
-### 4. 获取 Android 内部截图
+    maa-xiangqi capture --serial <设备序列号> --output debug/captures/current.png
 
-```powershell
-maa-xiangqi capture --serial <设备序列号> --output debug/captures/current.png
-```
+截图通过 adb exec-out screencap -p 获取，不截取模拟器 Windows 标题栏和边框。
 
-截图通过 `adb exec-out screencap -p` 获取，不截取模拟器 Windows 标题栏和边框。
+### 校准棋盘
 
-### 5. 校准棋盘
+四角必须是最外侧棋盘交叉点，按左上、右上、右下、左下顺序填写：
 
-当前版本采用人工点选四角的校准方式。四角必须是**最外侧棋盘交叉点**，按左上、右上、右下、左下顺序填写，而不是木质棋盘外框。
+    maa-xiangqi calibrate --image debug/captures/current.png --corners "xTL,yTL;xTR,yTR;xBR,yBR;xBL,yBL" --profile config/tiantian/board_profile.yaml
 
-```powershell
-maa-xiangqi calibrate `
-  --image debug/captures/current.png `
-  --corners "xTL,yTL;xTR,yTR;xBR,yBR;xBL,yBL" `
-  --profile config/tiantian/board_profile.yaml
+生成网格叠加图：
 
-maa-xiangqi overlay `
-  --image debug/captures/current.png `
-  --profile config/tiantian/board_profile.yaml `
-  --output debug/board_overlay.png
+    maa-xiangqi overlay --image debug/captures/current.png --profile config/tiantian/board_profile.yaml --output debug/board_overlay.png
 
-maa-xiangqi crops `
-  --image debug/captures/current.png `
-  --profile config/tiantian/board_profile.yaml `
-  --output-dir debug/crops
-```
+导出 90 个棋位图块：
 
-校准角点坐标使用 ADB 截图像素坐标。若 Android 内部截图分辨率或画面布局改变，应重新校准或确认缩放适配结果。
+    maa-xiangqi crops --image debug/captures/current.png --profile config/tiantian/board_profile.yaml --output-dir debug/crops
 
-### 6. 运行测试
+若 Android 内部截图分辨率或宽高比改变，应重新校准或确认缩放适配结果。
 
-```powershell
-pytest
-```
+### 运行测试
+
+    pytest
+    ruff check .
 
 ## 项目文档
 
 - [整体架构](docs/architecture.md)
-- [Codex 实施任务书](docs/CODEX_TASKS.md)
+- [MAA-Meow UI 与后台运行设计](docs/MAAMEOW_UI_AND_BACKGROUND.md)
+- [Codex 完整实施任务书](docs/CODEX_TASKS.md)
 - [第一阶段操作与验收](docs/phase-1.md)
 - [项目协作约定](AGENTS.md)
 
 ## 关键设计约定
 
-1. 棋盘逻辑坐标固定为 9 列 × 10 行，图像行 0 是黑方底线，行 9 是红方底线。
+1. 棋盘逻辑坐标固定为 9 列 × 10 行，图像 row=0 是黑方底线，row=9 是红方底线。
 2. ICCS / Pikafish 坐标从红方视角编号：红方底线为 rank 0，黑方底线为 rank 9。
-3. 棋盘识别、局面状态、规则校验、引擎和输入执行必须解耦。
-4. 标准对局与残局闯关共用棋盘和规则核心；场景识别、流程状态单独适配。
-5. 未经视觉确认的预测局面不能覆盖已确认局面；点击失败或状态不确定时必须暂停，不可盲目继续。
-6. 联网真人竞技场景必须遵守游戏规则和平台政策；开发验证优先使用离线练习、残局或获准测试场景。
+3. 标准对局与残局闯关共用棋盘、识别、规则和引擎核心；场景状态机分别处理。
+4. ADB 主机模式不承诺真正后台运行；只有通过虚拟显示器、显示器定向采集和输入验证后，才可标记后台模式可用。
+5. 未经视觉确认的预测局面不能覆盖已确认局面；点击失败或状态不确定时必须暂停。
+6. 自动输入优先用于离线练习、残局和明确允许自动化的测试场景。
 
 ## 技术参考
 
 - [MaaFramework](https://github.com/MaaXYZ/MaaFramework)
 - [MaaPracticeBoilerplate](https://github.com/MaaXYZ/MaaPracticeBoilerplate)
 - [Pikafish](https://github.com/official-pikafish/Pikafish)
-- [Pikafish UCI / FEN 说明](https://www.pikafish.com/wiki/reference/uci-protocol.html)
+- [Shizuku](https://shizuku.rikka.app/)
+- [MAA-Meow](https://github.com/Aliothmoon/MAA-Meow)
