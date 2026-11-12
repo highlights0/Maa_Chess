@@ -57,3 +57,92 @@ def test_extract_display_summary():
     assert len(summary) == 3
     assert any("DisplayDeviceInfo" in line for line in summary)
     assert any("VirtualDisplayAdapter" in line for line in summary)
+
+
+
+def _mock_diagnostic_device(monkeypatch, root_granted=False):
+    import maa_xiangqi.diagnostics as diagnostics
+    from maa_xiangqi.adb import DeviceInfo
+
+    commands = []
+
+    def fake_device_info(serial, adb_path):
+        return DeviceInfo(
+            serial=serial,
+            model="MuMu",
+            android_release="14",
+            width=900,
+            height=1600,
+            density_dpi=240,
+        )
+
+    def fake_run_adb(args, adb_path="adb", timeout=20):
+        command = " ".join(str(part) for part in args)
+        commands.append(command)
+        if args[-1] == "getprop":
+            return (
+                b"[ro.product.manufacturer]: [Netease]\n"
+                b"[ro.product.model]: [MuMu]\n"
+                b"[ro.build.version.release]: [14]\n"
+                b"[ro.build.version.sdk]: [34]\n"
+                b"[ro.product.cpu.abi]: [x86_64]\n"
+                b"[ro.product.cpu.abilist]: [x86_64,arm64-v8a]\n"
+            )
+        if "pm" in args and "list" in args:
+            return (
+                b"package:com.tencent.qqgame.xq\n"
+                b"package:moe.shizuku.privileged.api\n"
+            )
+        if args[-1].startswith("ps -A"):
+            return b"USER PID NAME\nshell 123 shizuku_server\n"
+        if args[-1] == "id":
+            return b"uid=2000(shell) gid=2000(shell)\n"
+        if args[-1].startswith("command -v su"):
+            return b"/system/xbin/su\n"
+        if args[-1] == "su -c id":
+            if root_granted:
+                return b"uid=0(root) gid=0(root)\n"
+            raise diagnostics.AdbError("su permission denied")
+        if "dumpsys" in args and "package" in args:
+            return b"versionName=1.2.3\n"
+        if "dumpsys" in args and "display" in args:
+            return b"DisplayDeviceInfo{Built-in Screen}\nmDisplayId=0 state=ON\n"
+        raise AssertionError(f"Unexpected ADB command: {command}")
+
+    monkeypatch.setattr(diagnostics, "get_device_info", fake_device_info)
+    monkeypatch.setattr(diagnostics, "_run_adb", fake_run_adb)
+    return diagnostics, commands
+
+
+def test_diagnose_device_does_not_probe_root_by_default(monkeypatch):
+    diagnostics, commands = _mock_diagnostic_device(monkeypatch)
+
+    report = diagnostics.diagnose_device("private-test-serial")
+
+    assert report.emulator_vendor == "MuMu"
+    assert report.android_api == 34
+    assert report.abi_list == ("x86_64", "arm64-v8a")
+    assert report.screen_width == 900
+    assert report.screen_height == 1600
+    assert report.shizuku_installed is True
+    assert report.shizuku_process_detected is True
+    assert report.root_available is None
+    assert report.root_probe_requested is False
+    assert not any(command.endswith("su -c id") for command in commands)
+    assert "private-test-serial" not in str(report.to_dict())
+
+
+def test_diagnose_device_root_probe_is_explicit(monkeypatch):
+    diagnostics, commands = _mock_diagnostic_device(
+        monkeypatch,
+        root_granted=True,
+    )
+
+    report = diagnostics.diagnose_device(
+        "private-test-serial",
+        probe_root=True,
+    )
+
+    assert report.root_probe_requested is True
+    assert report.root_available is True
+    assert any(command.endswith("su -c id") for command in commands)
