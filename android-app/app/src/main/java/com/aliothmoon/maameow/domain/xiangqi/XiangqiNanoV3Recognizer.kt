@@ -143,8 +143,8 @@ class XiangqiNanoV3Recognizer(
                         } else {
                             val flipped = infer(bitmap, scaledCalibration, true, modelFile)
                             when {
-                                flipped.orientationIsValid -> flipped
-                                flipped.uncertainSquares.size < normal.uncertainSquares.size -> flipped
+                                flipped.orientationIsValid -> flipped.publicResult
+                                flipped.publicResult.uncertainSquares.size < normal.publicResult.uncertainSquares.size -> flipped.publicResult
                                 else -> normal.publicResult
                             }
                         }
