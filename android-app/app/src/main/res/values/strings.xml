@@ -3141,7 +3141,7 @@ MAA 不会因为取消勾选此选项而提前在局内结束探索</string>
     <string name="xiangqi_preview_hint">点击画面可全屏查看。后台模式需要 Shizuku 或 Root 权限。</string>
     <string name="xiangqi_foreground_hint">当前为前台模式。游戏画面显示在 Android 主屏，无需后台虚拟显示权限。</string>
     <string name="xiangqi_task_note_title">当前功能范围</string>
-    <string name="xiangqi_task_note_message">已接入游戏启动、前台/后台显示和后台画面预览。标准对局与残局闯关的自动识别、棋盘识别、AI 分析和自动落子仍在开发中。</string>
+    <string name="xiangqi_task_note_message">已接入游戏启动、前台/后台显示、后台画面预览，以及基于 nano-v3 的本地棋盘识别入口。当前仍需在 MuMu 实机验证识别准确率；自动行棋方识别、Pikafish Android 引擎和安全落子闭环仍在开发中。</string>
     <string name="xiangqi_record_title">棋谱记录</string>
     <string name="xiangqi_record_empty_title">暂无棋谱</string>
     <string name="xiangqi_record_empty_message">棋局识别和走法记录接入后，历史局面、走法与 AI 分析会显示在这里。</string>

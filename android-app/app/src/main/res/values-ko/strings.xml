@@ -3141,7 +3141,7 @@
     <string name="xiangqi_preview_hint">미리보기를 누르면 전체 화면으로 볼 수 있습니다. 백그라운드 모드에는 Shizuku 또는 Root 권한이 필요합니다.</string>
     <string name="xiangqi_foreground_hint">전경 모드입니다. 게임은 Android 기본 화면에 표시되며 가상 디스플레이 권한이 필요하지 않습니다.</string>
     <string name="xiangqi_task_note_title">현재 기능 범위</string>
-    <string name="xiangqi_task_note_message">게임 실행, 전경/백그라운드 표시 및 백그라운드 미리보기를 연결했습니다. 일반 대국·퍼즐 자동화, 보드 인식, AI 분석 및 자동 착수는 개발 중입니다.</string>
+    <string name="xiangqi_task_note_message">게임 실행, 전경/백그라운드 표시, 백그라운드 미리보기 및 nano-v3 기반 로컬 보드 인식 진입점을 연결했습니다. MuMu 실기기에서 인식 정확도를 검증해야 합니다. 자동 차례 감지, Android Pikafish 엔진 및 안전한 자동 착수 흐름은 계속 개발 중입니다.</string>
     <string name="xiangqi_record_title">기보 기록</string>
     <string name="xiangqi_record_empty_title">기록이 없습니다</string>
     <string name="xiangqi_record_empty_message">기보 수집 기능이 구현되면 인식된 국면, 착수 기록 및 AI 분석 결과가 여기에 표시됩니다.</string>

@@ -3084,7 +3084,7 @@ MAA will not end an in-progress exploration early because this option is uncheck
     <string name="xiangqi_preview_hint">Tap the preview to view it full screen. Background mode requires Shizuku or Root.</string>
     <string name="xiangqi_foreground_hint">Foreground mode is active. The game is shown on the Android main display and does not require virtual-display privileges.</string>
     <string name="xiangqi_task_note_title">Current scope</string>
-    <string name="xiangqi_task_note_message">Game launch, foreground/background display, and background preview are connected. Standard-match and puzzle automation, board recognition, AI analysis, and automated moves are still in development.</string>
+    <string name="xiangqi_task_note_message">Game launch, foreground/background display, background preview, and a local nano-v3 board-recognition entry point are connected. Recognition accuracy still needs validation on MuMu. Automatic side-to-move detection, the Android Pikafish engine, and the guarded move-execution loop remain in development.</string>
     <string name="xiangqi_record_title">Game records</string>
     <string name="xiangqi_record_empty_title">No records yet</string>
     <string name="xiangqi_record_empty_message">Recognized positions, move history, and AI analysis will appear here after game-record capture is implemented.</string>
