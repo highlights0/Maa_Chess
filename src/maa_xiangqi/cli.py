@@ -21,6 +21,7 @@ from maa_xiangqi.adb import (
 )
 from maa_xiangqi.board.geometry import BoardGeometry
 from maa_xiangqi.vision.crops import extract_square_crops
+from maa_xiangqi.engine import EngineError, PikafishEngine
 
 DEFAULT_PROFILE = Path("config/tiantian/board_profile.yaml")
 DEFAULT_PACKAGE = "com.tencent.qqgame.xq"
@@ -229,6 +230,22 @@ def command_crops(args: argparse.Namespace) -> int:
     return 0
 
 
+def command_engine_analyze(args: argparse.Namespace) -> int:
+    options = {"Threads": args.threads, "Hash": args.hash}
+    try:
+        with PikafishEngine(args.engine, options=options) as engine:
+            result = engine.analyze(
+                args.fen,
+                movetime_ms=args.movetime_ms,
+                moves=args.moves,
+                timeout=args.timeout,
+            )
+    except EngineError as exc:
+        raise ValueError(str(exc)) from exc
+    print(json.dumps(result.to_dict(), ensure_ascii=False, indent=2))
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="maa-xiangqi",
@@ -267,6 +284,15 @@ def build_parser() -> argparse.ArgumentParser:
     crops.add_argument("--output-dir", required=True)
     crops.add_argument("--half-size-ratio", type=float, default=0.42)
 
+    engine = subparsers.add_parser("engine-analyze", help="使用 Pikafish UCI 引擎分析给定局面")
+    engine.add_argument("--engine", required=True, help="Pikafish 可执行文件路径")
+    engine.add_argument("--fen", required=True, help="中国象棋 FEN")
+    engine.add_argument("--moves", nargs="*", default=[], help="从 FEN 开始的 ICCS 历史走法")
+    engine.add_argument("--movetime-ms", type=int, default=1000)
+    engine.add_argument("--threads", type=int, default=1)
+    engine.add_argument("--hash", type=int, default=128, help="Hash 大小，单位 MB")
+    engine.add_argument("--timeout", type=float, help="搜索总超时秒数")
+
     return parser
 
 
@@ -288,8 +314,10 @@ def main() -> int:
             return command_overlay(args)
         if args.command == "crops":
             return command_crops(args)
+        if args.command == "engine-analyze":
+            return command_engine_analyze(args)
         parser.error(f"未知命令：{args.command}")
-    except (AdbError, FileNotFoundError, TypeError, ValueError, OSError) as exc:
+    except (AdbError, EngineError, FileNotFoundError, TypeError, ValueError, OSError) as exc:
         print(f"错误：{exc}", file=sys.stderr)
         return 2
     return 0
