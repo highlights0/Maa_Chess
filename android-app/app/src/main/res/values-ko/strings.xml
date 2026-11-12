@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">MaaMeow</string>
+    <string name="app_name">Maa_Chess</string>
     <string name="volume_key_service_description">볼륨 다운 키를 두 번 눌러 제어 패널을 빠르게 전환합니다</string>
     <string name="accessibility_helper_service_description">접근성 보조 서비스: 볼륨 다운 키를 두 번 눌러 제어 패널을 빠르게 전환합니다</string>
 
@@ -543,7 +543,7 @@
     <string name="achievement_debug_clear_done">모든 도전과제 기록을 삭제했습니다</string>
 
     <!-- home: top bar & app title -->
-    <string name="home_app_title">MAA</string>
+    <string name="home_app_title">Maa_Chess</string>
 
     <!-- home: screen info card -->
     <string name="home_screen_resolution">화면 해상도</string>
@@ -3124,8 +3124,6 @@
     <string name="oper_progress_result_recognition">인식 또는 조작 실패</string>
     <string name="oper_progress_log_detail">%1$s: %2$s%3$s</string>
     <string name="oper_progress_log_summary">오퍼레이터 육성 이번 라운드 결과: 성공 %1$d, 실패 %2$d, 건너뜀 %3$d (마스터리 시작도 성공으로 집계)</string>
-    <string name="app_name">Maa_Chess</string>
-    <string name="home_app_title">Maa_Chess</string>
     <string name="bottom_nav_records">기보</string>
     <string name="settings_game_package_xiangqi">중국 장기(샹치)</string>
     <string name="xiangqi_task_title">샹치 작업</string>

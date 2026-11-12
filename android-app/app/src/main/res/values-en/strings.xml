@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">MaaMeow</string>
+    <string name="app_name">Maa_Chess</string>
     <string name="volume_key_service_description">Double-tap volume down to toggle the control panel</string>
     <string name="accessibility_helper_service_description">Accessibility helper: double-tap volume down to toggle the control panel</string>
     <string name="common_confirm">Confirm</string>
@@ -281,7 +281,7 @@
     <string name="achievement_debug_clear_all">Delete All Achievement Records</string>
     <string name="achievement_debug_clear_done">All achievement records deleted</string>
     <!-- home: top bar & app title -->
-    <string name="home_app_title">MAA</string>
+    <string name="home_app_title">Maa_Chess</string>
 
     <!-- home: screen info card -->
     <string name="home_screen_resolution">Screen Resolution</string>
@@ -3067,8 +3067,6 @@ MAA will not end an in-progress exploration early because this option is uncheck
     <string name="oper_progress_result_recognition">Recognition or operation failed</string>
     <string name="oper_progress_log_detail">%1$s: %2$s%3$s</string>
     <string name="oper_progress_log_summary">Operator training results: %1$d successful, %2$d failed, %3$d skipped (starting mastery also counts as success).</string>
-    <string name="app_name">Maa_Chess</string>
-    <string name="home_app_title">Maa_Chess</string>
     <string name="bottom_nav_records">Records</string>
     <string name="settings_game_package_xiangqi">Tiantian Xiangqi</string>
     <string name="xiangqi_task_title">Xiangqi Tasks</string>

@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">MaaMeow</string>
+    <string name="app_name">Maa_Chess</string>
     <string name="volume_key_service_description">双击音量下键快速切换操作面板</string>
     <string name="accessibility_helper_service_description">无障碍辅助服务：双击音量下键快速切换操作面板</string>
 
@@ -543,7 +543,7 @@
     <string name="achievement_debug_clear_done">已删除所有成就记录</string>
 
     <!-- home: top bar & app title -->
-    <string name="home_app_title">MAA</string>
+    <string name="home_app_title">Maa_Chess</string>
 
     <!-- home: screen info card -->
     <string name="home_screen_resolution">屏幕分辨率</string>
@@ -3124,8 +3124,6 @@ MAA 不会因为取消勾选此选项而提前在局内结束探索</string>
     <string name="oper_progress_result_recognition">识别或操作失败</string>
     <string name="oper_progress_log_detail">%1$s：%2$s%3$s</string>
     <string name="oper_progress_log_summary">干员培养本轮处理结果：成功 %1$d，失败 %2$d，跳过 %3$d（专精启动也计入成功）</string>
-    <string name="app_name">Maa_Chess</string>
-    <string name="home_app_title">Maa_Chess</string>
     <string name="bottom_nav_records">棋谱</string>
     <string name="settings_game_package_xiangqi">天天象棋</string>
     <string name="xiangqi_task_title">象棋任务</string>
