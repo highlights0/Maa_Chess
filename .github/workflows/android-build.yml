@@ -29,7 +29,9 @@ jobs:
           java-version: '25'
 
       - name: 配置 Android SDK
-        uses: android-actions/setup-android@v3
+        uses: android-actions/setup-android@v4
+        with:
+          packages: ''
 
       - name: 安装 Android SDK、NDK 和 CMake
         run: |

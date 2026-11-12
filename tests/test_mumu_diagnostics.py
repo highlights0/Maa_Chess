@@ -162,7 +162,7 @@ def _mock_diagnostic_device(monkeypatch, root_result="denied"):
 
 
 def test_diagnose_device_uses_display_metadata_and_does_not_probe_root_by_default(monkeypatch):
-    diagnostics, commands = _mock_diagnostic_device()
+    diagnostics, commands = _mock_diagnostic_device(monkeypatch)
 
     report = diagnostics.diagnose_device("private-test-serial")
 
@@ -182,7 +182,7 @@ def test_diagnose_device_uses_display_metadata_and_does_not_probe_root_by_defaul
 
 
 def test_diagnose_device_root_probe_is_explicit(monkeypatch):
-    diagnostics, commands = _mock_diagnostic_device(root_result="root")
+    diagnostics, commands = _mock_diagnostic_device(monkeypatch, root_result="root")
 
     report = diagnostics.diagnose_device(
         "private-test-serial",
@@ -195,7 +195,7 @@ def test_diagnose_device_root_probe_is_explicit(monkeypatch):
 
 
 def test_diagnose_device_root_timeout_is_unknown(monkeypatch):
-    diagnostics, _ = _mock_diagnostic_device(root_result="timeout")
+    diagnostics, _ = _mock_diagnostic_device(monkeypatch, root_result="timeout")
 
     report = diagnostics.diagnose_device(
         "private-test-serial",
@@ -208,7 +208,7 @@ def test_diagnose_device_root_timeout_is_unknown(monkeypatch):
 
 
 def test_diagnose_device_root_permission_denied_is_false(monkeypatch):
-    diagnostics, _ = _mock_diagnostic_device(root_result="denied")
+    diagnostics, _ = _mock_diagnostic_device(monkeypatch, root_result="denied")
 
     report = diagnostics.diagnose_device(
         "private-test-serial",
