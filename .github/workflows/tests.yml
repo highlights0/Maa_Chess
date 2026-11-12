@@ -22,4 +22,4 @@ jobs:
       - name: Run tests
         run: pytest
       - name: Lint
-        run: ruff check .
+        run: ruff check src tests agent
