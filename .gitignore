@@ -39,3 +39,22 @@ secrets.properties
 # Build outputs
 *.apk
 *.aab
+
+
+# Android / Gradle generated files
+**/.gradle/
+**/build/
+**/local.properties
+**/.idea/
+**/*.iml
+**/captures/
+android-app/.maa-cache/
+android-app/.maaversion
+android-app/app/src/main/assets/MaaSync/MaaResource/
+android-app/app/src/main/jniLibs/
+*.apk
+*.aab
+*.jks
+*.keystore
+key.properties
+keystore.properties

@@ -1,6 +1,17 @@
 # 第三方代码声明
 
-本项目包含来自以下开源项目的代码，按各自原始许可证进行分发。
+本项目基于 Aliothmoon/MAA-Meow Android 工程改造，并包含来自以下开源项目的代码，按各自原始许可证进行分发。
+
+## MAA-Meow（上游 Android 基础工程）
+
+- **项目地址**：[Aliothmoon/MAA-Meow](https://github.com/Aliothmoon/MAA-Meow)
+- **许可证**：[GNU Affero General Public License v3.0](https://www.gnu.org/licenses/agpl-3.0.html)
+- **本项目中的位置**：`android-app/`
+- **使用方式**：迁移并修改 MAA-Meow Android 应用工程，复用 Compose UI、设备管理、Shizuku / Root 权限服务、后台虚拟显示、Surface 与输入桥接、MAA Core 原生库装载和任务生命周期。
+- **修改说明**：应用标识、导航、品牌资源和天天象棋业务入口已改造；上游 Kotlin namespace 暂时保留为 `com.aliothmoon.maameow`，Android applicationId 独立为 `com.highlights0.maachess`。
+- **版权与源码义务**：保留上游版权声明及 AGPL-3.0 许可证。分发本项目的衍生版本时，必须按 AGPL-3.0 提供对应完整源代码和许可证文本。
+
+
 
 ## scrcpy
 

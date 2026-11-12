@@ -4,12 +4,13 @@ profile_name: MuMu 900x1600 initial calibration
 game:
   display_name: 天天象棋
   package_name: com.tencent.qqgame.xq
-  package_name_note: 仅为候选默认值；请用 maa-xiangqi-diagnose 核实实际安装包名
+  package_name_note: 已由 2026-11-12 用户提供的 MuMu 诊断报告核实，安装版本 4.3.0.2
 
 device:
   emulator_vendor: MuMu
   screenshot_width: 900
   screenshot_height: 1600
+  density_dpi: 240
   calibration_source: user_supplied_android_internal_screenshot
   calibration_note: >
     四角由 2026-11-12 提供的 900x1600 Android 内部截图人工测量，
@@ -34,6 +35,13 @@ board:
     source_width: 900
     source_height: 1600
   crop_half_size_ratio: 0.42
+
+background_display:
+  width: 900
+  height: 1600
+  density_dpi: 240
+  orientation: portrait
+  calibration_profile: mumu_900x1600
 
 scene:
   mode: auto

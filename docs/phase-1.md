@@ -77,6 +77,19 @@ probe-root 会执行 su -c id，可能触发 Root 授权提示。默认诊断不
 
     maa-xiangqi calibrate --image debug/captures/mumu-current.png --corners "xTL,yTL;xTR,yTR;xBR,yBR;xBL,yBL" --profile config/tiantian/mumu_900x1600.yaml
 
+## 已核实的 MuMu 设备信息（2026-11-12）
+
+用户提供的诊断报告确认：
+
+- Android API 32 / Android 12。
+- CPU ABI：x86_64；可用 ABI 列表同时包含 arm64-v8a。
+- Android 内部截图：900×1600，240 DPI。
+- 天天象棋已安装包名：`com.tencent.qqgame.xq`，版本 4.3.0.2。
+- Shizuku 未安装；Root 探测超时并判定不可用。
+- 当前只检测到主显示器 displayId=0；虚拟显示器尚未创建和验证。
+
+因此，应用已将天天象棋包名和初始后台竖屏分辨率登记为默认配置。前台启动可通过 Android 启动器完成；后台模式仍需先安装并授权 Shizuku 或配置 Root，再执行独立虚拟显示 PoC。
+
 ## 后台虚拟显示 PoC
 
 环境诊断并不会创建虚拟显示器。后台能力必须通过独立 PoC 证明：
