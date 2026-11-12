@@ -26,19 +26,19 @@ object MaaApi {
     )
 
     // 常见问题文档 / 问题反馈
-    const val FAQ_URL = "https://docs.maameow.com/faq/getting-started/"
-    const val FEEDBACK_URL = "https://github.com/Aliothmoon/MAA-Meow/issues"
+    const val FAQ_URL = "https://github.com/highlights0/Maa_Chess#readme"
+    const val FEEDBACK_URL = "https://github.com/highlights0/Maa_Chess/issues"
 
     // 上游用户协议，与 WPF MaaUrls.UserAgreement 一致
     const val USER_AGREEMENT_URL =
         "https://github.com/MaaAssistantArknights/MaaAssistantArknights/blob/dev-v2/terms-of-service.md"
 
     // MaaMeow 静态 API 基础地址
-    const val MEOW_API_BASE = "https://maameow.com/api/"
+    const val MAA_CHESS_ANNOUNCEMENT_BASE = "https://raw.githubusercontent.com/highlights0/Maa_Chess/main/android-app/app/src/main/assets/announcement/"
 
     // MaaMeow 公告
-    const val ANNOUNCEMENT_ZH = "${MEOW_API_BASE}announcement/announcement_zh.md"
-    const val ANNOUNCEMENT_EN = "${MEOW_API_BASE}announcement/announcement_en.md"
+    const val ANNOUNCEMENT_ZH = "${MAA_CHESS_ANNOUNCEMENT_BASE}announcement_zh.md"
+    const val ANNOUNCEMENT_EN = "${MAA_CHESS_ANNOUNCEMENT_BASE}announcement_en.md"
 
     // MirrorChyan 基础地址
     const val MIRROR_CHYAN_BASE = "https://mirrorchyan.com/"
@@ -53,8 +53,8 @@ object MaaApi {
     // ==================== App 更新 ====================
 
     // GitHub 仓库
-    const val APP_GITHUB_OWNER = "Aliothmoon"
-    const val APP_GITHUB_REPO = "MAA-Meow"
+    const val APP_GITHUB_OWNER = "highlights0"
+    const val APP_GITHUB_REPO = "Maa_Chess"
 
     // GitHub Release API (包含 prerelease)
     const val APP_GITHUB_RELEASES =
@@ -67,7 +67,7 @@ object MaaApi {
         "https://api.github.com/repos/$APP_GITHUB_OWNER/$APP_GITHUB_REPO/releases/tags/$tag"
 
     // MirrorChyan App 更新源
-    const val MIRROR_CHYAN_APP_RESOURCE = "https://mirrorchyan.com/api/resources/MAA-Meow/latest"
+    const val MIRROR_CHYAN_APP_RESOURCE = "https://mirrorchyan.com/api/resources/Maa_Chess/latest"
 
     // 一图流 OpenAPI：干员练度数据
     const val YITULIU_OPERATOR_INFO = "https://backend.yituliu.cn/open-api/operator/info"
