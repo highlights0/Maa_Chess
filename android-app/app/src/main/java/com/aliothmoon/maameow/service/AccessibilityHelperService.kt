@@ -57,7 +57,9 @@ class AccessibilityHelperService : AccessibilityService() {
         }
 
         suspend fun captureGameJpeg(expectedPackage: String): ByteArray {
-            require(Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) { "前台截图需要 Android 11 或更高版本" }
+            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) {
+                throw IllegalStateException("前台截图需要 Android 11 或更高版本")
+            }
             val service = instance ?: error("请先启用 Maa_Chess 无障碍服务")
             return withTimeout(8_000L) {
                 while (service.currentPackage != expectedPackage) delay(100)
