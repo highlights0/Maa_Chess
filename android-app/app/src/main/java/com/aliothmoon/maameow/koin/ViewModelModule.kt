@@ -1,0 +1,53 @@
+package com.aliothmoon.maameow.koin
+
+import com.aliothmoon.maameow.presentation.viewmodel.AchievementViewModel
+import com.aliothmoon.maameow.presentation.viewmodel.AppEventsViewModel
+import com.aliothmoon.maameow.presentation.viewmodel.BackgroundTaskViewModel
+import com.aliothmoon.maameow.presentation.viewmodel.CopilotSearchViewModel
+import com.aliothmoon.maameow.presentation.viewmodel.CopilotViewModel
+import com.aliothmoon.maameow.presentation.viewmodel.ErrorLogViewModel
+import com.aliothmoon.maameow.presentation.viewmodel.ExpandedControlPanelViewModel
+import com.aliothmoon.maameow.presentation.viewmodel.HomeViewModel
+import com.aliothmoon.maameow.presentation.viewmodel.LogHistoryViewModel
+import com.aliothmoon.maameow.presentation.viewmodel.NotificationSettingsViewModel
+import com.aliothmoon.maameow.presentation.viewmodel.SettingsViewModel
+import com.aliothmoon.maameow.presentation.viewmodel.TaskOverrideEditorViewModel
+import com.aliothmoon.maameow.presentation.viewmodel.ToolboxViewModel
+import com.aliothmoon.maameow.presentation.viewmodel.UpdateViewModel
+import com.aliothmoon.maameow.presentation.viewmodel.YituliuSettingsViewModel
+import com.aliothmoon.maameow.schedule.ui.ScheduleEditViewModel
+import com.aliothmoon.maameow.schedule.ui.ScheduleListViewModel
+import com.aliothmoon.maameow.schedule.ui.ScheduleTriggerLogViewModel
+import com.aliothmoon.maameow.schedule.ui.ScheduleAppBlacklistViewModel
+import com.aliothmoon.maameow.schedule.ui.ScheduleWakeUnlockViewModel
+import org.koin.core.module.dsl.singleOf
+import org.koin.core.module.dsl.viewModelOf
+import org.koin.dsl.module
+
+
+val viewModelModule = module {
+    viewModelOf(::HomeViewModel)
+    viewModelOf(::AchievementViewModel)
+    viewModelOf(::AppEventsViewModel)
+    viewModelOf(::SettingsViewModel)
+    viewModelOf(::UpdateViewModel)
+    viewModelOf(::LogHistoryViewModel)
+    viewModelOf(::ErrorLogViewModel)
+    viewModelOf(::BackgroundTaskViewModel)
+    viewModelOf(::ScheduleListViewModel)
+    viewModelOf(::ScheduleEditViewModel)
+    viewModelOf(::ScheduleTriggerLogViewModel)
+    viewModelOf(::ScheduleWakeUnlockViewModel)
+    viewModelOf(::ScheduleAppBlacklistViewModel)
+    viewModelOf(::NotificationSettingsViewModel)
+    viewModelOf(::TaskOverrideEditorViewModel)
+    viewModelOf(::YituliuSettingsViewModel)
+}
+
+
+val floatingWindowModule = module {
+    singleOf(::ExpandedControlPanelViewModel)
+    singleOf(::CopilotViewModel)
+    singleOf(::CopilotSearchViewModel)
+    singleOf(::ToolboxViewModel)
+}

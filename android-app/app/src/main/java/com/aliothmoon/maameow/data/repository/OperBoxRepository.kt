@@ -1,0 +1,75 @@
+package com.aliothmoon.maameow.data.repository
+
+import android.content.Context
+import androidx.datastore.core.DataStore
+import androidx.datastore.core.handlers.ReplaceFileCorruptionHandler
+import androidx.datastore.preferences.core.Preferences
+import androidx.datastore.preferences.core.emptyPreferences
+import androidx.datastore.preferences.preferencesDataStore
+import com.aliothmoon.maameow.data.model.toolbox.OperBoxOperator
+import com.aliothmoon.maameow.data.preferences.TaskChainState
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.serialization.Serializable
+
+@Serializable
+data class OperBoxSnapshot(
+    val owned: List<OperBoxOperator> = emptyList(),
+    val notOwned: List<OperBoxOperator> = emptyList(),
+    val syncTimeMillis: Long = 0L,
+    val version: Int = 0,
+) {
+    val hasSynced: Boolean get() = syncTimeMillis > 0L
+
+    /** 旧数据可能合并了升变形态，重新同步且有技能练度才可用 */
+    val canAssistFormation: Boolean
+        get() = version >= CURRENT_VERSION && owned.any { it.skills.isNotEmpty() }
+
+    companion object {
+        const val CURRENT_VERSION = 1
+    }
+}
+
+/** 干员箱分片：内存权威，set 同步写内存并排队落盘。 */
+class OperBoxRepository(
+    store: DataStore<Preferences>,
+    taskChainState: TaskChainState,
+) {
+    private val shards = ProfileShardStore(
+        store = store,
+        taskChainState = taskChainState,
+        keyPrefix = KEY_PREFIX,
+        serializer = OperBoxSnapshot.serializer(),
+        empty = ::OperBoxSnapshot,
+    )
+
+    val snapshot: StateFlow<OperBoxSnapshot> get() = shards.snapshot
+
+    val isLoaded: StateFlow<Boolean> get() = shards.isLoaded
+
+    fun start() = shards.start()
+
+    /** [profileId] 为空写活跃档 */
+    fun set(owned: List<OperBoxOperator>, notOwned: List<OperBoxOperator>, profileId: String? = null) {
+        val transform = { _: OperBoxSnapshot ->
+            OperBoxSnapshot(
+                owned = owned,
+                notOwned = notOwned,
+                syncTimeMillis = System.currentTimeMillis(),
+                version = OperBoxSnapshot.CURRENT_VERSION,
+            )
+        }
+        if (profileId == null) shards.mutate(transform) else shards.mutate(profileId, transform)
+    }
+
+    companion object {
+        private const val KEY_PREFIX = "operbox_"
+
+        private val Context.operBoxStore: DataStore<Preferences> by preferencesDataStore(
+            name = "oper_box",
+            corruptionHandler = ReplaceFileCorruptionHandler { emptyPreferences() },
+        )
+
+        fun create(context: Context, taskChainState: TaskChainState) =
+            OperBoxRepository(context.operBoxStore, taskChainState)
+    }
+}

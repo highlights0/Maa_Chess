@@ -1,0 +1,22 @@
+package com.aliothmoon.maameow.constant
+
+object Routes {
+    const val HOME = "home"
+    const val SETTINGS = "settings"
+    const val ACHIEVEMENT = "achievement"
+    const val ACHIEVEMENT_DEBUG = "achievement_debug"
+    const val LOG_HISTORY = "log_history"
+    const val ERROR_LOG = "error_log"
+    const val BACKGROUND_TASK = "background_task"
+    const val SCHEDULE = "schedule"
+    const val SCHEDULE_EDIT = "schedule_edit/{strategyId}"
+    const val SCHEDULE_TRIGGER_LOG = "schedule_trigger_log"
+    const val SCHEDULE_WAKE_UNLOCK = "schedule_wake_unlock"
+    const val SCHEDULE_APP_BLACKLIST = "schedule_app_blacklist"
+    const val NOTIFICATION = "notification"
+    const val LIVE_UPDATE = "live_update"
+    const val WALLPAPER = "wallpaper"
+    const val TASK_OVERRIDE_EDITOR = "task_override_editor"
+    const val GAME_PACKAGE = "game_package"
+    const val YITULIU = "yituliu"
+}

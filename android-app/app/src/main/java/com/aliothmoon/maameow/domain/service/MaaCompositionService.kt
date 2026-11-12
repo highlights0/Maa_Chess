@@ -1,0 +1,1081 @@
+package com.aliothmoon.maameow.domain.service
+
+import android.content.Context
+import android.os.Build
+import android.os.IBinder
+import android.os.RemoteException
+import com.alibaba.fastjson2.JSON
+import com.aliothmoon.maameow.MaaCoreCallback
+import com.aliothmoon.maameow.MaaCoreService
+import com.aliothmoon.maameow.R
+import com.aliothmoon.maameow.RemoteService
+import com.aliothmoon.maameow.constant.DefaultDisplayConfig
+import com.aliothmoon.maameow.constant.Packages
+import com.aliothmoon.maameow.data.model.LogLevel
+import com.aliothmoon.maameow.data.preferences.AppSettingsManager
+import com.aliothmoon.maameow.data.preferences.TaskChainState
+import com.aliothmoon.maameow.domain.models.RemoteBackend
+import com.aliothmoon.maameow.domain.models.RunMode
+import com.aliothmoon.maameow.domain.models.VirtualDisplayBackend
+import com.aliothmoon.maameow.domain.notification.LiveSessionCoordinator
+import com.aliothmoon.maameow.domain.state.MaaExecutionState
+import com.aliothmoon.maameow.domain.state.isIdle
+import com.aliothmoon.maameow.maa.AsstMsg
+import com.aliothmoon.maameow.maa.MaaInstanceOptions.ANDROID
+import com.aliothmoon.maameow.maa.MaaInstanceOptions.DEPLOYMENT_WITH_PAUSE
+import com.aliothmoon.maameow.maa.MaaInstanceOptions.TOUCH_MODE
+import com.aliothmoon.maameow.maa.callback.MaaCallbackDispatcher
+import com.aliothmoon.maameow.maa.callback.MaaExecutionStateHolder
+import com.aliothmoon.maameow.maa.callback.SetParamsErrorSignal
+import com.aliothmoon.maameow.maa.callback.SubTaskHandler
+import com.aliothmoon.maameow.maa.callback.TaskChainStatusTracker
+import com.aliothmoon.maameow.maa.callback.ToolboxResultCollector
+import com.aliothmoon.maameow.domain.models.TaskFallbackChain
+import com.aliothmoon.maameow.domain.models.appendFirstSuccessful
+import com.aliothmoon.maameow.maa.task.MaaTaskParams
+import com.aliothmoon.maameow.maa.task.TaskSlot
+import com.aliothmoon.maameow.manager.RemoteAccessCoordinator
+import com.aliothmoon.maameow.manager.RemoteCallStuckException
+import com.aliothmoon.maameow.manager.RemoteServiceManager
+import com.aliothmoon.maameow.manager.RemoteServiceManager.useRemoteService
+import com.aliothmoon.maameow.remote.PermissionGrantRequest
+import com.aliothmoon.maameow.utils.EyeProtectionDetector
+import com.aliothmoon.maameow.utils.Misc
+import com.aliothmoon.maameow.utils.device.XiaomiAdbInput
+import com.aliothmoon.maameow.utils.i18n.UiText
+import com.aliothmoon.maameow.utils.i18n.resolve
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.TimeoutCancellationException
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.put
+import org.koin.java.KoinJavaComponent.inject
+import timber.log.Timber
+import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.AtomicReference
+
+class MaaCompositionService(
+    private val context: Context,
+    private val resourceLoader: MaaResourceLoader,
+    private val appSettings: AppSettingsManager,
+    private val gameMuteCoordinator: GameMuteCoordinator,
+    private val unifiedStateDispatcher: UnifiedStateDispatcher,
+    private val sessionLogger: MaaSessionLogger,
+    private val appWatchdog: AppWatchdog,
+    private val gameFpsWatcher: GameFpsWatcher,
+    private val taskChainState: TaskChainState,
+    private val subTaskHandler: SubTaskHandler,
+    private val taskChainStatusTracker: TaskChainStatusTracker,
+    private val notificationCenter: MaaNotificationCenter,
+    private val liveCoordinator: LiveSessionCoordinator,
+    private val dropsRefresher: FightDropsRefresher,
+    private val setParamsErrors: SetParamsErrorSignal,
+    private val toolboxResultCollector: ToolboxResultCollector,
+    private val coreDataPusher: CoreDataPusher,
+    private val telemetry: RunTelemetry,
+    private val screenGate: ForegroundScreenGate,
+    private val processExitJournal: ProcessExitJournal,
+) : MaaExecutionStateHolder, CoreFilesGate {
+
+    private val _state = MutableStateFlow(MaaExecutionState.IDLE)
+    val state: StateFlow<MaaExecutionState> = _state.asStateFlow()
+
+    /** 停止发起方：用户操作 / 回调侧（掉线等）中止 / 到达运行时长上限 */
+    enum class StopOrigin { USER, CALLBACK, RUN_DURATION_LIMIT }
+
+    private val runDeadlineGuard = RunDeadlineGuard()
+
+    /** 本轮运行时长上限的截止时间（elapsedRealtime），未计时为 null */
+    val runDeadline: StateFlow<Long?> = runDeadlineGuard.deadline
+
+    /** 本轮 STOPPING 的发起方，STARTING 时复位；供 TaskEndRegistry 区分手动停止、异常中止与到达时长上限 */
+    @Volatile
+    var lastStopOrigin: StopOrigin = StopOrigin.USER
+        private set
+
+    private val defaultResolution = DefaultDisplayConfig.Resolution(
+        DefaultDisplayConfig.WIDTH, DefaultDisplayConfig.HEIGHT, DefaultDisplayConfig.DPI
+    )
+    private val _displayResolution = MutableStateFlow(defaultResolution)
+    val displayResolution: StateFlow<DefaultDisplayConfig.Resolution> =
+        _displayResolution.asStateFlow()
+
+    override fun currentRunState(): MaaExecutionState = _state.value
+
+    override fun reportRunState(state: MaaExecutionState) {
+        // STOPPING 期间，回调不主动设 IDLE — 由 finishStop() 统一处理
+        if (_state.value == MaaExecutionState.STOPPING && state == MaaExecutionState.IDLE) {
+            return
+        }
+        setRunState(state)
+    }
+
+    override fun requestStopFromCallback() {
+        val current = _state.value
+        if (current != MaaExecutionState.RUNNING && current != MaaExecutionState.STARTING) {
+            Timber.d("忽略回调侧停止请求：当前状态 $current")
+            return
+        }
+        // 掉线弹窗会连着触发 OfflineConfirm 与 OfflineConfirmAfterBattle，去重后只停一次
+        if (!callbackStopRequested.compareAndSet(false, true)) {
+            Timber.d("回调侧停止请求已在处理中")
+            return
+        }
+        scope.launch {
+            try {
+                stop(StopOrigin.CALLBACK)
+            } finally {
+                callbackStopRequested.set(false)
+            }
+        }
+    }
+
+    private fun setRunState(state: MaaExecutionState) {
+        // 仅在 STARTING 拉起前台服务；终态不做外部 stopService —
+        // 快速失败时 stopService 可能抢在服务创建之前到达，系统会因
+        // startForeground 契约未履行直接杀进程（RemoteServiceException）。
+        // 服务自身观察状态流，startForeground 后对 IDLE/ERROR 自行 stopSelf
+        if (state != MaaExecutionState.STARTING) {
+            // 自然完成走回调直接置 IDLE，不经过 finishStop，统一在这里撤掉计时和后台监视
+            if (state == MaaExecutionState.IDLE || state == MaaExecutionState.ERROR) {
+                runDeadlineGuard.disarm()
+                stopBackgroundMonitors()
+            }
+            _state.value = state
+            return
+        }
+        // specialUse 被系统拒绝时拉起 FGS 必崩，本轮降级为无进度通知运行
+        val withFgs = !SpecialUseFgsGate.isDenied(context)
+        lastStopOrigin = StopOrigin.USER
+        val runToken = liveCoordinator.beginRun()
+        // 顺带提前拿断网闸门：这里在 IO 线程，留给 FGS 的 startForeground 拿会占主线程
+        // 不起 FGS 就没人撤进度通知，闸门不能拿
+        if (withFgs) liveCoordinator.prepareProgress(runToken)
+        _state.value = state
+        if (withFgs) {
+            TaskExecutionService.start(context)
+        } else {
+            SpecialUseFgsGate.appendDeniedLog(context, sessionLogger)
+        }
+    }
+
+    private val callbackDispatcher: MaaCallbackDispatcher by inject(MaaCallbackDispatcher::class.java)
+
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+
+    // 串行，保证开关顺序
+    private val keepAliveScope = CoroutineScope(SupervisorJob() + Dispatchers.IO.limitedParallelism(1))
+
+    // 虚拟屏归建它的特权进程，进程一换就没了
+    private class BackgroundGame(val binder: IBinder, val packageName: String)
+
+    private val backgroundGame = MutableStateFlow<BackgroundGame?>(null)
+
+    val backgroundDisplayPackage: StateFlow<String?> =
+        combine(backgroundGame, RemoteServiceManager.state) { game, remote ->
+            val binder = (remote as? RemoteServiceManager.ServiceState.Connected)?.service?.asBinder()
+            game?.takeIf { it.binder === binder }?.packageName
+        }.stateIn(scope, SharingStarted.Eagerly, null)
+
+    private val connectDeferred = AtomicReference<CompletableDeferred<Boolean>?>()
+
+    /** 回调侧停止请求的去重闸门 */
+    private val callbackStopRequested = AtomicBoolean(false)
+
+    sealed class StartResult {
+        data class Success(val version: String) : StartResult()
+
+        /** 资源加载失败（网络/IO/解压） */
+        data class ResourceError(
+            val exception: Throwable? = null
+        ) : StartResult()
+
+        /** MaaCore 实例初始化失败（创建实例、设置选项） */
+        data class InitializationError(
+            val phase: InitPhase,
+        ) : StartResult() {
+            enum class InitPhase {
+                CREATE_INSTANCE,
+                SET_TOUCH_MODE,
+            }
+        }
+
+        /** 显示/连接层失败（虚拟屏幕、连接） */
+        data class ConnectionError(
+            val phase: ConnectPhase,
+        ) : StartResult() {
+            enum class ConnectPhase {
+                DISPLAY_MODE,
+                VIRTUAL_DISPLAY,
+                MAA_CONNECT,
+            }
+        }
+
+        /** MaaCore 运行时启动失败 */
+        data object StartError : StartResult()
+
+        /** 前台模式下检测到竖屏（高 > 宽），需要横屏才能运行 */
+        data object PortraitOrientationError : StartResult()
+
+        /** 前台模式下物理分辨率不是 16:9，MAA 识别要求 16:9 */
+        data object InvalidAspectRatioError : StartResult()
+
+        /** 远程服务正在连接中，任务无法立即启动 */
+        data object ServiceConnecting : StartResult()
+
+        /** 远程后端（Shizuku/Root）不可用或无法获取，任务拒绝启动 */
+        data class RemoteAccessUnavailable(val backend: RemoteBackend) : StartResult()
+
+        /** 后端在运行但没授权；授权只能由用户在界面上完成，启动链路不代为请求 */
+        data class RemoteAccessNotGranted(val backend: RemoteBackend) : StartResult()
+
+        /** 已有任务在启动/运行/停止，拒绝重入 */
+        data object AlreadyRunning : StartResult()
+
+        /** 提权侧调用卡死，进程已重启 */
+        data object RemoteCallStuck : StartResult()
+    }
+
+    sealed class StopResult {
+        data object Success : StopResult()
+        data object Failed : StopResult()
+    }
+
+
+    init {
+        scope.launch {
+            unifiedStateDispatcher.serviceDiedEvent.collect {
+                telemetry.onServiceDied(_state.value)
+                setRunState(MaaExecutionState.ERROR)
+                sessionLogger.completeSessionAndWait(
+                    "SERVICE_DIED",
+                    context.getString(R.string.runlog_service_terminated),
+                    LogLevel.ERROR
+                )
+                notificationCenter.notifyServiceDied()
+            }
+        }
+
+        scope.launch {
+            appWatchdog.appDiedEvent.collect { packageName ->
+                Timber.w("App watchdog detected app died: %s", packageName)
+                sessionLogger.appendAndWait(
+                    context.getString(R.string.runlog_game_process_gone, packageName),
+                    LogLevel.ERROR
+                )
+                // 系统记下的死因当场进应用日志，任务日志只留上面这条
+                processExitJournal.recordGame(packageName)
+                // 游戏没了剩下的任务链也是白跑，整轮中止
+                if (_state.value == MaaExecutionState.RUNNING) {
+                    notificationCenter.notifySubTaskFailure(
+                        context.getString(R.string.notification_game_gone_aborted),
+                        sendExternal = true,
+                    )
+                    requestStopFromCallback()
+                }
+            }
+        }
+
+        scope.launch {
+            appWatchdog.displayDriftEvent.collect { packageName ->
+                Timber.w("App watchdog detected display drift: %s", packageName)
+                val message = context.getString(R.string.runlog_game_left_virtual_display, packageName)
+                sessionLogger.appendAndWait(message, LogLevel.WARNING)
+                notificationCenter.notifySubTaskFailure(message)
+            }
+        }
+    }
+
+    fun handleCallback(msg: Int, json: String?) {
+        if (onAsyncConnectCallback(msg, json)) return
+        callbackDispatcher.onEvent(msg, json)
+    }
+
+    val callback = object : MaaCoreCallback.Stub() {
+        override fun onCallback(msg: Int, json: String?) = handleCallback(msg, json)
+    }
+
+    private fun onAsyncConnectCallback(msg: Int, json: String?): Boolean {
+        if (msg != AsstMsg.AsyncCallInfo.value) return false
+        val deferred = connectDeferred.get() ?: return true
+        val obj = JSON.parseObject(json)
+        val details = obj.getJSONObject("details")
+        if (details != null) {
+            val ret = details.getBooleanValue("ret", false)
+            deferred.complete(ret)
+        }
+        return true
+    }
+
+    suspend fun start(
+        tasks: List<MaaTaskParams>,
+        clientType: String,
+        preflightLogs: List<Pair<UiText, LogLevel>> = emptyList(),
+        fallbacks: Map<TaskSlot, TaskFallbackChain> = emptyMap(),
+        onSessionStarted: (suspend () -> Unit)? = null
+    ): StartResult = executeStart(
+        kind = RunKind.CHAIN,
+        tasks = tasks,
+        clientType = clientType,
+        fallbacks = fallbacks,
+        startMessage = context.getString(R.string.runlog_task_start, tasks.size),
+        successMessage = context.getString(R.string.runlog_task_started),
+        preflightLogs = preflightLogs,
+        onSessionStarted = onSessionStarted,
+        limitRunDuration = true,
+    )
+
+    // 抄作业 / 工具箱 / 小游戏不受运行时长上限约束
+    suspend fun startCopilot(
+        tasks: List<MaaTaskParams>,
+        clientType: String = taskChainState.clientType
+    ): StartResult = executeStart(
+        kind = RunKind.AUX,
+        tasks = tasks,
+        clientType = clientType,
+        startMessage = context.getString(R.string.runlog_copilot_start),
+        successMessage = context.getString(R.string.runlog_copilot_started),
+    )
+
+    private suspend fun failStart(
+        message: String, sessionStatus: String, result: StartResult, cause: Throwable? = null,
+    ): StartResult {
+        telemetry.onStartFailed(sessionStatus, cause)
+        setRunState(MaaExecutionState.ERROR)
+        sessionLogger.appendAndWait(message, LogLevel.ERROR)
+        sessionLogger.endSessionAndWait(sessionStatus)
+        notificationCenter.notifyStartFailed(message)
+        return result
+    }
+
+    /** 服务尚未就绪，任务拒绝启动但不进入 ERROR 状态（服务本身没有故障） */
+    private suspend fun rejectStart(
+        message: String, sessionStatus: String, result: StartResult, cause: Throwable? = null,
+    ): StartResult {
+        telemetry.onStartFailed(sessionStatus, cause ?: (result as? StartResult.ResourceError)?.exception)
+        setRunState(MaaExecutionState.IDLE)
+        sessionLogger.appendAndWait(message, LogLevel.WARNING)
+        sessionLogger.endSessionAndWait(sessionStatus)
+        // 前置失败未进 STARTING；先 beginRun 刷新 token，否则 notifyStartFailed 会因旧 run 已 claim 结果而被吞
+        liveCoordinator.beginRun()
+        notificationCenter.notifyStartFailed(message)
+        return result
+    }
+
+    /**
+     * 启动前对齐资源档，必须早于 mute——换进程会让旧进程收尾时解除游戏静音
+     * 持 [startMutex] 挡住并发启动，加锁顺序与 [executeStart] 一致
+     * 失败交给 [checkPreconditions] 统一报错
+     */
+    suspend fun prepareResources(clientType: String) = startMutex.withLock {
+        // 换进程会杀掉虚拟显示器
+        if (!_state.value.isIdle) {
+            Timber.i("Skip resource prepare while busy: %s", _state.value)
+            return@withLock
+        }
+        // 没授权时加载必然失败，useRemoteService 还会自己发起一次授权请求
+        val access = RemoteAccessCoordinator.refresh()
+        if (!access.isGranted(access.configuredBackend)) {
+            Timber.i("Skip resource prepare: %s not granted", access.configuredBackend)
+            return@withLock
+        }
+        // 可能在主线程调用，解绑是同步 binder 调用
+        withContext(Dispatchers.IO) {
+            resourceLoader.ensureLoaded(clientType)
+        }
+        Unit
+    }
+
+    private suspend fun checkPreconditions(mode: RunMode, clientType: String): StartResult? {
+        // 服务连接中时直接拒绝，避免与后台自动 load() 并发触发 LoadResource
+        // 换进程重连是资源加载自己发起的，不算，交给 ensureLoaded 等它结束
+        val serviceState = RemoteServiceManager.state.value
+        val resourceState = resourceLoader.state.value
+        val reconnectingForResource = resourceState is MaaResourceLoader.State.Loading ||
+                resourceState is MaaResourceLoader.State.Reloading
+        if (serviceState is RemoteServiceManager.ServiceState.Connecting && !reconnectingForResource) {
+            return rejectStart(
+                context.getString(R.string.runlog_service_connecting),
+                "SERVICE_CONNECTING",
+                StartResult.ServiceConnecting
+            )
+        }
+
+        val access = RemoteAccessCoordinator.refresh()
+        val backend = access.configuredBackend
+        if (!access.isAvailable(backend)) {
+            return rejectStart(
+                context.getString(R.string.runlog_backend_unavailable, backend.display),
+                "BACKEND_UNAVAILABLE",
+                StartResult.RemoteAccessUnavailable(backend)
+            )
+        }
+        // 必须早于资源加载：未授权走到 useRemoteService 会等授权弹窗超时，失败还被报成资源错误
+        if (!access.isGranted(backend)) {
+            return rejectStart(
+                context.getString(R.string.runlog_backend_not_granted, backend.display),
+                "BACKEND_NOT_GRANTED",
+                StartResult.RemoteAccessNotGranted(backend)
+            )
+        }
+
+        val loaded = resourceLoader.ensureLoaded(clientType)
+        if (loaded.isFailure) {
+            return rejectStart(
+                context.getString(R.string.runlog_resource_load_failed), "RESOURCE_ERROR",
+                StartResult.ResourceError(loaded.exceptionOrNull())
+            )
+        }
+        // 前台（含定时 / LAUNCH_PROFILE）必须横屏且 16:9；后台走虚拟屏自带 16:9
+        if (mode == RunMode.FOREGROUND) {
+            val (width, height) = Misc.getScreenSize(context)
+            if (height > width) {
+                return rejectStart(
+                    context.getString(R.string.runlog_portrait_orientation), "PORTRAIT",
+                    StartResult.PortraitOrientationError
+                )
+            }
+            if (!Misc.isAspectRatio16x9(width, height)) {
+                return rejectStart(
+                    context.getString(R.string.runlog_invalid_aspect_ratio, width, height),
+                    "INVALID_ASPECT_RATIO",
+                    StartResult.InvalidAspectRatioError
+                )
+            }
+        }
+        return null
+    }
+
+    private suspend fun ensureMaaInstance(maa: MaaCoreService): StartResult? {
+        if (maa.hasInstance()) return null
+        if (!maa.CreateInstance(callback)) {
+            return failStart(
+                context.getString(R.string.runlog_create_instance_failed), "CREATE_INSTANCE_ERROR",
+                StartResult.InitializationError(StartResult.InitializationError.InitPhase.CREATE_INSTANCE)
+            )
+        }
+        if (!maa.SetInstanceOption(TOUCH_MODE, ANDROID)) {
+            return failStart(
+                context.getString(R.string.runlog_set_touch_mode_failed), "SET_TOUCH_MODE_ERROR",
+                StartResult.InitializationError(StartResult.InitializationError.InitPhase.SET_TOUCH_MODE)
+            )
+        }
+        return null
+    }
+
+    private suspend fun asyncConnect(maa: MaaCoreService, config: String): StartResult? {
+        val deferred = CompletableDeferred<Boolean>()
+        connectDeferred.set(deferred)
+        maa.AsyncConnect("", "Android", config, false)
+        val ret = withTimeoutOrNull(2000) { deferred.await() }
+        connectDeferred.set(null)
+        if (ret != true) {
+            return failStart(
+                context.getString(R.string.runlog_maa_connect_failed), "MAA_CONNECT_ERROR",
+                StartResult.ConnectionError(StartResult.ConnectionError.ConnectPhase.MAA_CONNECT)
+            )
+        }
+        return null
+    }
+
+    private suspend fun setupDisplayAndConnect(
+        service: RemoteService,
+        maa: MaaCoreService,
+        mode: RunMode,
+        clientType: String,
+        displayBackend: VirtualDisplayBackend,
+    ): StartResult? {
+        val useVdm = useVdm(displayBackend)
+        val config = when (val display = startDisplay(service, mode, clientType, useVdm)) {
+            DisplayStart.BackendBlocked -> return failStart(
+                context.getString(R.string.runlog_display_backend_switch_blocked), "DISPLAY_BACKEND_ERROR",
+                StartResult.ConnectionError(StartResult.ConnectionError.ConnectPhase.DISPLAY_MODE)
+            )
+
+            DisplayStart.ModeFailed -> return failStart(
+                context.getString(R.string.runlog_display_mode_failed), "DISPLAY_MODE_ERROR",
+                StartResult.ConnectionError(StartResult.ConnectionError.ConnectPhase.DISPLAY_MODE)
+            )
+
+            DisplayStart.DisplayFailed -> return failVirtualDisplayStart(useVdm && mode == RunMode.BACKGROUND)
+
+            is DisplayStart.Ready -> {
+                if (mode == RunMode.BACKGROUND) reportVirtualDisplayTier(service, useVdm)
+                buildConnectConfig(display.width, display.height, display.displayId)
+            }
+        }
+        // 在 MAA 连接（含 force_stop 重启游戏）之前提前授予电池优化豁免与后台不受限权限，
+        // 让新进程一启动就处于受保护状态
+        grantGameBatteryExemption(clientType)
+        // Assistant 实例跨任务复用，关闭时必须显式写 0
+        maa.SetInstanceOption(
+            DEPLOYMENT_WITH_PAUSE,
+            if (appSettings.deployWithPause.value) "1" else "0"
+        )
+        return asyncConnect(maa, config)
+    }
+
+    private sealed interface DisplayStart {
+        data object BackendBlocked : DisplayStart
+        data object ModeFailed : DisplayStart
+        data object DisplayFailed : DisplayStart
+        class Ready(val width: Int, val height: Int, val displayId: Int) : DisplayStart
+    }
+
+    // 只跟设置走，前台模式也不翻转，免得撞上留着的后台屏
+    private fun useVdm(backend: VirtualDisplayBackend): Boolean =
+        Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE && backend == VirtualDisplayBackend.VDM
+
+    private suspend fun startDisplay(
+        service: RemoteService,
+        mode: RunMode,
+        clientType: String,
+        useVdm: Boolean,
+    ): DisplayStart {
+        if (!service.bounded("setUseVirtualDeviceDisplay") { it.setUseVirtualDeviceDisplay(useVdm) })
+            return DisplayStart.BackendBlocked
+        if (!service.bounded("setVirtualDisplayMode") { it.setVirtualDisplayMode(mode.displayMode) })
+            return DisplayStart.ModeFailed
+        return when (mode) {
+            RunMode.FOREGROUND -> {
+                // 切主屏时远端已关掉留着的后台屏
+                backgroundGame.value = null
+                val displayId = service.bounded("startVirtualDisplay", START_DISPLAY_TIMEOUT_MS) { it.startVirtualDisplay() }
+                if (displayId == -1) return DisplayStart.DisplayFailed
+                val (w, h) = Misc.getScreenSize(context)
+                DisplayStart.Ready(w, h, displayId)
+            }
+
+            RunMode.BACKGROUND -> {
+                val r = resolveAndSetResolution(service, clientType)
+                val displayId = service.bounded("startVirtualDisplay", START_DISPLAY_TIMEOUT_MS) { it.startVirtualDisplay() }
+                if (displayId == -1) return DisplayStart.DisplayFailed
+                backgroundGame.value = Packages[clientType]?.let { BackgroundGame(service.asBinder(), it) }
+                DisplayStart.Ready(r.width, r.height, displayId)
+            }
+        }
+    }
+
+    suspend fun launchGame(clientType: String): Boolean = startMutex.withLock {
+        val pkg = Packages[clientType] ?: return@withLock false
+        if (!_state.value.isIdle) return@withLock false
+        val mode = appSettings.runMode.value
+        var displayStarted = false
+        val launched = try {
+            withContext(Dispatchers.IO) {
+                useRemoteService { service ->
+                    val ready = if (mode == RunMode.BACKGROUND) {
+                        val useVdm = useVdm(appSettings.virtualDisplayBackend.value)
+                        startDisplay(service, mode, clientType, useVdm) is DisplayStart.Ready
+                    } else {
+                        // 前台不起主屏采集，直接起在主屏
+                        backgroundGame.value = null
+                        service.bounded("setVirtualDisplayMode") { it.setVirtualDisplayMode(mode.displayMode) }
+                    }
+                    if (!ready) return@useRemoteService false
+                    displayStarted = mode == RunMode.BACKGROUND
+                    grantGameBatteryExemption(clientType)
+                    service.bounded("launchGame", LAUNCH_GAME_TIMEOUT_MS) { it.launchGame(pkg) }
+                }
+            }
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            Timber.e(e, "launchGame failed: %s", pkg)
+            false
+        }
+        if (displayStarted && !launched) stopVirtualDisplay()
+        launched
+    }
+
+    // 强停失败也照样关屏
+    suspend fun closeGame(packageName: String): Boolean {
+        val stopped = try {
+            withContext(Dispatchers.IO) {
+                useRemoteService { service -> service.bounded("forceStopGame") { it.forceStopGame(packageName) } }
+            }
+            true
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            Timber.e(e, "closeGame failed: %s", packageName)
+            false
+        }
+        stopVirtualDisplay()
+        return stopped
+    }
+
+    private suspend fun reportVirtualDisplayTier(service: RemoteService, useVdm: Boolean) {
+        val tier = runCatching { service.virtualDisplayFlagTier }.getOrDefault(0)
+        telemetry.onVirtualDisplayStarted(useVdm, tier)
+        if (tier > 0) {
+            sessionLogger.appendAndWait(
+                context.getString(R.string.task_start_virtual_display_compat_warning_log),
+                LogLevel.WARNING
+            )
+        }
+    }
+
+    private suspend fun failVirtualDisplayStart(useVdm: Boolean): StartResult = failStart(
+        context.getString(
+            if (useVdm) R.string.runlog_vdm_display_failed
+            else R.string.runlog_virtual_display_failed
+        ),
+        if (useVdm) "VDM_DISPLAY_ERROR" else "VIRTUAL_DISPLAY_ERROR",
+        StartResult.ConnectionError(StartResult.ConnectionError.ConnectPhase.VIRTUAL_DISPLAY),
+    )
+
+    private fun grantGameBatteryExemption(clientType: String) {
+        val pkg = Packages[clientType] ?: return
+        runCatching {
+            RemoteServiceManager.getInstanceOrNull()?.grantPermissions(
+                PermissionGrantRequest(
+                    packageName = pkg,
+                    permissions = PermissionGrantRequest.PERM_BATTERY or PermissionGrantRequest.PERM_BACKGROUND
+                )
+            )
+            Timber.d("Battery exemption granted for game: %s", pkg)
+        }.onFailure { e ->
+            Timber.w(e, "Failed to grant battery exemption for game")
+        }
+    }
+
+    private fun logAppendFailed(name: String) {
+        sessionLogger.append(
+            context.getString(R.string.runlog_append_task_failed, name),
+            LogLevel.ERROR,
+        )
+    }
+
+    /** 主任务被 core 拒绝后按序试后备，首个成功即停；全失败则该任务位本轮无产出 */
+    private fun appendFallbacks(
+        maa: MaaCoreService,
+        slot: TaskSlot,
+        chain: TaskFallbackChain,
+    ) {
+        val hit = chain.appendFirstSuccessful(
+            log = { text, level -> sessionLogger.append(text.resolve(context), level) },
+            append = { c ->
+                sessionLogger.appendToFileOnly("[TaskParams] ${c.type.value}: ${c.params}")
+                maa.AppendTask(c.type.value, c.params)
+            },
+            onAppendFailed = { c -> logAppendFailed(c.logName.resolve(context)) },
+        ) ?: return
+        val (id, c) = hit
+        dropsRefresher.stage(slot, c.dropTarget)
+        taskChainStatusTracker.register(id, c.type.value, slot, c.logName)
+        telemetry.onTaskRegistered(id, c.params)
+        dropsRefresher.bind(slot, id)
+    }
+
+    private suspend fun appendTasksAndStart(
+        maa: MaaCoreService,
+        tasks: List<MaaTaskParams>,
+        fallbacks: Map<TaskSlot, TaskFallbackChain>,
+        successMessage: String,
+        mode: RunMode,
+        limitRunDuration: Boolean,
+    ): StartResult {
+        // 独立目录：先投递用户文件，送不过去 core 那边就是 file-not-found，直接报资源错误
+        if (!coreDataPusher.pushUserData()) {
+            Timber.e("core user data push failed before start")
+            telemetry.onStartFailed("CORE_DATA_PUSH_ERROR")
+            return StartResult.ResourceError(IllegalStateException("core user data push failed"))
+        }
+        taskChainStatusTracker.clear()
+        // 不清 dropsRefresher：stage 已在 Analyze 完成，会话结束/下次 Analyze 再清
+        val setParamsErrorsBefore = setParamsErrors.current
+        tasks.forEach { t ->
+            sessionLogger.appendToFileOnly("[TaskParams] ${t.type.value}: ${t.params}")
+            val taskId = maa.AppendTask(t.type.value, t.params)
+            if (taskId > 0) {
+                taskChainStatusTracker.register(taskId, t.type.value, t.slot, t.logName)
+                telemetry.onTaskRegistered(taskId, t.params)
+                t.slot?.let { dropsRefresher.bind(it, taskId) }
+                return@forEach
+            }
+            // core 拒绝参数才会到这里，此前是静默吞掉，用户看不到任何痕迹
+            logAppendFailed(t.logName?.resolve(context) ?: t.type.value)
+            val slot = t.slot ?: return@forEach
+            fallbacks[slot]?.let { appendFallbacks(maa, slot, it) }
+        }
+        // 全被拒时不能空队列 Start：core 不发任何回调，状态会一直停在 RUNNING
+        if (taskChainStatusTracker.tasks.value.isEmpty()) {
+            // shortcut: 超过 1.5 秒仍可能丢日志，若出现再按会话保留迟到回调
+            setParamsErrors.awaitAfter(setParamsErrorsBefore, timeoutMs = 1500)
+            return failStart(
+                context.getString(R.string.runlog_no_task_appended),
+                "APPEND_ERROR",
+                StartResult.StartError
+            )
+        }
+        if (mode == RunMode.FOREGROUND) {
+            screenGate.awaitClear()
+        }
+        if (!maa.Start()) {
+            return failStart(
+                context.getString(R.string.runlog_maa_start_failed),
+                "START_ERROR",
+                StartResult.StartError
+            )
+        }
+        // 计时与后台监视都先于 RUNNING 起，秒完的回调置 IDLE 时才能撤掉
+        if (limitRunDuration && appSettings.runDurationLimitEnabled.value) {
+            val limitMinutes = appSettings.runDurationLimitMinutes.value
+            runDeadlineGuard.arm(limitMinutes) { stopByRunDurationLimit(limitMinutes) }
+        }
+        if (mode == RunMode.BACKGROUND) {
+            startBackgroundMonitors()
+        }
+        setRunState(MaaExecutionState.RUNNING)
+        sessionLogger.appendAndWait(successMessage, LogLevel.SUCCESS)
+        return StartResult.Success(maa.GetVersion())
+    }
+
+    private suspend fun stopByRunDurationLimit(limitMinutes: Int) {
+        // 检查与切 STOPPING 须原子，被抢先则交给原流程
+        if (!_state.compareAndSet(MaaExecutionState.RUNNING, MaaExecutionState.STOPPING)) return
+        lastStopOrigin = StopOrigin.RUN_DURATION_LIMIT
+        try {
+            Timber.i("Run duration limit reached: %d min, stopping", limitMinutes)
+            sessionLogger.appendAndWait(
+                context.getString(R.string.runlog_run_duration_limit_reached, limitMinutes),
+                LogLevel.WARNING,
+            )
+            performStop()
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            // 计时协程没有异常处理器，漏出去会直接崩进程
+            Timber.e(e, "Stop by run duration limit failed")
+        }
+    }
+
+    /**
+     * 启动互斥：前置检查耗时，双入口/双击可能同时穿过 AlreadyRunning 窗口
+     * 资源加载与改 core 文件也走它，从加载到进入 STARTING 都持锁，锁内看到的空闲才可靠
+     */
+    private val startMutex = Mutex()
+
+    override suspend fun <T> whenIdle(block: suspend () -> T): T = startMutex.withLockWhenIdle(_state, block)
+
+    private suspend fun executeStart(
+        kind: RunKind,
+        tasks: List<MaaTaskParams>,
+        clientType: String,
+        startMessage: String,
+        successMessage: String,
+        preflightLogs: List<Pair<UiText, LogLevel>> = emptyList(),
+        fallbacks: Map<TaskSlot, TaskFallbackChain> = emptyMap(),
+        onSessionStarted: (suspend () -> Unit)? = null,
+        limitRunDuration: Boolean = false,
+    ): StartResult = startMutex.withLock {
+        executeStartLocked(
+            kind, tasks, clientType, startMessage, successMessage, preflightLogs, fallbacks, onSessionStarted,
+            limitRunDuration,
+        )
+    }
+
+    private suspend fun executeStartLocked(
+        kind: RunKind,
+        tasks: List<MaaTaskParams>,
+        clientType: String,
+        startMessage: String,
+        successMessage: String,
+        preflightLogs: List<Pair<UiText, LogLevel>> = emptyList(),
+        fallbacks: Map<TaskSlot, TaskFallbackChain> = emptyMap(),
+        onSessionStarted: (suspend () -> Unit)? = null,
+        limitRunDuration: Boolean,
+    ): StartResult {
+        // 会话与日志先开；STARTING/FGS 必须在前置检查通过后再进入。
+        // 否则竖屏等快速失败会 stop 尚未 startForeground 的 FGS，触发
+        // ForegroundServiceDidNotStartInTimeException。
+        when (_state.value) {
+            MaaExecutionState.STARTING,
+            MaaExecutionState.RUNNING,
+            MaaExecutionState.STOPPING -> return StartResult.AlreadyRunning
+
+            MaaExecutionState.IDLE,
+            MaaExecutionState.ERROR -> Unit
+        }
+        // 辅助任务不继承启动失败或服务死亡留下的库存登记
+        if (kind == RunKind.AUX) dropsRefresher.clear()
+        val mode = appSettings.runMode.value
+        val displayBackend = appSettings.virtualDisplayBackend.value
+        sessionLogger.startSession(tasks.map { it.type.value })
+        // 凭这行能从会话日志找到遥测里的那一轮
+        telemetry.onRunStarted(kind, tasks)?.let { sessionLogger.appendToFileOnly("[Telemetry] run_id=$it") }
+        subTaskHandler.resetSessionState()
+        toolboxResultCollector.onSessionStart()
+        onSessionStarted?.invoke()
+        sessionLogger.appendAndWait(startMessage, LogLevel.INFO)
+        preflightLogs.forEach { (text, level) ->
+            sessionLogger.appendAndWait(text.resolve(context), level)
+        }
+        sessionLogger.appendAndWait(fetchDeviceMemoryInfo(), LogLevel.INFO)
+        val eyeProtection = EyeProtectionDetector.detect(context)
+        if (eyeProtection.isEnabled) {
+            val eyeProtectionMsg = context.getString(
+                R.string.task_start_eye_protection_warning_log,
+                eyeProtection.source.orEmpty()
+            )
+            sessionLogger.appendAndWait(eyeProtectionMsg, LogLevel.WARNING)
+            Timber.w("isEyeProtectionEnabled at runtime: true (source=%s)", eyeProtection.source)
+        }
+        if (XiaomiAdbInput.isRestricted()) {
+            sessionLogger.appendAndWait(
+                context.getString(R.string.task_start_adb_input_restricted_warning_log),
+                LogLevel.WARNING
+            )
+            Timber.w("adb input restricted at runtime (persist.security.adbinput!=1)")
+        }
+
+        return withContext(Dispatchers.IO) {
+            checkPreconditions(mode, clientType)?.let { return@withContext it }
+
+            setRunState(MaaExecutionState.STARTING)
+
+            try {
+                useRemoteService { service ->
+                    if (mode == RunMode.BACKGROUND
+                        && runCatching { service.isSmartResolutionEnabled() }.getOrDefault(false)
+                    ) {
+                        sessionLogger.appendAndWait(
+                            context.getString(R.string.task_start_smart_resolution_warning_log),
+                            LogLevel.WARNING
+                        )
+                        Timber.w("smart resolution enabled at runtime (low_resolution_switch=1)")
+                    }
+                    val maa = service.maaCoreService
+                    ensureMaaInstance(maa)?.let { return@useRemoteService it }
+
+                    setupDisplayAndConnect(
+                        service,
+                        maa,
+                        mode,
+                        clientType,
+                        displayBackend,
+                    )?.let { return@useRemoteService it }
+                    val result = appendTasksAndStart(
+                        maa, tasks, fallbacks, successMessage, mode, limitRunDuration,
+                    )
+                    if (result is StartResult.Success) {
+                        taskChainState.saveLastUsedClientType(clientType)
+                    }
+                    result
+                }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: RemoteCallStuckException) {
+                Timber.e(e, "Elevated service stuck during start")
+                failStart(
+                    context.getString(R.string.runlog_remote_call_stuck), "REMOTE_CALL_STUCK",
+                    StartResult.RemoteCallStuck,
+                    cause = e,
+                )
+            } catch (e: Exception) {
+                Timber.e(e, "Failed to acquire remote service during start")
+                rejectStart(
+                    context.getString(R.string.runlog_remote_connect_failed, e.message ?: ""),
+                    "REMOTE_ACCESS_UNAVAILABLE",
+                    StartResult.RemoteAccessUnavailable(RemoteAccessCoordinator.configuredBackend()),
+                    cause = e,
+                )
+            }
+        }
+    }
+
+    private suspend fun resolveAndSetResolution(
+        service: RemoteService,
+        clientType: String
+    ): DefaultDisplayConfig.Resolution {
+        val preference = appSettings.backgroundResolution.value
+        val r = DefaultDisplayConfig.resolveResolution(clientType, preference)
+        // 屏还在时改分辨率会重建采集，同样可能卡在 native 收尾
+        service.bounded("setVirtualDisplayResolution") { it.setVirtualDisplayResolution(r.width, r.height, r.dpi) }
+        Timber.i(
+            "Virtual display resolution: %dx%d@%d for client=%s, pref=%s",
+            r.width,
+            r.height,
+            r.dpi,
+            clientType,
+            preference
+        )
+        _displayResolution.value = r
+        return r
+    }
+
+    private fun buildConnectConfig(width: Int, height: Int, displayId: Int): String {
+        return buildJsonObject {
+            put("library_path", "libbridge.so")
+            put("screen_resolution", buildJsonObject {
+                put("width", width)
+                put("height", height)
+            })
+            put("display_id", displayId)
+            put("force_stop", true)
+        }.toString()
+    }
+
+
+    private fun fetchDeviceMemoryInfo(): String {
+        return try {
+            val am = context.getSystemService(android.app.ActivityManager::class.java)
+                ?: return context.getString(R.string.task_start_device_memory_unavailable)
+            val mi = android.app.ActivityManager.MemoryInfo()
+            am.getMemoryInfo(mi)
+            val mb = 1024L * 1024
+            val availMb = mi.availMem / mb
+            val totalMb = mi.totalMem / mb
+            val usedPercent = if (totalMb > 0) (totalMb - availMb) * 100 / totalMb else 0
+            val base = context.getString(
+                R.string.task_start_device_memory, availMb, totalMb, usedPercent
+            )
+            if (mi.lowMemory) base + context.getString(R.string.task_start_device_memory_low) else base
+        } catch (e: Exception) {
+            Timber.w(e, "读取设备内存信息失败")
+            context.getString(R.string.task_start_device_memory_unavailable)
+        }
+    }
+
+    suspend fun stop(origin: StopOrigin = StopOrigin.USER): StopResult {
+        // 先记来源再切状态，TaskEndRegistry 在 STOPPING→IDLE 边沿读取
+        lastStopOrigin = origin
+        setRunState(MaaExecutionState.STOPPING)
+        return performStop()
+    }
+
+    private suspend fun performStop(): StopResult {
+        sessionLogger.appendAndWait(context.getString(R.string.runlog_task_stopping), LogLevel.INFO)
+
+        return withContext(Dispatchers.IO) {
+            try {
+                useRemoteService { service ->
+                    val maa = service.maaCoreService
+                    if (!maa.Running()) {
+                        return@useRemoteService finishStop(StopResult.Success)
+                    }
+
+                    if (!maa.Stop()) {
+                        return@useRemoteService finishStop(StopResult.Failed)
+                    }
+
+                    // 轮询等待 Core 真正停止，60 秒超时
+                    var elapsed = 0
+                    while (maa.Running() && elapsed < 60_000) {
+                        delay(100)
+                        elapsed += 100
+                    }
+
+                    if (maa.Running()) {
+                        finishStop(StopResult.Failed)
+                    } else {
+                        finishStop(StopResult.Success)
+                    }
+                }
+            } catch (e: RemoteException) {
+                // 进程已死，Core 随之没了；不收尾会卡在 STOPPING
+                Timber.w(e, "performStop: elevated service gone")
+                finishStop(StopResult.Success)
+            } catch (e: Exception) {
+                // 真取消照抛；等连接超时、未授权、连接出错时 Core 停没停不确定
+                if (e is CancellationException && e !is TimeoutCancellationException) throw e
+                Timber.w(e, "performStop: remote service unavailable")
+                finishStop(StopResult.Failed)
+            }
+        }
+    }
+
+    // 后台模式随会话启停的监视器：游戏存活/漂移看门狗、帧率、虚拟屏保活
+    private fun startBackgroundMonitors() {
+        appWatchdog.startWatching()
+        gameFpsWatcher.start()
+        setUserActivityKeepAlive(true)
+    }
+
+    private fun stopBackgroundMonitors() {
+        appWatchdog.stopWatching()
+        gameFpsWatcher.stop()
+        setUserActivityKeepAlive(false)
+    }
+
+    private fun setUserActivityKeepAlive(enabled: Boolean) {
+        keepAliveScope.launch {
+            runCatching { RemoteServiceManager.getInstanceOrNull()?.setUserActivityKeepAlive(enabled) }
+                .onFailure { Timber.w(it, "setUserActivityKeepAlive(%s) failed", enabled) }
+        }
+    }
+
+    private fun finishStop(result: StopResult): StopResult {
+        setRunState(MaaExecutionState.IDLE)
+        val status = if (result is StopResult.Success) "STOPPED" else "STOP_FAILED"
+        sessionLogger.append(
+            context.getString(R.string.runlog_task_stopped, status),
+            if (result is StopResult.Success) LogLevel.INFO else LogLevel.ERROR
+        )
+        sessionLogger.endSession(status)
+        notificationCenter.notifyTaskStopped(lastStopOrigin)
+        return result
+    }
+
+    suspend fun stopVirtualDisplay() {
+        backgroundGame.value = null
+        try {
+            stopBackgroundMonitors()
+            _displayResolution.value = defaultResolution
+            withContext(Dispatchers.IO) {
+                val service = RemoteServiceManager.getInstanceOrNull()
+                    ?: return@withContext
+                try {
+                    service.bounded("stopVirtualDisplay") { it.stopVirtualDisplay() }
+                } catch (e: RemoteCallStuckException) {
+                    telemetry.onRemoteCallStuck(e.call, e.threadDump)
+                } catch (e: RemoteException) {
+                    // 进程已死，虚拟屏随之销毁
+                    Timber.w(e, "stopVirtualDisplay: elevated service gone")
+                }
+            }
+        } finally {
+            withContext(NonCancellable) {
+                if (!gameMuteCoordinator.unmute()) {
+                    Timber.w("Virtual display close did not restore managed game audio; retry pending")
+                }
+            }
+        }
+    }
+
+    private suspend fun <R> RemoteService.bounded(
+        call: String,
+        timeoutMs: Long = DISPLAY_CALL_TIMEOUT_MS,
+        block: (RemoteService) -> R,
+    ): R = RemoteServiceManager.callOrRestart(
+        this, call, timeoutMs,
+        onAbandoned = { telemetry.onRemoteCallStuck(it.call, it.threadDump) },
+        block = block,
+    )
+}
+
+// 正常毫秒级，15s 没回就是卡死
+private const val DISPLAY_CALL_TIMEOUT_MS = 15_000L
+
+// VDM 关联最长 17s，另加逐档回退
+private const val START_DISPLAY_TIMEOUT_MS = 30_000L
+
+// 虚拟屏上要等钉屏校验 10s 和首帧 5s
+private const val LAUNCH_GAME_TIMEOUT_MS = 30_000L

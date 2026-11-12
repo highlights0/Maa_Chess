@@ -1,0 +1,318 @@
+package com.aliothmoon.maameow.presentation.view.panel
+
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.aliothmoon.maameow.R
+import com.aliothmoon.maameow.data.model.EventShopPreset
+import com.aliothmoon.maameow.data.model.activity.MiniGame
+import com.aliothmoon.maameow.data.resource.MiniGameTextRegistry
+import com.aliothmoon.maameow.presentation.components.CheckBoxWithLabel
+import com.aliothmoon.maameow.presentation.components.ITextField
+import com.aliothmoon.maameow.presentation.components.ItemIcon
+import com.aliothmoon.maameow.presentation.components.SelectableCardButton
+import com.aliothmoon.maameow.presentation.viewmodel.MiniGameDelegate
+import com.aliothmoon.maameow.presentation.viewmodel.PixelArtDelegate
+import com.aliothmoon.maameow.utils.i18n.asString
+import com.aliothmoon.maameow.utils.i18n.resolve
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+fun MiniGamePanel(
+    modifier: Modifier = Modifier,
+    delegate: MiniGameDelegate,
+    pixelArt: PixelArtDelegate,
+) {
+    val state by delegate.state.collectAsStateWithLifecycle()
+    val miniGames by delegate.miniGames.collectAsStateWithLifecycle()
+
+    val reclamationConfig by delegate.reclamationConfig.collectAsStateWithLifecycle()
+    val clientType by delegate.clientType.collectAsStateWithLifecycle()
+
+    val currentGame = delegate.findGame(state.selectedTaskName)
+    val isReclamation = delegate.isReclamation(state.selectedTaskName)
+    val tip = currentGame?.tip.asString().ifBlank { MiniGameTextRegistry.EMPTY_TIP.asString() }
+    val isUnsupported = currentGame?.isUnsupported == true
+    val currentGameDisplay = currentGame?.display.asString()
+
+    val tabTitleTextStyle = MaterialTheme.typography.bodySmall.copy(
+        lineHeight = 16.sp
+    )
+
+    LazyColumn(
+        modifier = modifier
+            .fillMaxSize()
+            .padding(TabPanelPadding),
+        verticalArrangement = Arrangement.spacedBy(10.dp)
+    ) {
+        item {
+            Text(
+                text = stringResource(R.string.panel_mini_game_title),
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.SemiBold
+            )
+        }
+
+        // 任务选择 - 按分组的卡片网格，组内顺序与组的先后都保持列表原序
+        item {
+            val context = LocalContext.current
+            val configuration = LocalConfiguration.current
+            // 分组按渲染后的文案：热更内联分组与已知 CategoryKey 文案相同时应合并成一组
+            val grouped = remember(miniGames, configuration) {
+                miniGames.groupBy { it.category.resolve(context) }
+            }
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                grouped.forEach { (category, games) ->
+                    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Text(
+                            text = category,
+                            style = MaterialTheme.typography.labelMedium,
+                            fontWeight = FontWeight.SemiBold,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        MiniGameGrid(
+                            games = games,
+                            selectedTaskName = state.selectedTaskName,
+                            textStyle = tabTitleTextStyle,
+                            onSelect = delegate::onTaskSelected,
+                        )
+                    }
+                }
+            }
+        }
+
+        // Tip 提示，生息演算的说明随设置展示
+        if (tip.isNotBlank() && !isReclamation) {
+            item {
+                Surface(
+                    shape = RoundedCornerShape(8.dp),
+                    color = if (isUnsupported) {
+                        MaterialTheme.colorScheme.errorContainer
+                    } else {
+                        MaterialTheme.colorScheme.surfaceVariant
+                    },
+                    border = if (isUnsupported) {
+                        BorderStroke(1.dp, MaterialTheme.colorScheme.error)
+                    } else {
+                        null
+                    },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(modifier = Modifier.padding(10.dp)) {
+                        if (currentGameDisplay.isNotBlank()) {
+                            Text(
+                                text = currentGameDisplay,
+                                style = MaterialTheme.typography.bodySmall,
+                                fontWeight = FontWeight.Bold,
+                                color = if (isUnsupported) {
+                                    MaterialTheme.colorScheme.onErrorContainer
+                                } else {
+                                    MaterialTheme.colorScheme.onSurfaceVariant
+                                },
+                                modifier = Modifier.padding(bottom = 4.dp)
+                            )
+                        }
+                        Text(
+                            text = tip,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = if (isUnsupported) {
+                                MaterialTheme.colorScheme.onErrorContainer
+                            } else {
+                                MaterialTheme.colorScheme.onSurfaceVariant
+                            },
+                        )
+                    }
+                }
+            }
+        }
+
+        // 自动提升潜能：中坚信物不足时是否消耗普通信物
+        if (delegate.isAutoRaisePotential(state.selectedTaskName)) {
+            item { HorizontalDivider() }
+            item {
+                CheckBoxWithLabel(
+                    checked = state.useNormalToken,
+                    onCheckedChange = delegate::onUseNormalTokenChanged,
+                    label = stringResource(R.string.panel_mini_game_use_normal_token),
+                )
+            }
+        }
+
+        // 活动商店：勾选或填写的商品不买
+        if (delegate.isEventShop(state.selectedTaskName)) {
+            item { HorizontalDivider() }
+            item { EventShopBlacklistSection(delegate) }
+        }
+
+        // 生息演算设置，任务下发仍走底部「开始任务」
+        if (isReclamation) {
+            item { HorizontalDivider() }
+            reclamationSettingsItems(reclamationConfig, clientType, delegate::onReclamationConfigChanged)
+        }
+
+        // 像素画配置：选图 + 转换参数，任务下发仍走底部「开始任务」
+        if (delegate.isPixelPaint(state.selectedTaskName)) {
+            item { HorizontalDivider() }
+            item { PixelArtSection(delegate = pixelArt) }
+        }
+
+        // 隐秘战线配置
+        if (delegate.isSecretFront(state.selectedTaskName)) {
+            item {
+                HorizontalDivider()
+            }
+
+            // 结局选择
+            item {
+                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Text(
+                        text = stringResource(R.string.panel_mini_game_ending),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    FlowRow(
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        verticalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        MiniGameDelegate.ENDINGS.forEach { ending ->
+                            SelectableCardButton(
+                                text = ending,
+                                selected = state.selectedEnding == ending,
+                                onClick = { delegate.onEndingSelected(ending) },
+                                textStyle = tabTitleTextStyle,
+                            )
+                        }
+                    }
+                }
+            }
+
+            // 事件选择 - 卡片网格
+            item {
+                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Text(
+                        text = stringResource(R.string.panel_mini_game_preferred_events),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    FlowRow(
+                        horizontalArrangement = Arrangement.spacedBy(5.dp),
+                        verticalArrangement = Arrangement.spacedBy(5.dp)
+                    ) {
+                        MiniGameDelegate.EVENTS.forEach { (value, display) ->
+                            SelectableCardButton(
+                                text = display.asString(),
+                                selected = state.selectedEvent == value,
+                                onClick = { delegate.onEventSelected(value) },
+                                textStyle = tabTitleTextStyle,
+                            )
+                        }
+                    }
+                }
+            }
+        }
+
+    }
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun EventShopBlacklistSection(delegate: MiniGameDelegate) {
+    val presets by delegate.eventShopPresets.collectAsStateWithLifecycle()
+    val custom by delegate.eventShopCustom.collectAsStateWithLifecycle()
+
+    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Text(
+            text = stringResource(R.string.panel_mini_game_event_shop_blacklist),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        FlowRow(
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            EventShopPreset.entries.forEach { preset ->
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    CheckBoxWithLabel(
+                        checked = preset in presets,
+                        onCheckedChange = { delegate.onEventShopPresetChanged(preset, it) },
+                        label = stringResource(preset.labelRes),
+                    )
+                    ItemIcon(itemId = preset.itemId, modifier = Modifier.size(22.dp))
+                }
+            }
+        }
+        ITextField(
+            value = custom,
+            onValueChange = delegate::onEventShopCustomChanged,
+            label = stringResource(R.string.panel_mini_game_event_shop_custom),
+            placeholder = stringResource(R.string.panel_mini_game_event_shop_custom_hint),
+        )
+    }
+}
+
+/** 小游戏卡片网格，每行 3 个，不足补占位保持等宽 */
+@Composable
+private fun MiniGameGrid(
+    games: List<MiniGame>,
+    selectedTaskName: String,
+    textStyle: TextStyle,
+    onSelect: (String) -> Unit,
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        games.chunked(3).forEach { rowGames ->
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(5.dp)
+            ) {
+                rowGames.forEach { game ->
+                    SelectableCardButton(
+                        text = game.display.asString(),
+                        selected = selectedTaskName == game.value,
+                        isError = game.isUnsupported,
+                        onClick = { onSelect(game.value) },
+                        textStyle = textStyle,
+                        contentPadding = PaddingValues(horizontal = 6.dp, vertical = 4.dp),
+                        modifier = Modifier
+                            .weight(1f)
+                            .heightIn(min = 36.dp),
+                    )
+                }
+                repeat(3 - rowGames.size) {
+                    Spacer(modifier = Modifier.weight(1f))
+                }
+            }
+        }
+    }
+}

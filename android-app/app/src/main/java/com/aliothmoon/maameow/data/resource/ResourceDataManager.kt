@@ -1,0 +1,551 @@
+package com.aliothmoon.maameow.data.resource
+
+import com.aliothmoon.maameow.data.config.MaaPathConfig
+import com.aliothmoon.maameow.data.preferences.AppSettingsManager
+import com.aliothmoon.maameow.domain.models.ClientResourceProfile
+import com.aliothmoon.maameow.domain.models.GameMetadataKey
+import com.aliothmoon.maameow.utils.JsonUtils
+import com.aliothmoon.maameow.utils.mapState
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withContext
+import kotlinx.serialization.json.boolean
+import kotlinx.serialization.json.contentOrNull
+import kotlinx.serialization.json.decodeFromJsonElement
+import kotlinx.serialization.json.jsonArray
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
+import timber.log.Timber
+import java.io.File
+
+/**
+ * see DataHelper
+ */
+class ResourceDataManager(val pathConfig: MaaPathConfig) {
+
+    private val json = JsonUtils.common
+
+    private val _snapshot = MutableStateFlow(GameMetadata.EMPTY)
+
+    /** 整档快照；同时读多张表、或要知道数据属于哪一档时用它 */
+    val snapshot: StateFlow<GameMetadata> = _snapshot.asStateFlow()
+
+    val characters: StateFlow<Map<String, CharacterInfo>> = _snapshot.mapState { it.characters }
+    val operators: StateFlow<Map<String, CharacterInfo>> = _snapshot.mapState { it.operators }
+
+    /** [getCharacterByNameOrAlias] 查的索引；界面按名查干员时观察它，表重建后跟着重查 */
+    val nameIndex: StateFlow<Map<String, CharacterInfo>> = _snapshot.mapState { it.nameIndex }
+
+    val characterNames: StateFlow<Set<String>> = _snapshot.mapState { it.characterNames }
+    val recruitTags: StateFlow<Map<String, Pair<String, String>>> = _snapshot.mapState { it.recruitTags }
+    val mapData: StateFlow<List<MapInfo>> = _snapshot.mapState { it.mapData }
+    val roguelikeCoreCharacters: StateFlow<Map<String, List<String>>> =
+        _snapshot.mapState { it.roguelikeCoreCharacters }
+
+    /** 只随资源版本变的部分，切客户端或语言时复用，不再重读大 JSON */
+    private class Base(
+        val revision: Int,
+        val characters: Map<String, CharacterInfo>,
+        val operators: Map<String, CharacterInfo>,
+        val nameIndex: Map<String, CharacterInfo>,
+        val mapData: List<MapInfo>,
+    )
+
+    private val loadMutex = Mutex()
+
+    // 只在 loadMutex 内读写
+    private var cachedBase: Base? = null
+
+    companion object {
+        private const val BATTLE_DATA_FILE = "battle_data.json"
+        private const val ROGUELIKE_DIR = "roguelike"
+        private const val RECRUITMENT_FILE = "recruitment.json"
+        private const val MAP_DATA_FILE = "Arknights-Tile-Pos/overview.json"
+
+        // 自动公招标签 key 列表 (中文名作为 key)
+        // see WPF: RecruitSettingsUserControlModel._autoRecruitTagList
+        val AUTO_RECRUIT_TAG_KEYS = listOf(
+            "近战位",
+            "远程位",
+            "先锋干员",
+            "近卫干员",
+            "狙击干员",
+            "重装干员",
+            "医疗干员",
+            "辅助干员",
+            "术师干员",
+            "治疗",
+            "费用回复",
+            "输出",
+            "生存",
+            "群攻",
+            "防护",
+            "减速"
+        )
+
+        private val MORPH_SUFFIXES = listOf("-WARRIOR", "-MEDIC")
+
+        // 虚拟干员 (预备干员、肉鸽临时干员、阿米娅变体)
+        private val VIRTUAL_OPERATORS = setOf(
+            "char_504_rguard", // 预备干员-近战
+            "char_505_rcast",  // 预备干员-术师
+            "char_506_rmedic", // 预备干员-后勤
+            "char_507_rsnipe", // 预备干员-狙击
+            "char_508_aguard", // Sharp
+            "char_509_acast",  // Pith
+            "char_510_amedic", // Touch
+            "char_511_asnipe", // Stormeye
+            "char_512_aprot",  // 暮落
+            "char_513_apionr", // 郁金香
+            "char_514_rdfend", // 预备干员-重装
+            "char_600_cpione", // 预备干员-先锋 4★
+            "char_601_cguard", // 预备干员-近卫 4★
+            "char_602_cdfend", // 预备干员-重装 4★
+            "char_603_csnipe", // 预备干员-狙击 4★
+            "char_604_ccast",  // 预备干员-术师 4★
+            "char_605_cmedic", // 预备干员-医疗 4★
+            "char_606_csuppo", // 预备干员-辅助 4★
+            "char_607_cspec",  // 预备干员-特种 4★
+            "char_608_acpion", // 郁金香 6★
+            "char_609_acguad", // Sharp 6★
+            "char_610_acfend", // Mechanist 6★
+            "char_611_acnipe", // Stormeye 6★
+            "char_612_accast", // Pith 6★
+            "char_613_acmedc", // Touch 6★
+            "char_614_acsupo", // Raidian 6★
+            "char_615_acspec", // Misery 6★
+            "char_616_pithst", // 盟约·辅助干员
+            "char_617_sharp2", // 领主·Sharp
+            "char_618_acrbot", // “狂躁铁皮”
+        ) + PromotedOperIds.ids  // 阿米娅升变形态
+
+        // 语言代码 → 资源子目录
+        val CLIENT_DIRECTORY_MAPPER = mapOf(
+            "zh-cn" to "",
+            "zh-tw" to "txwy",
+            "en-us" to "YoStarEN",
+            "ja-jp" to "YoStarJP",
+            "ko-kr" to "YoStarKR"
+        )
+
+        // 客户端类型 → 语言代码
+        val CLIENT_LANGUAGE_MAPPER = mapOf(
+            "Official" to "zh-cn",
+            "Bilibili" to "zh-cn",
+            "txwy" to "zh-tw",
+            "YoStarEN" to "en-us",
+            "YoStarJP" to "ja-jp",
+            "YoStarKR" to "ko-kr"
+        )
+
+        fun displayLanguageCode(appLanguage: AppSettingsManager.AppLanguage): String =
+            when (appLanguage) {
+                AppSettingsManager.AppLanguage.EN -> "en-us"
+                AppSettingsManager.AppLanguage.KO -> "ko-kr"
+                else -> "zh-cn"
+            }
+    }
+
+    /** 装载一档并整体发布；同一 [revision] 的干员表与地图只解析一次 */
+    suspend fun load(
+        clientType: String = "Official",
+        displayLanguage: String = "zh-cn",
+        revision: Int = 0,
+    ) = loadMutex.withLock {
+        withContext(Dispatchers.IO) {
+            val base = cachedBase?.takeIf { it.revision == revision }
+                ?: doLoadBase(revision).also { base ->
+                    // 读空可能是文件缺失，不缓存，下一档再试
+                    cachedBase = base.takeIf { it.characters.isNotEmpty() }
+                }
+            _snapshot.value = doProject(base, GameMetadataKey(clientType, displayLanguage, revision))
+            // 干员表读空多半是文件缺失或损坏：其余部分照常发布，但不能算就绪，否则进程内不再重试
+            check(base.characters.isNotEmpty()) { "$BATTLE_DATA_FILE missing or unparsable" }
+        }
+    }
+
+    private suspend fun doLoadBase(revision: Int): Base = coroutineScope {
+        val mapData = async { doLoadMapData() }
+        val characters = doLoadCharacters()
+        Base(
+            revision = revision,
+            characters = characters,
+            operators = characters.filter { (id, info) -> info.isOperator && id !in VIRTUAL_OPERATORS },
+            nameIndex = doBuildNameIndex(characters),
+            mapData = mapData.await(),
+        )
+    }
+
+    /** 随客户端与语言变的部分，都是小文件 */
+    private fun doProject(base: Base, key: GameMetadataKey) = GameMetadata(
+        key = key,
+        characters = base.characters,
+        operators = base.operators,
+        nameIndex = base.nameIndex,
+        characterNames = doBuildCharacterNames(base.characters, key.language, key.clientType),
+        roguelikeCoreCharacters = doLoadRoguelikeThemes(key.clientType, base.nameIndex),
+        recruitTags = doLoadRecruitTags(key.clientType, key.language),
+        mapData = base.mapData,
+    )
+
+    fun isValidCharacterName(name: String): Boolean {
+        if (name.isBlank()) return true
+        return getCharacterByNameOrAlias(name) != null
+    }
+
+    /** 开局干员等选择场景仅接受 char_ 单位，保留肉鸽临时干员及多语言名称 */
+    fun isValidOperatorName(name: String): Boolean {
+        if (name.isBlank()) return true
+        return getCharacterByNameOrAlias(name)?.id?.startsWith("char_") == true
+    }
+
+    fun getCharacterByNameOrAlias(name: String): CharacterInfo? = lookup(_snapshot.value.nameIndex, name)
+
+    private fun lookup(index: Map<String, CharacterInfo>, name: String): CharacterInfo? {
+        if (name.isBlank()) return null
+        index[name.lowercase()]?.let { return it }
+        // 带职业后缀的升变干员名视作本体的别名：上游 #18190 把后缀从 battle_data 去掉改用 role 区分，
+        // core 已无法按名区分，旧配置与第三方作业里的「阿米娅-WARRIOR」只能落到本体上
+        return MORPH_SUFFIXES.firstNotNullOfOrNull { suffix ->
+            name.takeIf { it.endsWith(suffix, ignoreCase = true) }
+                ?.dropLast(suffix.length)
+                ?.let { index[it.lowercase()] }
+        }
+    }
+
+    /** 归一化为 MaaCore 认的简中名，查不到时原样返回 */
+    fun normalizeCharacterName(name: String): String =
+        getCharacterByNameOrAlias(name)?.name ?: name
+
+    fun getCharacterById(id: String): CharacterInfo? {
+        return _snapshot.value.characters[id]
+    }
+
+    fun getCharacterByCodeName(codeName: String): CharacterInfo? {
+        if (codeName.isBlank()) return null
+        val lowerCode = codeName.lowercase()
+        return _snapshot.value.characters.values.firstOrNull { it.codeName == lowerCode }
+    }
+
+    /**
+     * 获取干员的本地化名称
+     * @param language 语言代码: zh-cn, zh-tw, en-us, ja-jp, ko-kr
+     */
+    fun getLocalizedCharacterName(characterName: String?, language: String = "zh-cn"): String? {
+        if (characterName.isNullOrBlank()) return null
+        val info = getCharacterByNameOrAlias(characterName) ?: return characterName
+        return getLocalizedCharacterName(info, language)
+    }
+
+    fun getLocalizedCharacterName(info: CharacterInfo, language: String = "zh-cn"): String? {
+        return when (language) {
+            "zh-cn" -> info.name
+            "zh-tw" -> info.nameTw ?: info.name
+            "en-us" -> info.nameEn ?: info.name
+            "ja-jp" -> info.nameJp ?: info.name
+            "ko-kr" -> info.nameKr ?: info.name
+            else -> info.name
+        }
+    }
+
+    /**
+     * 判断干员在指定客户端是否可用 (是否已实装)
+     * @param clientType 客户端类型或语言代码
+     */
+    fun isCharacterAvailableInClient(character: CharacterInfo?, clientType: String): Boolean {
+        if (character == null) return false
+        return when (clientType) {
+            "zh-tw", "txwy" -> !character.nameTwUnavailable
+            "en-us", "YoStarEN" -> !character.nameEnUnavailable
+            "ja-jp", "YoStarJP" -> !character.nameJpUnavailable
+            "ko-kr", "YoStarKR" -> !character.nameKrUnavailable
+            else -> true // 国服默认全部可用
+        }
+    }
+
+    fun isCharacterAvailableInClient(characterName: String, clientType: String): Boolean {
+        val character = getCharacterByNameOrAlias(characterName)
+        return isCharacterAvailableInClient(character, clientType)
+    }
+
+    fun search(query: String, limit: Int = 20): List<String> {
+        if (query.isBlank()) return emptyList()
+
+        val q = query.lowercase()
+        val index = _snapshot.value.nameIndex
+
+        // 先找精确匹配，再找包含匹配
+        val exactMatch = index[q]?.name
+        val containsMatches =
+            index.entries.filter { it.key.contains(q) && it.key != q }.map { it.value.name }
+                .distinct().take(limit - if (exactMatch != null) 1 else 0)
+
+        return if (exactMatch != null) {
+            listOf(exactMatch) + containsMatches
+        } else {
+            containsMatches
+        }
+    }
+
+    /** 复用 WPF CharacterNames 对应集合，仅搜索当前界面和客户端语言的干员名 */
+    fun searchOperatorNames(query: String, limit: Int = 20): List<String> {
+        if (query.isBlank() || limit <= 0) return emptyList()
+
+        return _snapshot.value.characterNames.asSequence()
+            .filter { it.contains(query, ignoreCase = true) }
+            .sortedBy { !it.equals(query, ignoreCase = true) }
+            .take(limit)
+            .toList()
+    }
+
+    /**
+     * 查找地图信息 (按 Code/Name/StageId/LevelId 匹配)
+     */
+    fun findMap(mapId: String): MapInfo? {
+        if (mapId.isBlank()) return null
+        val maps = _snapshot.value.mapData
+        return maps.firstOrNull { it.code == mapId } ?: maps.firstOrNull { it.name == mapId }
+        ?: maps.firstOrNull { it.stageId == mapId } ?: maps.firstOrNull { it.levelId == mapId }
+    }
+
+    // ---- 数据加载 ----
+
+    private fun doLoadCharacters(): Map<String, CharacterInfo> = try {
+        val file = File(pathConfig.resourceDir, BATTLE_DATA_FILE)
+        if (!file.exists()) {
+            Timber.w("$BATTLE_DATA_FILE 不存在: ${file.absolutePath}")
+            emptyMap()
+        } else {
+            doParseBattleDataJson(file.readText())
+        }
+    } catch (e: Exception) {
+        Timber.e(e, "加载 battle_data.json 失败")
+        emptyMap()
+    }
+
+    private fun doLoadRoguelikeThemes(
+        clientType: String,
+        nameIndex: Map<String, CharacterInfo>,
+    ): Map<String, List<String>> {
+        return try {
+            val dir = File(pathConfig.resourceDir, ROGUELIKE_DIR)
+            if (!dir.isDirectory) {
+                emptyMap()
+            } else {
+                val language = CLIENT_LANGUAGE_MAPPER[clientType] ?: "zh-cn"
+                val result = mutableMapOf<String, List<String>>()
+                dir.listFiles()?.filter { it.isDirectory }?.forEach { theme ->
+                    val file = File(theme, RECRUITMENT_FILE)
+                    if (file.exists()) {
+                        try {
+                            val rawNames = doParseRecruitmentJson(file.readText())
+                            // 过滤: 干员在当前客户端可用 + 获取本地化名称
+                            result[theme.name] = rawNames.mapNotNull { name ->
+                                val info = lookup(nameIndex, name) ?: return@mapNotNull name
+                                if (!isCharacterAvailableInClient(info, clientType)) {
+                                    return@mapNotNull null
+                                }
+                                getLocalizedCharacterName(info, language) ?: name
+                            }
+                        } catch (e: Exception) {
+                            Timber.w(e, "Failed to load roguelike theme: ${theme.name}")
+                        }
+                    }
+                }
+                result
+            }
+        } catch (e: Exception) {
+            Timber.e(e, "Failed to load roguelike themes")
+            emptyMap()
+        }
+    }
+
+    /**
+     * 加载公招标签
+     * @param clientType 客户端类型 (决定客户端侧标签语言)
+     * @param displayLanguage 显示语言 (决定界面展示标签语言)
+     * @return Map<标签中文名, Pair<显示名, 客户端名>>
+     */
+    private fun doLoadRecruitTags(
+        clientType: String, displayLanguage: String
+    ): Map<String, Pair<String, String>> {
+        return try {
+            // 客户端标签路径
+            val clientSubPath = ClientResourceProfile.of(clientType)
+                .let { if (it.isEmpty()) "" else "global/$it/resource" }
+            // 显示语言标签路径
+            val displaySubPath = when (displayLanguage) {
+                "zh-tw", "en-us", "ja-jp", "ko-kr" -> {
+                    val dir = CLIENT_DIRECTORY_MAPPER[displayLanguage] ?: ""
+                    if (dir.isNotEmpty()) "global/$dir/resource" else ""
+                }
+
+                else -> "" // zh-cn: 根目录
+            }
+
+            val clientFile = if (clientSubPath.isEmpty()) {
+                File(pathConfig.resourceDir, RECRUITMENT_FILE)
+            } else {
+                File(pathConfig.resourceDir, "$clientSubPath/$RECRUITMENT_FILE")
+            }
+            val clientTags = doParseRecruitTags(clientFile)
+
+            val displayTags = if (displaySubPath == clientSubPath) {
+                clientTags
+            } else {
+                val displayFile = if (displaySubPath.isEmpty()) {
+                    File(pathConfig.resourceDir, RECRUITMENT_FILE)
+                } else {
+                    File(pathConfig.resourceDir, "$displaySubPath/$RECRUITMENT_FILE")
+                }
+                doParseRecruitTags(displayFile)
+            }
+
+            // key=标签中文名, value=(显示名, 客户端名)
+            clientTags.mapNotNull { (key, clientName) ->
+                if (clientName.isBlank()) return@mapNotNull null
+                val displayName = displayTags[key] ?: clientName
+                key to (displayName to clientName)
+            }.toMap()
+        } catch (e: Exception) {
+            Timber.e(e, "Failed to load recruit tags")
+            emptyMap()
+        }
+    }
+
+    private fun doLoadMapData(): List<MapInfo> {
+        return try {
+            val file = File(pathConfig.resourceDir, MAP_DATA_FILE)
+            if (!file.exists()) {
+                Timber.w("地图数据文件不存在: ${file.absolutePath}")
+                emptyList()
+            } else {
+                val content = file.readText()
+                val mapObj = json.parseToJsonElement(content).jsonObject
+                mapObj.values.mapNotNull { element ->
+                    try {
+                        json.decodeFromJsonElement<MapInfo>(element)
+                    } catch (e: Exception) {
+                        null
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            Timber.e(e, "加载地图数据失败")
+            emptyList()
+        }
+    }
+
+    // ---- 解析方法 ----
+
+    private fun doBuildNameIndex(characters: Map<String, CharacterInfo>): Map<String, CharacterInfo> {
+        val index = mutableMapOf<String, CharacterInfo>()
+
+        for (character in characters.values) {
+            // 使用 putIfAbsent: 重名时保留先出现的角色 (与 WPF TryAdd 行为一致)
+            character.name.takeIf { it.isNotBlank() }?.let {
+                index.putIfAbsent(it.lowercase(), character)
+            }
+            character.nameEn?.takeIf { it.isNotBlank() }?.let {
+                index.putIfAbsent(it.lowercase(), character)
+            }
+            character.nameJp?.takeIf { it.isNotBlank() }?.let {
+                index.putIfAbsent(it.lowercase(), character)
+            }
+            character.nameKr?.takeIf { it.isNotBlank() }?.let {
+                index.putIfAbsent(it.lowercase(), character)
+            }
+            character.nameTw?.takeIf { it.isNotBlank() }?.let {
+                index.putIfAbsent(it.lowercase(), character)
+            }
+        }
+
+        return index
+    }
+
+    /**
+     * 构建当前语言与客户端类型下的干员名集合
+     * see WPF: DataHelper.LoadBattleData + GetCharacterNamesAddAction
+     */
+    private fun doBuildCharacterNames(
+        characters: Map<String, CharacterInfo>, displayLanguage: String, clientType: String
+    ): Set<String> {
+        val names = mutableSetOf<String>()
+        val clientLanguage = CLIENT_LANGUAGE_MAPPER[clientType] ?: "zh-cn"
+        for ((id, info) in characters) {
+            if (!id.startsWith("char_")) continue
+            getLocalizedCharacterName(info, displayLanguage)?.takeIf { it.isNotBlank() }
+                ?.let { names.add(it) }
+            if (clientLanguage != displayLanguage) {
+                getLocalizedCharacterName(info, clientLanguage)?.takeIf { it.isNotBlank() }
+                    ?.let { names.add(it) }
+            }
+        }
+        return names
+    }
+
+    private fun doParseBattleDataJson(content: String): Map<String, CharacterInfo> {
+        val obj = json.parseToJsonElement(content).jsonObject
+        val chars = obj["chars"]?.jsonObject ?: return emptyMap()
+
+        return chars.mapNotNull { (id, element) ->
+            try {
+                val info = json.decodeFromJsonElement<CharacterInfo>(element).copy(id = id)
+                id to info
+            } catch (e: Exception) {
+                Timber.w(e, "doParseBattleDataJson error: $id")
+                null
+            }
+        }.toMap()
+    }
+
+    private fun doParseRecruitmentJson(content: String): List<String> {
+        val characters = mutableSetOf<String>()
+
+        try {
+            val obj = json.parseToJsonElement(content).jsonObject
+            val priority = obj["priority"]?.jsonArray ?: return emptyList()
+            for (item in priority) {
+                val opers = item.jsonObject["opers"]?.jsonArray ?: continue
+
+                for (operItem in opers) {
+                    val operObj = operItem.jsonObject
+                    val isStart = operObj["is_start"]?.jsonPrimitive?.boolean ?: false
+
+                    if (isStart) {
+                        val name = operObj["name"]?.jsonPrimitive?.contentOrNull
+                        if (!name.isNullOrBlank()) {
+                            characters.add(name)
+                        }
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            Timber.e(e, "parseRecruitmentJson error")
+        }
+
+        // 保持 priority 顺序，越靠前越推荐；对齐上游 RoguelikeSettingsUserControlModel:312-351
+        return characters.toList()
+    }
+
+    private fun doParseRecruitTags(file: File): Map<String, String> {
+        if (!file.exists()) return emptyMap()
+        try {
+            val content = file.readText()
+            val obj = json.parseToJsonElement(content).jsonObject
+            val tags = obj["tags"]?.jsonObject ?: return emptyMap()
+            return tags.entries.associate { (key, value) ->
+                key to (value.jsonPrimitive.contentOrNull ?: key)
+            }
+        } catch (e: Exception) {
+            Timber.w(e, "解析公招标签失败: ${file.absolutePath}")
+            return emptyMap()
+        }
+    }
+}

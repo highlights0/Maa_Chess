@@ -19,3 +19,23 @@ data/dataset/
 models/*.onnx
 engines/bin/
 engines/nnue/
+
+# Android / Gradle
+.gradle/
+**/.gradle/
+**/build/
+**/local.properties
+**/.idea/
+*.iml
+**/captures/
+
+# Android signing and secrets
+*.jks
+*.keystore
+key.properties
+keystore.properties
+secrets.properties
+
+# Build outputs
+*.apk
+*.aab

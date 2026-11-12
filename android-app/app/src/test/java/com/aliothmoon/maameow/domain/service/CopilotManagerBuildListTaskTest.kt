@@ -1,0 +1,112 @@
+package com.aliothmoon.maameow.domain.service
+
+import com.aliothmoon.maameow.data.model.CopilotConfig
+import com.aliothmoon.maameow.data.model.UserAdditionalOper
+import com.aliothmoon.maameow.data.model.copilot.CopilotListItem
+import com.aliothmoon.maameow.maa.task.MaaTaskType
+import com.aliothmoon.maameow.utils.JsonUtils
+import io.mockk.every
+import io.mockk.mockk
+import kotlinx.serialization.json.int
+import kotlinx.serialization.json.jsonArray
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
+import org.junit.Assert.assertEquals
+import org.junit.Test
+
+/**
+ * 战斗列表提交契约：
+ * - 只发勾选项，但 id 取的是完整列表下标（与 core 回传的 CopilotListLoadTaskFileSuccess.id 同坐标系）
+ * - 主线与悖论是仅有的两种列表形态，保全不再有逐个 SSSCopilot 的特殊分支
+ */
+class CopilotManagerBuildListTaskTest {
+
+    private val manager = CopilotManager(
+        apiService = mockk(),
+        repository = mockk { every { toCorePath(any()) } answers { firstArg() } },
+    )
+
+    private val items = listOf(
+        CopilotListItem(name = "1-7", filePath = "/c/1.json", isChecked = true),
+        CopilotListItem(name = "1-8", filePath = "/c/2.json", isChecked = false),
+        CopilotListItem(name = "1-9", filePath = "/c/3.json", isChecked = true, isRaid = true),
+    )
+
+    @Test
+    fun mainTab_sendsSingleCopilotTaskWithCheckedItemsIndexedByFullList() {
+        val tasks = manager.buildListTask(tabIndex = 0, items = items, config = CopilotConfig())
+
+        assertEquals(1, tasks.size)
+        assertEquals(MaaTaskType.COPILOT, tasks.single().type)
+        val params = JsonUtils.common.parseToJsonElement(tasks.single().params).jsonObject
+        val list = params.getValue("copilot_list").jsonArray.map { it.jsonObject }
+        assertEquals(listOf(0, 2), list.map { it.getValue("id").jsonPrimitive.int })
+        assertEquals(listOf("/c/1.json", "/c/3.json"), list.map { it.getValue("filename").jsonPrimitive.content })
+        assertEquals(listOf(false, true), list.map { it.getValue("is_raid").jsonPrimitive.content.toBoolean() })
+        assertEquals("列表模式固定单次消费", 1, params.getValue("loop_times").jsonPrimitive.int)
+    }
+
+    @Test
+    fun paradoxTab_sendsParadoxListIndexedByFullList() {
+        val tasks = manager.buildListTask(tabIndex = 2, items = items, config = CopilotConfig())
+
+        assertEquals(1, tasks.size)
+        assertEquals(MaaTaskType.PARADOX_COPILOT, tasks.single().type)
+        val list = JsonUtils.common.parseToJsonElement(tasks.single().params)
+            .jsonObject.getValue("list").jsonArray.map { it.jsonObject }
+        assertEquals(listOf(0, 2), list.map { it.getValue("id").jsonPrimitive.int })
+    }
+
+    @Test
+    fun sssTab_hasNoDedicatedListBranch() {
+        val tasks = manager.buildListTask(tabIndex = 1, items = items, config = CopilotConfig())
+
+        assertEquals(1, tasks.size)
+        assertEquals(MaaTaskType.COPILOT, tasks.single().type)
+    }
+
+    @Test
+    fun operBoxDataPath_isSentOnlyWhenGiven() {
+        fun params(path: String?) = JsonUtils.common.parseToJsonElement(
+            manager.buildListTask(tabIndex = 0, items = items, config = CopilotConfig(), operBoxDataPath = path)
+                .single().params
+        ).jsonObject
+        fun singleParams(path: String?) = JsonUtils.common.parseToJsonElement(
+            manager.buildSingleTask(MaaTaskType.COPILOT, "/c/1.json", CopilotConfig(), path).params
+        ).jsonObject
+
+        assertEquals("/m/operbox/OperBoxData.json", params("/m/operbox/OperBoxData.json").getValue("operbox_data_path").jsonPrimitive.content)
+        assertEquals("/m/operbox/OperBoxData.json", singleParams("/m/operbox/OperBoxData.json").getValue("operbox_data_path").jsonPrimitive.content)
+        // 不启用时不带该字段，core 缺省为空串
+        assertEquals(false, "operbox_data_path" in params(null))
+        assertEquals(false, "operbox_data_path" in singleParams(null))
+    }
+
+    @Test
+    fun userAdditional_sentInOrderOnlyWhenEnabledWithFormation() {
+        val enabled = CopilotConfig(
+            addUserAdditional = true,
+            userAdditionalOpers = listOf(
+                UserAdditionalOper("能天使", 3),
+                UserAdditionalOper("", 1),
+                UserAdditionalOper("史尔特尔", 5),
+            ),
+        )
+        fun listParams(config: CopilotConfig) = JsonUtils.common.parseToJsonElement(
+            manager.buildListTask(tabIndex = 0, items = items, config = config).single().params
+        ).jsonObject
+        fun singleParams(config: CopilotConfig) = JsonUtils.common.parseToJsonElement(
+            manager.buildSingleTask(MaaTaskType.COPILOT, "/c/1.json", config).params
+        ).jsonObject
+
+        listOf(listParams(enabled), singleParams(enabled)).forEach { params ->
+            val opers = params.getValue("user_additional").jsonArray.map { it.jsonObject }
+            assertEquals(listOf("能天使", "史尔特尔"), opers.map { it.getValue("name").jsonPrimitive.content })
+            // 越界技能收到 0..3
+            assertEquals(listOf(3, 3), opers.map { it.getValue("skill").jsonPrimitive.int })
+        }
+        assertEquals(false, "user_additional" in listParams(enabled.copy(addUserAdditional = false)))
+        assertEquals(false, "user_additional" in listParams(enabled.copy(formation = false)))
+        assertEquals(false, "user_additional" in singleParams(enabled.copy(userAdditionalOpers = emptyList())))
+    }
+}

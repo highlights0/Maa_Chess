@@ -1,0 +1,246 @@
+package com.aliothmoon.maameow.presentation.view.panel
+
+import android.widget.Toast
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.snapshotFlow
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.aliothmoon.maameow.data.preferences.AppSettingsManager
+import com.aliothmoon.maameow.domain.models.RunMode
+import com.aliothmoon.maameow.domain.service.MaaCompositionService
+import com.aliothmoon.maameow.domain.state.MaaExecutionState
+import com.aliothmoon.maameow.presentation.LocalFloatingWindowContext
+import com.aliothmoon.maameow.presentation.LocalInputFocusManager
+import com.aliothmoon.maameow.presentation.components.PanelPromptDialog
+import com.aliothmoon.maameow.presentation.components.LocalPageVisible
+import com.aliothmoon.maameow.presentation.components.ResourceLoadingOverlay
+import com.aliothmoon.maameow.presentation.components.clearFocusOnBlankTap
+import com.aliothmoon.maameow.presentation.components.collectWhilePageVisible
+import com.aliothmoon.maameow.presentation.components.rememberPageVisible
+import com.aliothmoon.maameow.presentation.state.UiEffect
+import com.aliothmoon.maameow.presentation.viewmodel.CopilotViewModel
+import com.aliothmoon.maameow.presentation.viewmodel.ExpandedControlPanelViewModel
+import com.aliothmoon.maameow.presentation.viewmodel.ToolboxViewModel
+import com.aliothmoon.maameow.utils.i18n.resolve
+import org.koin.compose.koinInject
+
+
+@Composable
+fun ExpandedControlPanel(
+    modifier: Modifier = Modifier,
+    onClose: () -> Unit,
+    onHome: () -> Unit = {},
+    isLocked: Boolean = false,
+    onLockToggle: (Boolean) -> Unit = {},
+    viewModel: ExpandedControlPanelViewModel = viewModel(),
+    copilotViewModel: CopilotViewModel = viewModel(),
+    toolboxViewModel: ToolboxViewModel = koinInject(),
+    service: MaaCompositionService = koinInject(),
+    appSettings: AppSettingsManager = koinInject(),
+) {
+    val uiState by viewModel.state.collectAsStateWithLifecycle()
+    val maaState by service.state.collectAsStateWithLifecycle()
+    val runMode by appSettings.runMode.collectAsStateWithLifecycle()
+
+    val nodes by viewModel.chainState.chain.collectAsStateWithLifecycle()
+    val profiles by viewModel.chainState.profiles.collectAsStateWithLifecycle()
+    val profileId by viewModel.chainState.profileId.collectAsStateWithLifecycle()
+    val selectedNode = nodes.find { it.id == uiState.selectedNodeId }
+    val clientType = remember(nodes) { viewModel.chainState.clientType }
+    val inputFocusManager = LocalInputFocusManager.current
+    val context = LocalContext.current
+
+    val pagerState = rememberPagerState(
+        initialPage = uiState.currentTab.ordinal,
+        pageCount = { PanelTab.entries.size }
+    )
+
+    LaunchedEffect(pagerState) {
+        snapshotFlow { pagerState.settledPage }.collect { page ->
+            val newTab = PanelTab.entries[page]
+            if (newTab != uiState.currentTab) {
+                viewModel.onTabChange(newTab)
+            }
+        }
+    }
+
+    LaunchedEffect(uiState.currentTab) {
+        if (pagerState.currentPage != uiState.currentTab.ordinal) {
+            pagerState.scrollToPage(uiState.currentTab.ordinal)
+        }
+    }
+
+    LaunchedEffect(viewModel) {
+        viewModel.effects.collect { effect ->
+            when (effect) {
+                is UiEffect.Toast -> Toast.makeText(
+                    context,
+                    effect.message.resolve(context),
+                    if (effect.long) Toast.LENGTH_LONG else Toast.LENGTH_SHORT,
+                ).show()
+            }
+        }
+    }
+
+    Box(
+        modifier = modifier
+            .fillMaxSize()
+            .clearFocusOnBlankTap()
+    ) {
+        Card(
+            modifier = Modifier
+                .fillMaxSize()
+                .shadow(
+                    elevation = 4.dp,
+                    shape = RoundedCornerShape(4.dp)
+                ),
+            shape = RoundedCornerShape(4.dp),
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surface
+            )
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(12.dp)
+            ) {
+                // 标题栏
+                PanelHeader(
+                    selectedTab = uiState.currentTab,
+                    onTabSelected = viewModel::onTabChange,
+                    isLocked = isLocked,
+                    onLockToggle = onLockToggle,
+                    onHome = onHome
+                )
+
+                // 中间内容区域 - 使用 HorizontalPager
+                HorizontalPager(
+                    state = pagerState,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f),
+                    userScrollEnabled = false,
+                    beyondViewportPageCount = 1
+                ) { page ->
+                    when (page) {
+                        0 -> { // PanelTab.ONE_KEY_TASKS
+                            TaskListDetailLayout(
+                                nodes = nodes,
+                                selectedNode = selectedNode,
+                                selectedNodeId = uiState.selectedNodeId,
+                                isEditMode = uiState.isEditMode,
+                                isAddingTask = uiState.isAddingTask,
+                                isProfileMode = uiState.isProfileMode,
+                                profiles = profiles,
+                                activeProfileId = profileId,
+                                clientType = clientType,
+                                onNodeEnabledChange = viewModel::onNodeEnabledChange,
+                                onNodeSelected = viewModel::onNodeSelected,
+                                onNodeMove = viewModel::onNodeMove,
+                                onToggleEditMode = viewModel::onToggleEditMode,
+                                onToggleAddingTask = viewModel::onToggleAddingTask,
+                                onToggleProfileMode = viewModel::onToggleProfileMode,
+                                onConfigChange = { config ->
+                                    selectedNode?.id?.let {
+                                        viewModel.onNodeConfigChange(it, config)
+                                    }
+                                },
+                                onAddNode = viewModel::onAddNode,
+                                onRemoveNode = viewModel::onRemoveNode,
+                                onDuplicateNode = viewModel::onDuplicateNode,
+                                onRenameNode = viewModel::onRenameNode,
+                                onRunFromNode = { nodeId ->
+                                    inputFocusManager.clear()
+                                    viewModel.onStartTasksFrom(nodeId)
+                                },
+                                canRunFromNode = maaState == MaaExecutionState.IDLE ||
+                                        maaState == MaaExecutionState.ERROR,
+                                onSwitchProfile = viewModel::onSwitchProfile,
+                                onRenameProfile = viewModel::onRenameProfile,
+                                onDuplicateProfile = viewModel::onDuplicateProfile,
+                                onDeleteProfile = viewModel::onDeleteProfile,
+                                onCreateProfile = viewModel::onCreateProfile,
+                                onReorderProfile = viewModel::onReorderProfile,
+                                modifier = Modifier.fillMaxSize(),
+                            )
+                        }
+
+                        1 -> { // PanelTab.AUTO_BATTLE
+                            AutoBattlePanel(modifier = Modifier.fillMaxSize())
+                        }
+
+                        2 -> { // PanelTab.TOOLS
+                            CompositionLocalProvider(
+                                LocalToolboxFileExporter provides rememberShareToolboxFileExporter()
+                            ) {
+                                ToolboxPanel(modifier = Modifier.fillMaxSize())
+                            }
+                        }
+
+                        3 -> CompositionLocalProvider( // PanelTab.LOG
+                            LocalPageVisible provides rememberPageVisible(pagerState, page)
+                        ) {
+                            val runtimeLogs by viewModel.runtimeLogs.collectWhilePageVisible()
+                            LogPanel(
+                                logs = runtimeLogs,
+                                running = maaState != MaaExecutionState.IDLE &&
+                                        maaState != MaaExecutionState.ERROR,
+                                onClearLogs = { viewModel.onClearLogs() },
+                            )
+                        }
+                    }
+                }
+
+                if (uiState.currentTab == PanelTab.TASKS || uiState.currentTab == PanelTab.AUTO_BATTLE || uiState.currentTab == PanelTab.TOOLS) {
+                    HorizontalDivider(
+                        modifier = Modifier.padding(vertical = 6.dp),
+                        thickness = 1.dp,
+                        color = MaterialTheme.colorScheme.outlineVariant
+                    )
+                    BottomButtons(
+                        onClose = { onClose() },
+                        onStart = {
+                            inputFocusManager.clear()
+                            when (uiState.currentTab) {
+                                PanelTab.AUTO_BATTLE -> copilotViewModel.onStart()
+                                PanelTab.TOOLS -> toolboxViewModel.onStart()
+                                else -> viewModel.onStartTasks()
+                            }
+                        },
+                        isStarting = maaState == MaaExecutionState.STARTING
+                    )
+                }
+            }
+        }
+
+        if (LocalFloatingWindowContext.current && runMode == RunMode.FOREGROUND) {
+            ResourceLoadingOverlay()
+        }
+
+        PanelPromptDialog(
+            uiState.dialog,
+            onDismiss = viewModel::onDialogDismiss,
+            onConfirm = viewModel::onDialogConfirm,
+        )
+    }
+}

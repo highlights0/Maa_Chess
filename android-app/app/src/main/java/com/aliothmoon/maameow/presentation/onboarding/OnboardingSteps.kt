@@ -1,0 +1,161 @@
+package com.aliothmoon.maameow.presentation.onboarding
+
+import androidx.annotation.StringRes
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.rounded.EventNote
+import androidx.compose.material.icons.automirrored.rounded.HelpOutline
+import androidx.compose.material.icons.rounded.Add
+import androidx.compose.material.icons.rounded.AutoAwesome
+import androidx.compose.material.icons.rounded.Checklist
+import androidx.compose.material.icons.rounded.Dashboard
+import androidx.compose.material.icons.rounded.History
+import androidx.compose.material.icons.rounded.Layers
+import androidx.compose.material.icons.rounded.PlayArrow
+import androidx.compose.material.icons.rounded.Settings
+import androidx.compose.material.icons.rounded.SwapHoriz
+import androidx.compose.material.icons.rounded.Tab
+import androidx.compose.material.icons.rounded.TouchApp
+import androidx.compose.material.icons.rounded.Tv
+import androidx.compose.material.icons.rounded.VerifiedUser
+import androidx.compose.ui.graphics.vector.ImageVector
+import com.aliothmoon.maameow.R
+import com.aliothmoon.maameow.presentation.navigation.BottomNavTab
+
+/**
+ * @param tab      该步所在的主 Tab，切到这一步时 pager 先切过去
+ * @param target   高亮靶点，null = 不挖洞、卡片居中
+ * @param cooldown 关键步骤，首启强制引导时「下一步」先冷却
+ * @param agreement 正文下附用户协议链接，不强制点开
+ * @param demo     全屏任务设置演示
+ */
+data class OnboardingStep(
+    val tab: BottomNavTab,
+    val target: OnboardingTarget?,
+    val icon: ImageVector,
+    @param:StringRes val titleRes: Int,
+    @param:StringRes val bodyRes: Int,
+    val cooldown: Boolean = false,
+    val agreement: Boolean = false,
+    val demo: Boolean = false,
+)
+
+object OnboardingSteps {
+
+    val all: List<OnboardingStep> = listOf(
+        // 首页
+        OnboardingStep(
+            tab = BottomNavTab.HOME,
+            target = null,
+            icon = Icons.Rounded.AutoAwesome,
+            titleRes = R.string.onboarding_welcome_title,
+            bodyRes = R.string.onboarding_welcome_body,
+            agreement = true,
+        ),
+        OnboardingStep(
+            tab = BottomNavTab.HOME,
+            target = OnboardingTarget.SERVICE_STATUS,
+            icon = Icons.Rounded.Dashboard,
+            titleRes = R.string.onboarding_status_title,
+            bodyRes = R.string.onboarding_status_body,
+        ),
+        OnboardingStep(
+            tab = BottomNavTab.HOME,
+            target = OnboardingTarget.RUN_MODE,
+            icon = Icons.Rounded.Layers,
+            titleRes = R.string.onboarding_run_mode_title,
+            bodyRes = R.string.onboarding_run_mode_body,
+        ),
+        OnboardingStep(
+            tab = BottomNavTab.HOME,
+            target = OnboardingTarget.PERMISSIONS,
+            icon = Icons.Rounded.VerifiedUser,
+            titleRes = R.string.onboarding_permissions_title,
+            bodyRes = R.string.onboarding_permissions_body,
+        ),
+        // 后台任务页
+        OnboardingStep(
+            tab = BottomNavTab.BACKGROUND,
+            target = OnboardingTarget.BG_PREVIEW,
+            icon = Icons.Rounded.Tv,
+            titleRes = R.string.onboarding_bg_preview_title,
+            bodyRes = R.string.onboarding_bg_preview_body,
+        ),
+        OnboardingStep(
+            tab = BottomNavTab.BACKGROUND,
+            target = OnboardingTarget.BG_PANEL_TABS,
+            icon = Icons.Rounded.Tab,
+            titleRes = R.string.onboarding_bg_panel_tabs_title,
+            bodyRes = R.string.onboarding_bg_panel_tabs_body,
+        ),
+        OnboardingStep(
+            tab = BottomNavTab.BACKGROUND,
+            target = OnboardingTarget.BG_TASK_LIST,
+            icon = Icons.Rounded.Checklist,
+            titleRes = R.string.onboarding_bg_task_list_title,
+            bodyRes = R.string.onboarding_bg_task_list_body,
+        ),
+        // 对齐上游设置指引的任务设置演示
+        OnboardingStep(
+            tab = BottomNavTab.BACKGROUND,
+            target = null,
+            icon = Icons.Rounded.TouchApp,
+            titleRes = R.string.onboarding_demo_title,
+            bodyRes = R.string.onboarding_demo_body,
+            demo = true,
+        ),
+        OnboardingStep(
+            tab = BottomNavTab.BACKGROUND,
+            target = OnboardingTarget.BG_START,
+            icon = Icons.Rounded.PlayArrow,
+            titleRes = R.string.onboarding_bg_start_title,
+            bodyRes = R.string.onboarding_bg_start_body,
+        ),
+        // 定时任务页
+        OnboardingStep(
+            tab = BottomNavTab.SCHEDULE,
+            target = OnboardingTarget.SCHEDULE_ADD,
+            icon = Icons.Rounded.Add,
+            titleRes = R.string.onboarding_schedule_add_title,
+            bodyRes = R.string.onboarding_schedule_add_body,
+        ),
+        OnboardingStep(
+            tab = BottomNavTab.SCHEDULE,
+            target = OnboardingTarget.SCHEDULE_LIST,
+            icon = Icons.AutoMirrored.Rounded.EventNote,
+            titleRes = R.string.onboarding_schedule_list_title,
+            bodyRes = R.string.onboarding_schedule_list_body,
+        ),
+        OnboardingStep(
+            tab = BottomNavTab.SCHEDULE,
+            target = OnboardingTarget.SCHEDULE_TRIGGER_LOG,
+            icon = Icons.Rounded.History,
+            titleRes = R.string.onboarding_schedule_trigger_log_title,
+            bodyRes = R.string.onboarding_schedule_trigger_log_body,
+        ),
+        // 回首页指一下设置入口
+        OnboardingStep(
+            tab = BottomNavTab.HOME,
+            target = OnboardingTarget.TAB_SETTINGS,
+            icon = Icons.Rounded.Settings,
+            titleRes = R.string.onboarding_tab_settings_title,
+            bodyRes = R.string.onboarding_tab_settings_body,
+        ),
+        // 设置页：Shizuku / Root 切换
+        OnboardingStep(
+            tab = BottomNavTab.SETTINGS,
+            target = OnboardingTarget.RUNTIME_BACKEND,
+            icon = Icons.Rounded.SwapHoriz,
+            titleRes = R.string.onboarding_runtime_backend_title,
+            bodyRes = R.string.onboarding_runtime_backend_body,
+        ),
+        // 遇到问题先看常见问题，再反馈
+        OnboardingStep(
+            tab = BottomNavTab.SETTINGS,
+            target = OnboardingTarget.ABOUT_HELP,
+            icon = Icons.AutoMirrored.Rounded.HelpOutline,
+            titleRes = R.string.onboarding_about_help_title,
+            bodyRes = R.string.onboarding_about_help_body,
+            cooldown = true,
+        ),
+    )
+}

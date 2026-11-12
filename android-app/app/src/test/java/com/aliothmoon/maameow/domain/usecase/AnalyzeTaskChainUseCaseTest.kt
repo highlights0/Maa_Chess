@@ -1,0 +1,432 @@
+package com.aliothmoon.maameow.domain.usecase
+
+import com.aliothmoon.maameow.R
+import com.aliothmoon.maameow.constant.Packages
+import com.aliothmoon.maameow.data.model.AwardConfig
+import com.aliothmoon.maameow.data.model.DepotMaintainConfig
+import com.aliothmoon.maameow.data.model.FightConfig
+import com.aliothmoon.maameow.data.model.InfrastConfig
+import com.aliothmoon.maameow.data.model.LogLevel
+import com.aliothmoon.maameow.data.model.RoguelikeConfig
+import com.aliothmoon.maameow.data.model.RoguelikeStartingOper
+import com.aliothmoon.maameow.data.model.TaskChainNode
+import com.aliothmoon.maameow.data.model.UserDataUpdateConfig
+import com.aliothmoon.maameow.domain.models.PlanSideTask
+import com.aliothmoon.maameow.data.model.WakeUpConfig
+import com.aliothmoon.maameow.data.model.WeeklyScheduled
+import com.aliothmoon.maameow.data.preferences.AppSettingsManager
+import com.aliothmoon.maameow.data.preferences.TaskChainState
+import com.aliothmoon.maameow.data.repository.DepotRepository
+import com.aliothmoon.maameow.data.repository.DepotSnapshot
+import com.aliothmoon.maameow.data.repository.OperBoxRepository
+import com.aliothmoon.maameow.data.repository.OperBoxSnapshot
+import com.aliothmoon.maameow.data.resource.ResourceDataManager
+import com.aliothmoon.maameow.maa.task.MaaTaskType
+import com.aliothmoon.maameow.utils.i18n.uiTextOf
+import io.mockk.coEvery
+import io.mockk.every
+import io.mockk.mockk
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.runBlocking
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.jsonArray
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
+import org.junit.Test
+
+class AnalyzeTaskChainUseCaseTest {
+
+    private val taskChainState = mockk<TaskChainState> {
+        every { clientType } returns "Official"
+    }
+    private val resourceDataManager = mockk<ResourceDataManager>(relaxed = true)
+    private val operBoxRepository = mockk<OperBoxRepository>(relaxed = true) {
+        every { snapshot } returns MutableStateFlow(OperBoxSnapshot())
+        every { isLoaded } returns MutableStateFlow(true)
+    }
+    private val depotRepository = mockk<DepotRepository>(relaxed = true) {
+        every { snapshot } returns MutableStateFlow(DepotSnapshot())
+        // isLoaded 必须显式给 —— relaxed mock 的 StateFlow 不会 emit，
+        // 分析阶段开头的 `isLoaded.first { it }` 会挂死
+        every { isLoaded } returns MutableStateFlow(true)
+    }
+    private val operBoxViaYituliu = MutableStateFlow(false)
+    private val appSettingsManager = mockk<AppSettingsManager> {
+        every { reportToPenguin } returns MutableStateFlow(true)
+        every { reportToYituliu } returns MutableStateFlow(true)
+        every { penguinId } returns MutableStateFlow("")
+        every { operBoxUseYituliuApi } returns operBoxViaYituliu
+    }
+    private val useCase = AnalyzeTaskChainUseCase(
+        taskChainState = taskChainState,
+        resourceDataManager = resourceDataManager,
+        activityManager = mockk(relaxed = true),
+        depotRepository = depotRepository,
+        operBoxRepository = operBoxRepository,
+        itemHelper = mockk(relaxed = true),
+        dropsRefresher = mockk(relaxed = true),
+        appSettingsManager = appSettingsManager,
+        metadataGate = mockk { coEvery { awaitCurrent(any()) } returns true },
+    )
+
+    @Test
+    fun returnsBlocked_whenNoTaskIsEnabled() = runBlocking {
+        val result = useCase(
+            listOf(TaskChainNode(name = "领取奖励", enabled = false, config = AwardConfig()))
+        )
+
+        assertEquals(
+            AnalyzeTaskChainResult.Blocked(
+                reason = AnalyzeTaskChainFailureReason.NO_TASK_SELECTED,
+            ),
+            result
+        )
+    }
+
+    @Test
+    fun returnsBlocked_whenWakeUpClientTypesConflict() = runBlocking {
+        val result = useCase(
+            listOf(
+                TaskChainNode(
+                    name = "开始唤醒1",
+                    order = 1,
+                    enabled = true,
+                    config = WakeUpConfig(clientType = "Official"),
+                ),
+                TaskChainNode(
+                    name = "开始唤醒2",
+                    order = 2,
+                    enabled = true,
+                    config = WakeUpConfig(clientType = "Bilibili"),
+                ),
+            )
+        )
+
+        assertEquals(
+            AnalyzeTaskChainResult.Blocked(
+                reason = AnalyzeTaskChainFailureReason.CONFLICTING_CLIENT_TYPES,
+                clientTypes = listOf("Official", "Bilibili"),
+            ),
+            result
+        )
+    }
+
+    @Test
+    fun returnsBlocked_whenWeeklyScheduleFiltersOutAllTasks() = runBlocking {
+        val disabledEveryDay = mapOf(
+            "MONDAY" to false,
+            "TUESDAY" to false,
+            "WEDNESDAY" to false,
+            "THURSDAY" to false,
+            "FRIDAY" to false,
+            "SATURDAY" to false,
+            "SUNDAY" to false,
+        )
+
+        val result = useCase(
+            listOf(
+                TaskChainNode(
+                    name = "理智作战",
+                    enabled = true,
+                    config = FightConfig(
+                        useWeeklySchedule = true,
+                        weeklySchedule = disabledEveryDay,
+                    ),
+                )
+            )
+        )
+
+        assertEquals(
+            AnalyzeTaskChainResult.Blocked(
+                reason = AnalyzeTaskChainFailureReason.NO_EXECUTABLE_TASKS,
+                logs = listOf(uiTextOf(R.string.runlog_weekly_schedule_skipped, "理智作战") to LogLevel.INFO),
+            ),
+            result
+        )
+    }
+
+    @Test
+    fun infrastWeeklySchedule_skipsDisabledDaysAndKeepsEnabledDays() = runBlocking {
+        // 整周同值，避开 04:00 换日竞态
+        fun infrastNode(enabledEveryDay: Boolean) = TaskChainNode(
+            name = "基建换班",
+            config = InfrastConfig(
+                useWeeklySchedule = true,
+                weeklySchedule = WeeklyScheduled.ALL_DAYS.mapValues { enabledEveryDay },
+            ),
+        )
+
+        val skipped = useCase(listOf(infrastNode(enabledEveryDay = false), awardNode()))
+        val kept = useCase(listOf(infrastNode(enabledEveryDay = true), awardNode()))
+
+        val skippedPlan = (skipped as AnalyzeTaskChainResult.Ready).plan
+        assertEquals(listOf(MaaTaskType.AWARD), skippedPlan.params.map { it.type })
+        assertEquals(
+            listOf(uiTextOf(R.string.runlog_weekly_schedule_skipped, "基建换班") to LogLevel.INFO),
+            skippedPlan.logs,
+        )
+        val keptPlan = (kept as AnalyzeTaskChainResult.Ready).plan
+        assertEquals(listOf(MaaTaskType.INFRAST, MaaTaskType.AWARD), keptPlan.params.map { it.type })
+    }
+
+    private fun awardNode() = TaskChainNode(name = "领取奖励", order = 1, config = AwardConfig())
+
+    @Test
+    fun returnsReadyPlan_withClientTypePackageAndLaunchFlag() = runBlocking {
+        val result = useCase(
+            listOf(
+                TaskChainNode(
+                    name = "领取奖励",
+                    order = 2,
+                    enabled = true,
+                    config = AwardConfig(),
+                ),
+                TaskChainNode(
+                    name = "开始唤醒",
+                    order = 1,
+                    enabled = true,
+                    config = WakeUpConfig(
+                        clientType = "Official",
+                        startGameEnabled = true,
+                    ),
+                ),
+            )
+        )
+
+        val ready = result as AnalyzeTaskChainResult.Ready
+        assertEquals("Official", ready.plan.clientType)
+        assertEquals(Packages["Official"], ready.plan.gamePackageName)
+        assertTrue(ready.plan.launchesGame)
+        assertEquals(2, ready.plan.nodes.size)
+        assertEquals(2, ready.plan.params.size)
+    }
+
+    @Test
+    fun returnsReadyPlan_withDefaultClientType_whenNoWakeUpTaskExists() = runBlocking {
+        val result = useCase(
+            listOf(
+                TaskChainNode(
+                    name = "领取奖励",
+                    enabled = true,
+                    config = AwardConfig(),
+                )
+            )
+        )
+
+        val ready = result as AnalyzeTaskChainResult.Ready
+        assertEquals("Official", ready.plan.clientType)
+        assertEquals(Packages["Official"], ready.plan.gamePackageName)
+        assertFalse(ready.plan.launchesGame)
+        assertEquals(1, ready.plan.params.size)
+    }
+
+    // 上游 v6.19.0-beta.1「从此处运行」
+    private val wakeUp = TaskChainNode(
+        name = "开始唤醒",
+        order = 0,
+        config = WakeUpConfig(clientType = "Official", startGameEnabled = true),
+    )
+    private val disabledAward = TaskChainNode(name = "领取奖励1", order = 1, enabled = false, config = AwardConfig())
+    private val award = TaskChainNode(name = "领取奖励2", order = 2, config = AwardConfig())
+
+    @Test
+    fun runFromNode_skipsEarlierNodes() = runBlocking {
+        val result = useCase(listOf(wakeUp, disabledAward, award), fromNodeId = award.id)
+
+        val ready = result as AnalyzeTaskChainResult.Ready
+        assertEquals(listOf(award), ready.plan.nodes)
+        assertEquals(listOf(MaaTaskType.AWARD), ready.plan.params.map { it.type })
+        assertFalse(ready.plan.launchesGame)
+    }
+
+    @Test
+    fun runFromDisabledNode_startsAtNextEnabledNode() = runBlocking {
+        val result = useCase(listOf(wakeUp, disabledAward, award), fromNodeId = disabledAward.id)
+
+        assertEquals(listOf(award), (result as AnalyzeTaskChainResult.Ready).plan.nodes)
+    }
+
+    @Test
+    fun runFromFirstNode_keepsWholeChain() = runBlocking {
+        val result = useCase(listOf(award, wakeUp, disabledAward), fromNodeId = wakeUp.id)
+
+        val ready = result as AnalyzeTaskChainResult.Ready
+        assertEquals(listOf(wakeUp, award), ready.plan.nodes)
+        assertTrue(ready.plan.launchesGame)
+    }
+
+    @Test
+    fun runFromNode_blockedWhenNothingEnabledAfterIt_orNodeIsGone() = runBlocking {
+        val blocked = AnalyzeTaskChainResult.Blocked(
+            reason = AnalyzeTaskChainFailureReason.NO_TASK_SELECTED,
+        )
+        val lastDisabled = disabledAward.copy(order = 3)
+
+        assertEquals(blocked, useCase(listOf(wakeUp, award, lastDisabled), fromNodeId = lastDisabled.id))
+        assertEquals(blocked, useCase(listOf(wakeUp, award), fromNodeId = "removed-node"))
+    }
+
+    @Test
+    fun roguelikeCoreChar_normalizedToSimplifiedChinese_beforeDispatch() = runBlocking {
+        // 繁中服选了繁中名,下发前须反查归一化为简中名(MaaCore core_char 仅认简中名)
+        every { resourceDataManager.normalizeCharacterName("維什戴爾") } returns "维什戴尔"
+
+        val result = useCase(
+            listOf(
+                TaskChainNode(
+                    name = "自动肉鸽",
+                    enabled = true,
+                    config = RoguelikeConfig(
+                        startingOpers = listOf(RoguelikeStartingOper("維什戴爾"))
+                    ),
+                )
+            )
+        )
+
+        val ready = result as AnalyzeTaskChainResult.Ready
+        val roguelikeParams = ready.plan.params.first { it.type == MaaTaskType.ROGUELIKE }
+        val coreChar = Json.parseToJsonElement(roguelikeParams.params)
+            .jsonObject["core_char_list"]!!.jsonArray[0]
+            .jsonObject["name"]?.jsonPrimitive?.content
+
+        assertEquals("维什戴尔", coreChar)
+    }
+
+    @Test
+    fun userDataUpdate_neverSynced_expandsToBothRecognitions() = runBlocking {
+        val result = useCase(
+            listOf(
+                TaskChainNode(
+                    name = "更新数据",
+                    enabled = true,
+                    config = UserDataUpdateConfig(),
+                )
+            )
+        )
+
+        val ready = result as AnalyzeTaskChainResult.Ready
+        assertEquals(
+            listOf(MaaTaskType.OPER_BOX, MaaTaskType.DEPOT),
+            ready.plan.params.map { it.type },
+        )
+    }
+
+    /**
+     * 「更新数据」与「库存保持（任务开始前更新库存）」相邻时只保留一次仓库识别；
+     * 中间隔着别的任务则不合并 —— 那段时间库存确实可能变化。
+     */
+    @Test
+    fun adjacentDepotRecognitions_areDeduplicated() = runBlocking {
+        val result = useCase(
+            listOf(
+                TaskChainNode(
+                    name = "更新数据",
+                    enabled = true,
+                    order = 0,
+                    config = UserDataUpdateConfig(updateOperBox = false, updateDepot = true),
+                ),
+                TaskChainNode(
+                    name = "库存保持",
+                    enabled = true,
+                    order = 1,
+                    config = DepotMaintainConfig(updateDepot = true, plans = emptyList()),
+                ),
+            )
+        )
+
+        val ready = result as AnalyzeTaskChainResult.Ready
+        assertEquals(listOf(MaaTaskType.DEPOT), ready.plan.params.map { it.type })
+    }
+
+    @Test
+    fun nonAdjacentDepotRecognitions_areKept() = runBlocking {
+        val result = useCase(
+            listOf(
+                TaskChainNode(
+                    name = "更新数据",
+                    enabled = true,
+                    order = 0,
+                    config = UserDataUpdateConfig(updateOperBox = false, updateDepot = true),
+                ),
+                TaskChainNode(name = "领取奖励", enabled = true, order = 1, config = AwardConfig()),
+                TaskChainNode(
+                    name = "库存保持",
+                    enabled = true,
+                    order = 2,
+                    config = DepotMaintainConfig(updateDepot = true, plans = emptyList()),
+                ),
+            )
+        )
+
+        val ready = result as AnalyzeTaskChainResult.Ready
+        assertEquals(
+            listOf(MaaTaskType.DEPOT, MaaTaskType.AWARD, MaaTaskType.DEPOT),
+            ready.plan.params.map { it.type },
+        )
+    }
+
+    @Test
+    fun operBoxViaYituliu_isReadyWithSideTaskOnly() = runBlocking {
+        operBoxViaYituliu.value = true
+        val result = useCase(
+            listOf(
+                TaskChainNode(
+                    name = "更新数据",
+                    enabled = true,
+                    config = UserDataUpdateConfig(updateDepot = false),
+                ),
+            )
+        )
+
+        val plan = (result as AnalyzeTaskChainResult.Ready).plan
+        assertTrue(plan.params.isEmpty())
+        assertEquals(listOf(PlanSideTask.OPER_BOX_YITULIU), plan.sideTasks)
+    }
+
+    @Test
+    fun operBoxViaYituliu_keepsOtherCoreTasks() = runBlocking {
+        operBoxViaYituliu.value = true
+        val result = useCase(
+            listOf(
+                TaskChainNode(
+                    name = "更新数据",
+                    enabled = true,
+                    config = UserDataUpdateConfig(),
+                ),
+            )
+        )
+
+        val plan = (result as AnalyzeTaskChainResult.Ready).plan
+        assertEquals(listOf(MaaTaskType.DEPOT), plan.params.map { it.type })
+        assertEquals(listOf(PlanSideTask.OPER_BOX_YITULIU), plan.sideTasks)
+    }
+
+    @Test
+    fun operBoxViaYituliu_isDedupedAcrossNodes() = runBlocking {
+        operBoxViaYituliu.value = true
+        val result = useCase(
+            listOf(
+                TaskChainNode(
+                    id = "a",
+                    name = "更新数据",
+                    enabled = true,
+                    order = 0,
+                    config = UserDataUpdateConfig(updateDepot = false),
+                ),
+                TaskChainNode(
+                    id = "b",
+                    name = "更新数据",
+                    enabled = true,
+                    order = 1,
+                    config = UserDataUpdateConfig(updateDepot = false),
+                ),
+            )
+        )
+
+        val plan = (result as AnalyzeTaskChainResult.Ready).plan
+        assertEquals(listOf(PlanSideTask.OPER_BOX_YITULIU), plan.sideTasks)
+    }
+}
