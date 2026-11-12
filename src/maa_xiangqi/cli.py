@@ -249,7 +249,11 @@ def command_engine_analyze(args: argparse.Namespace) -> int:
 
 
 def command_download_model(args: argparse.Namespace) -> int:
-    path = download_model(args.output, force=args.force)
+    path = (
+        download_model(force=args.force)
+        if args.output is None
+        else download_model(args.output, force=args.force)
+    )
     print(f"象棋识别模型已就绪：{path}")
     return 0
 

@@ -11,6 +11,7 @@ import numpy as np
 
 from maa_xiangqi.board.geometry import BoardGeometry
 from maa_xiangqi.board.state import BoardState
+
 from .pieces import BoardRecognition, PiecePrediction
 
 MODEL_SHA256 = "da66ba9809f15127f8ae729b1755e42ee61c100c4f9979ce0ef13602ac471298"
