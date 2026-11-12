@@ -334,7 +334,7 @@ class XiangqiNanoV3Recognizer(
             val offset = index * OUTPUT_CLASSES
             var best = 0
             var bestScore = Float.NEGATIVE_INFINITY
-                for (classIndex in 0 until OUTPUT_CLASSES) {
+            for (classIndex in 0 until OUTPUT_CLASSES) {
                 val score = probabilities[offset + classIndex]
                 if (!score.isFinite() || score < 0f || score > 1.001f) {
                     throw IOException("nano-v3 模型返回无效概率")

@@ -175,7 +175,4 @@ class XiangqiModelRepository(
         }
     }
 
-    private companion object Hex {
-        const val HEX = "0123456789abcdef"
-    }
 }
