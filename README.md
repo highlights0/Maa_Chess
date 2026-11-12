@@ -92,6 +92,7 @@ probe-root 可能触发 Root 授权提示。诊断报告不包含设备序列号
 - [整体架构](docs/architecture.md)
 - [MAA-Meow UI 与后台运行设计](docs/MAAMEOW_UI_AND_BACKGROUND.md)
 - [MuMu 环境诊断与棋盘校准](docs/MUMU_ENVIRONMENT.md)
+- [后台虚拟显示 PoC 候选项目评估](docs/HEADLESS_ANDROID_EVALUATION.md)
 - [Codex 完整实施任务书](docs/CODEX_TASKS.md)
 - [第一阶段操作与验收](docs/phase-1.md)
 - [项目协作约定](AGENTS.md)

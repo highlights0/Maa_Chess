@@ -15,6 +15,7 @@
 - docs/architecture.md
 - docs/MAAMEOW_UI_AND_BACKGROUND.md
 - docs/MUMU_ENVIRONMENT.md
+- docs/HEADLESS_ANDROID_EVALUATION.md
 - docs/phase-1.md
 
 先检查当前代码和测试，不要推翻已完成模块。所有新增功能必须配套测试。不能运行的测试必须如实报告。不要提交用户截图、设备序列号、设备本机路径、模型权重或引擎二进制。
@@ -111,7 +112,15 @@ MAA-Meow 只作为公开架构和 UI 交互参考。不得复制其 AGPL-3.0 源
 
 ## 4. 阶段 B：后台虚拟显示 PoC（最高优先级 P0，先于完整棋子识别）
 
-这是本项目最大的系统风险。必须先在用户实际使用的模拟器 / 手机上验证，不要先开发完整 UI 或棋子模型。
+这是本项目最大的系统风险。必须先在用户实际使用的模拟器 / 手机上验证，不要先开发完整 UI 或棋子模型。优先用已固定到 experiments/headless-android 的 Apache-2.0 PoC 验证，不要先重写虚拟显示、ImageReader 和 displayId 定向输入。
+
+### B0. 复用现有后台显示 PoC
+
+- 先阅读 docs/HEADLESS_ANDROID_EVALUATION.md。
+- experiments/headless-android 固定引用 HakaI963/headless-android 的指定 commit，许可证为 Apache-2.0。
+- 先构建并安装 PoC APK，使用其 Shizuku 服务创建虚拟显示器、启动原始已安装游戏、预览帧并注入触控。
+- 只使用 Launch installed app 路径；不要使用 Clone / APK repackaging 功能，避免更改天天象棋包名和签名。
+- 在 MuMu 验证通过前，不要将该 PoC 描述为 Maa_Chess 已具备后台能力。
 
 ### B1. 环境探测
 
