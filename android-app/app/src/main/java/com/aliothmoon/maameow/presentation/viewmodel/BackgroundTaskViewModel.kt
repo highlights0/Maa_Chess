@@ -750,7 +750,7 @@ class BackgroundTaskViewModel(
                         ) { remote -> remote.captureFrameJpeg(92) }
                     }
                 }
-                if (jpeg.isNullOrEmpty()) {
+                if (jpeg == null || jpeg.isEmpty()) {
                     throw IllegalStateException(application.getString(R.string.xiangqi_recognition_no_frame))
                 }
                 val result = xiangqiRecognizer.recognizeJpeg(

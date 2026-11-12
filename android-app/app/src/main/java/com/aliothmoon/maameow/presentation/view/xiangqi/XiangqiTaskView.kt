@@ -317,8 +317,8 @@ fun XiangqiTaskView(
                         XiangqiModelStatus.Ready -> stringResource(R.string.xiangqi_model_ready)
                         is XiangqiModelStatus.Downloading -> stringResource(
                             R.string.xiangqi_model_downloading,
-                            (status.downloadedBytes / (1024 * 1024)).toInt(),
-                            (status.totalBytes / (1024 * 1024)).toInt(),
+                            (status.downloadedBytes / 1_000_000L).toInt(),
+                            (status.totalBytes / 1_000_000L).toInt(),
                         )
                         is XiangqiModelStatus.Failed -> stringResource(
                             R.string.xiangqi_model_failed,
@@ -395,11 +395,14 @@ fun XiangqiTaskView(
                     }
                     recognition.result?.let { result ->
                         Text(
-                            text = stringResource(
-                                if (result.isComplete) R.string.xiangqi_recognition_complete
-                                else R.string.xiangqi_recognition_incomplete,
-                                result.uncertainSquares.size,
-                            ),
+                            text = if (result.isComplete) {
+                                stringResource(R.string.xiangqi_recognition_complete)
+                            } else {
+                                stringResource(
+                                    R.string.xiangqi_recognition_incomplete,
+                                    result.uncertainSquares.size,
+                                )
+                            },
                             style = MaterialTheme.typography.bodyMedium,
                             color = if (result.isComplete) MaterialTheme.colorScheme.primary
                             else MaterialTheme.colorScheme.error,
@@ -423,7 +426,7 @@ fun XiangqiTaskView(
                             )
                         }
                         Text(
-                            text = stringResource(R.string.xiangqi_recognition_confidence, result.meanConfidence),
+                            text = stringResource(R.string.xiangqi_recognition_confidence, result.meanConfidence * 100f),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
