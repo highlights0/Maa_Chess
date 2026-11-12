@@ -1,0 +1,31 @@
+{
+  "schema_version": 1,
+  "input": {
+    "tensor": "NCHW",
+    "shape": [1, 3, 64, 64],
+    "dtype": "float32",
+    "color_order": "RGB",
+    "normalization": "pixel / 255.0"
+  },
+  "output": {
+    "shape": [1, 15],
+    "semantics": "logits"
+  },
+  "classes": [
+    {"index": 0, "symbol": ".", "label": "empty"},
+    {"index": 1, "symbol": "K", "label": "red_king"},
+    {"index": 2, "symbol": "A", "label": "red_advisor"},
+    {"index": 3, "symbol": "B", "label": "red_elephant"},
+    {"index": 4, "symbol": "N", "label": "red_horse"},
+    {"index": 5, "symbol": "R", "label": "red_rook"},
+    {"index": 6, "symbol": "C", "label": "red_cannon"},
+    {"index": 7, "symbol": "P", "label": "red_pawn"},
+    {"index": 8, "symbol": "k", "label": "black_king"},
+    {"index": 9, "symbol": "a", "label": "black_advisor"},
+    {"index": 10, "symbol": "b", "label": "black_elephant"},
+    {"index": 11, "symbol": "n", "label": "black_horse"},
+    {"index": 12, "symbol": "r", "label": "black_rook"},
+    {"index": 13, "symbol": "c", "label": "black_cannon"},
+    {"index": 14, "symbol": "p", "label": "black_pawn"}
+  ]
+}
