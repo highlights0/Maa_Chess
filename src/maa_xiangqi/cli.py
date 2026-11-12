@@ -20,8 +20,8 @@ from maa_xiangqi.adb import (
     list_devices,
 )
 from maa_xiangqi.board.geometry import BoardGeometry
-from maa_xiangqi.vision.crops import extract_square_crops
 from maa_xiangqi.engine import EngineError, PikafishEngine
+from maa_xiangqi.vision.crops import extract_square_crops
 
 DEFAULT_PROFILE = Path("config/tiantian/board_profile.yaml")
 DEFAULT_PACKAGE = "com.tencent.qqgame.xq"

@@ -10,7 +10,7 @@ import threading
 import time
 from dataclasses import asdict, dataclass
 from pathlib import Path
-from typing import Mapping, Sequence
+from collections.abc import Mapping, Sequence
 
 from maa_xiangqi.board.fen import board_to_fen, parse_fen
 
@@ -186,7 +186,11 @@ class PikafishEngine:
         for move in history:
             if not _MOVE_RE.fullmatch(move):
                 raise ValueError(f"非法 ICCS 走法：{move!r}")
-        deadline_seconds = timeout or max(self.command_timeout, movetime_ms / 1000 + 5.0)
+        deadline_seconds = (
+            timeout
+            if timeout is not None
+            else max(self.command_timeout, movetime_ms / 1000 + 5.0)
+        )
         if deadline_seconds <= 0:
             raise ValueError("timeout 必须大于 0")
 
@@ -268,11 +272,13 @@ class PikafishEngine:
                         process.wait(timeout=2.0)
             if process.stdin is not None:
                 process.stdin.close()
+            if self._reader_thread is not None:
+                self._reader_thread.join(timeout=1.0)
             if process.stdout is not None:
                 process.stdout.close()
             self._process = None
 
-    def __enter__(self) -> PikafishEngine:
+    def __enter__(self) -> PikafishEngine:  # noqa: PYI034
         return self.start()
 
     def __exit__(self, exc_type, exc_value, traceback) -> None:

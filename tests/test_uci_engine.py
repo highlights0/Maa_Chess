@@ -47,6 +47,8 @@ def test_rejects_invalid_history_move_before_starting_engine():
 
 
 def test_rejects_malformed_bestmove():
-    with make_engine("bad") as engine:
-        with pytest.raises(EngineProtocolError, match="非法 ICCS"):
-            engine.analyze(START_FEN, movetime_ms=50)
+    with make_engine("bad") as engine, pytest.raises(
+        EngineProtocolError,
+        match="非法 ICCS",
+    ):
+        engine.analyze(START_FEN, movetime_ms=50)
