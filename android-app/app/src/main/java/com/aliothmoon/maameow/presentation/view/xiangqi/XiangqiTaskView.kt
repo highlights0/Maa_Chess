@@ -1,12 +1,16 @@
 package com.aliothmoon.maameow.presentation.view.xiangqi
 
+import android.graphics.Paint as AndroidPaint
 import android.graphics.PixelFormat
+import android.graphics.Typeface
 import android.view.Surface
 import android.view.SurfaceHolder
 import android.view.SurfaceView
 import android.view.View
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -49,7 +53,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
+import androidx.compose.ui.graphics.nativeCanvas
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
@@ -408,10 +415,14 @@ fun XiangqiTaskView(
                             color = if (result.isComplete) MaterialTheme.colorScheme.primary
                             else MaterialTheme.colorScheme.error,
                         )
+                        XiangqiBoardPreview(
+                            rows = result.rows,
+                            redAtTopOnScreen = result.redAtTopOnScreen,
+                        )
                         Text(
-                            text = result.rows.joinToString("\n"),
-                            fontFamily = FontFamily.Monospace,
-                            style = MaterialTheme.typography.bodyMedium,
+                            text = stringResource(R.string.xiangqi_recognition_piece_legend),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                         result.fenBoard?.let { fen ->
                             Text(
@@ -546,3 +557,137 @@ private fun XiangqiDisplaySurface(
         )
     }
 }
+
+
+@Composable
+private fun XiangqiBoardPreview(
+    rows: List<String>,
+    redAtTopOnScreen: Boolean,
+) {
+    val displayRows = if (redAtTopOnScreen) {
+        rows.asReversed().map { it.reversed() }
+    } else {
+        rows
+    }
+
+    Canvas(
+        modifier = Modifier
+            .fillMaxWidth()
+            .aspectRatio(8f / 9f)
+            .padding(horizontal = 8.dp),
+    ) {
+        val margin = 16.dp.toPx()
+        val left = margin
+        val right = size.width - margin
+        val top = margin
+        val bottom = size.height - margin
+        val cellWidth = (right - left) / 8f
+        val cellHeight = (bottom - top) / 9f
+        val lineColor = Color(0xFF725334)
+        val boardColor = Color(0xFFF1D9A9)
+        val redColor = Color(0xFFB3261E)
+        val blackColor = Color(0xFF242424)
+        val strokeWidth = 1.25.dp.toPx()
+
+        drawRect(boardColor)
+        for (row in 0..9) {
+            val y = top + row * cellHeight
+            drawLine(
+                color = lineColor,
+                start = androidx.compose.ui.geometry.Offset(left, y),
+                end = androidx.compose.ui.geometry.Offset(right, y),
+                strokeWidth = strokeWidth,
+            )
+        }
+        for (col in 0..8) {
+            val x = left + col * cellWidth
+            if (col == 0 || col == 8) {
+                drawLine(
+                    color = lineColor,
+                    start = androidx.compose.ui.geometry.Offset(x, top),
+                    end = androidx.compose.ui.geometry.Offset(x, bottom),
+                    strokeWidth = strokeWidth,
+                )
+            } else {
+                drawLine(
+                    color = lineColor,
+                    start = androidx.compose.ui.geometry.Offset(x, top),
+                    end = androidx.compose.ui.geometry.Offset(x, top + 4 * cellHeight),
+                    strokeWidth = strokeWidth,
+                )
+                drawLine(
+                    color = lineColor,
+                    start = androidx.compose.ui.geometry.Offset(x, top + 5 * cellHeight),
+                    end = androidx.compose.ui.geometry.Offset(x, bottom),
+                    strokeWidth = strokeWidth,
+                )
+            }
+        }
+
+        // 九宫斜线
+        drawLine(
+            color = lineColor,
+            start = androidx.compose.ui.geometry.Offset(left + 3 * cellWidth, top),
+            end = androidx.compose.ui.geometry.Offset(left + 5 * cellWidth, top + 2 * cellHeight),
+            strokeWidth = strokeWidth,
+        )
+        drawLine(
+            color = lineColor,
+            start = androidx.compose.ui.geometry.Offset(left + 5 * cellWidth, top),
+            end = androidx.compose.ui.geometry.Offset(left + 3 * cellWidth, top + 2 * cellHeight),
+            strokeWidth = strokeWidth,
+        )
+        drawLine(
+            color = lineColor,
+            start = androidx.compose.ui.geometry.Offset(left + 3 * cellWidth, top + 7 * cellHeight),
+            end = androidx.compose.ui.geometry.Offset(left + 5 * cellWidth, bottom),
+            strokeWidth = strokeWidth,
+        )
+        drawLine(
+            color = lineColor,
+            start = androidx.compose.ui.geometry.Offset(left + 5 * cellWidth, top + 7 * cellHeight),
+            end = androidx.compose.ui.geometry.Offset(left + 3 * cellWidth, bottom),
+            strokeWidth = strokeWidth,
+        )
+
+        drawIntoCanvas { canvas ->
+            val paint = AndroidPaint(AndroidPaint.ANTI_ALIAS_FLAG).apply {
+                textAlign = AndroidPaint.Align.CENTER
+                typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
+            }
+            val radius = minOf(cellWidth, cellHeight) * 0.40f
+            for (row in 0 until 10) {
+                val boardRow = displayRows.getOrNull(row) ?: continue
+                for (col in 0 until 9) {
+                    val symbol = boardRow.getOrNull(col) ?: '.'
+                    if (symbol == '.') continue
+                    val centerX = left + col * cellWidth
+                    val centerY = top + row * cellHeight
+                    val pieceColor = when {
+                        symbol == 'x' -> Color(0xFF757575)
+                        symbol.isUpperCase() -> redColor
+                        else -> blackColor
+                    }
+                    drawCircle(
+                        color = Color(0xFFFFF0D3),
+                        radius = radius,
+                        center = androidx.compose.ui.geometry.Offset(centerX, centerY),
+                    )
+                    drawCircle(
+                        color = pieceColor,
+                        radius = radius,
+                        center = androidx.compose.ui.geometry.Offset(centerX, centerY),
+                        style = Stroke(width = 1.8.dp.toPx()),
+                    )
+                    paint.color = pieceColor.toArgb()
+                    paint.textSize = radius * 1.18f
+                    val metrics = paint.fontMetrics
+                    val baseline = centerY - (metrics.ascent + metrics.descent) / 2f
+                    val glyph = if (symbol == 'x') "?" else symbol.toString()
+                    canvas.nativeCanvas.drawText(glyph, centerX, baseline, paint)
+                }
+            }
+        }
+    }
+}
+

@@ -3111,4 +3111,5 @@ MAA will not end an in-progress exploration early because this option is uncheck
 
     <string name="xiangqi_recognition_error_generic">Details were written to the app log. Check the screenshot, board calibration, and model file.</string>
     <string name="xiangqi_recognition_generals_missing">The red or black general could not be identified reliably; this position cannot be sent to the engine.</string>
+    <string name="xiangqi_recognition_piece_legend">Piece labels: uppercase for Red, lowercase for Black; ? marks an unknown square.</string>
 </resources>
