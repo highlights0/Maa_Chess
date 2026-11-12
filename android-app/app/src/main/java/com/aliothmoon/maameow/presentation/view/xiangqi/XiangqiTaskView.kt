@@ -49,7 +49,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
@@ -173,7 +172,7 @@ fun XiangqiTaskView(
                             tint = MaterialTheme.colorScheme.primary,
                         )
                         Spacer(Modifier.width(8.dp))
-                        Text("天天象棋", style = MaterialTheme.typography.titleLarge)
+                        Text(stringResource(R.string.settings_game_package_xiangqi), style = MaterialTheme.typography.titleLarge)
                         Spacer(Modifier.weight(1f))
                         IconButton(
                             onClick = { viewModel.refreshGameStatus(XIANGQI_CLIENT_TYPE) },
