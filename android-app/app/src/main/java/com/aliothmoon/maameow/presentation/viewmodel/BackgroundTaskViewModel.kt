@@ -724,7 +724,7 @@ class BackgroundTaskViewModel(
             } catch (error: Exception) {
                 Timber.e(error, "download Xiangqi recognition model failed")
                 _xiangqiRecognition.update {
-                    it.copy(error = error.message ?: application.getString(R.string.xiangqi_recognition_error_unknown))
+                    it.copy(error = application.getString(R.string.xiangqi_recognition_error_generic))
                 }
             }
         }
@@ -765,7 +765,7 @@ class BackgroundTaskViewModel(
                 _xiangqiRecognition.update {
                     it.copy(
                         isRecognizing = false,
-                        error = error.message ?: application.getString(R.string.xiangqi_recognition_error_unknown),
+                        error = application.getString(R.string.xiangqi_recognition_error_generic),
                     )
                 }
             }

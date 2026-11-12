@@ -80,10 +80,10 @@ data class XiangqiRecognitionResult(
     val uncertainSquares: List<XiangqiSquare>,
     val meanConfidence: Float,
     val redAtTopOnScreen: Boolean,
-    val problem: String?,
+    val problemCode: String?,
 ) {
     val isComplete: Boolean
-        get() = fenBoard != null && uncertainSquares.isEmpty() && problem == null
+        get() = fenBoard != null && uncertainSquares.isEmpty() && problemCode == null
 }
 
 /**
@@ -99,6 +99,7 @@ class XiangqiNanoV3Recognizer(
         private const val OUTPUT_SQUARES = 90
         private const val OUTPUT_CLASSES = 16
         private const val MIN_CONFIDENCE = 0.80f
+        const val PROBLEM_GENERAL_COUNT = "missing_or_duplicate_general"
         private const val CLASS_SYMBOLS = ".xKABNRCPkabnrcp"
         private val MEAN = doubleArrayOf(123.675, 116.28, 103.53)
         private val STD = doubleArrayOf(58.395, 57.12, 57.375)
@@ -288,7 +289,7 @@ class XiangqiNanoV3Recognizer(
             uncertainSquares = uncertain.toList(),
             meanConfidence = (confidenceSum / OUTPUT_SQUARES).toFloat(),
             redAtTopOnScreen = redAtTopOnScreen,
-            problem = positionProblem,
+            problemCode = positionProblem,
         )
         return InternalResult(result, orientationValid)
     }

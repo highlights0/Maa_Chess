@@ -322,7 +322,7 @@ fun XiangqiTaskView(
                         )
                         is XiangqiModelStatus.Failed -> stringResource(
                             R.string.xiangqi_model_failed,
-                            status.message,
+                            stringResource(R.string.xiangqi_recognition_error_generic),
                         )
                     }
                     Row(verticalAlignment = Alignment.CenterVertically) {
@@ -418,9 +418,14 @@ fun XiangqiTaskView(
                                 style = MaterialTheme.typography.bodySmall,
                             )
                         }
-                        result.problem?.let {
+                        result.problemCode?.let { problemCode ->
+                            val problemText = when (problemCode) {
+                                XiangqiNanoV3Recognizer.PROBLEM_GENERAL_COUNT ->
+                                    stringResource(R.string.xiangqi_recognition_generals_missing)
+                                else -> stringResource(R.string.xiangqi_recognition_error_generic)
+                            }
                             Text(
-                                text = it,
+                                text = problemText,
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.error,
                             )

@@ -216,7 +216,6 @@ domain/xiangqi/XiangqiNanoV3Recognizer.kt	nano-v3 模型输出不是 Tensor
 domain/xiangqi/XiangqiNanoV3Recognizer.kt	nano-v3 模型输出尺寸不匹配：${shape.contentToString()}
 domain/xiangqi/XiangqiNanoV3Recognizer.kt	nano-v3 模型输出数据长度不匹配
 domain/xiangqi/XiangqiNanoV3Recognizer.kt	nano-v3 模型返回无效概率
-domain/xiangqi/XiangqiNanoV3Recognizer.kt	局面必须且只能识别到一个红帅和一个黑将
 domain/xiangqi/XiangqiNanoV3Recognizer.kt	截图宽高比与棋盘校准不一致，请重新校准
 domain/xiangqi/XiangqiNanoV3Recognizer.kt	截图尺寸无效
 domain/xiangqi/XiangqiNanoV3Recognizer.kt	截图数据为空
