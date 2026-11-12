@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import math
+
+import cv2
 import numpy as np
 import pytest
 
@@ -141,9 +144,6 @@ def test_nano_v3_rejects_perspective_geometry_it_cannot_reproduce():
 
 def _reference_preprocess(image: np.ndarray, geometry: BoardGeometry, *, red_at_top: bool) -> np.ndarray:
     """Scalar numerical oracle matching the upstream C# implementation."""
-    import cv2
-    import math
-
     rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
     height, width = rgb.shape[:2]
     left = (geometry.corners[0][0] + geometry.corners[3][0]) / 2
