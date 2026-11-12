@@ -14,6 +14,7 @@
 - AGENTS.md
 - docs/architecture.md
 - docs/MAAMEOW_UI_AND_BACKGROUND.md
+- docs/MUMU_ENVIRONMENT.md
 - docs/phase-1.md
 
 先检查当前代码和测试，不要推翻已完成模块。所有新增功能必须配套测试。不能运行的测试必须如实报告。不要提交用户截图、设备序列号、设备本机路径、模型权重或引擎二进制。
@@ -78,6 +79,8 @@ MAA-Meow 只作为公开架构和 UI 交互参考。不得复制其 AGPL-3.0 源
 ## 2. 当前已有基础
 
 - ADB 设备发现、设备参数读取、应用启动和 Android 内部截图 CLI。
+- MuMu / Android 环境诊断命令 maa-xiangqi-diagnose，支持 API、ABI、Root / Shizuku 线索、游戏包和显示器摘要。
+- MuMu 900×1600 初始棋盘校准配置 config/tiantian/mumu_900x1600.yaml。
 - 人工四角校准、透视映射、网格叠加图和 90 个棋位图块导出。
 - BoardState、Xiangqi FEN 和 ICCS 坐标转换。
 - MaaFramework Python Agent 诊断截图动作和 General UI interface/pipeline 初始配置。
@@ -91,10 +94,12 @@ MAA-Meow 只作为公开架构和 UI 交互参考。不得复制其 AGPL-3.0 源
 
 1. 在 Windows Python 3.10+ 环境安装项目依赖。
 2. 运行 pytest 和 ruff。
-3. 用实际模拟器验证 adb devices、device-info、capture、launch。
-4. 用真实 ADB 截图校准四角，输出 overlay 和 90 个 crops。
-5. 验证截图分辨率变化时的缩放策略。
-6. 将真实设备截图和校准配置保留在本地 debug，不提交仓库。
+3. 用 MuMu 设备执行 maa-xiangqi-diagnose --serial <serial> --output debug/mumu-diagnostics.json。
+4. 如用户明确同意，再加 --probe-root 测试 su -c id；不要默认触发 Root 授权。
+5. 用实际模拟器验证 adb devices、device-info、capture、launch。
+6. 使用 config/tiantian/mumu_900x1600.yaml 生成 overlay 和 90 个 crops，并人工检查。
+7. 验证截图分辨率变化时的缩放策略。
+8. 将真实设备截图、诊断日志和设备序列号保留在本地 debug，不提交仓库。
 
 验收：
 
