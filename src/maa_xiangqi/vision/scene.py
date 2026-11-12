@@ -8,8 +8,8 @@ screen-recognition pipeline.
 from __future__ import annotations
 
 import re
-from dataclasses import dataclass
 from collections.abc import Iterable
+from dataclasses import dataclass
 from enum import Enum
 
 _LEVEL_RE = re.compile(r"第\s*(\d+|[一二三四五六七八九十百]+)\s*关")
