@@ -5,7 +5,9 @@
 - 已接入前台无特权启动、后台虚拟显示启动，以及已运行游戏移入虚拟显示器的路径。
 - 已按用户设备配置 900×1600、240 DPI 竖屏显示。
 - 已添加游戏启动路由和竖屏分辨率单元测试。
-- 当前仍未完成棋盘识别、棋子分类、规则校验、Pikafish Android 和自动落子闭环。
+- Python 端已接入 MIT 许可 nano-v3 预训练模型、固定预处理、置信度门控和真实模型冒烟测试；CI 已验证 59 项 Python 测试与 Ruff。
+- Android 端已加入 nano-v3 模型下载 / SHA-256 校验、ONNX Runtime 推理、后台帧采集和棋盘结果展示入口；仍需通过 Android CI 并在 MuMu 实机验证识别结果。
+- 尚未完成自动棋盘定位、行棋方识别、Pikafish Android 引擎、完整规则历史和自动落子闭环。
 - 当前用户诊断报告中 Shizuku 未安装、Root 探测未通过；后台模式必须在用户完成授权后实机验证。
 - 本轮未在 MuMu 或真机运行 APK；后续由 GitHub Actions 构建并提供 APK artifact。
 
@@ -276,23 +278,29 @@ MAA-Meow Android 工程已迁移并直接复用，所有衍生修改按 AGPL-3.0
 
 ## 8. 阶段 F：棋子识别数据与模型（P1/P2）
 
+### 当前实现更新（2026-11-12）
+
+已优先复用 MIT 许可的 Chinese Chess Recognition nano-v3 预训练模型，不从零训练第一版分类器。模型一次输出 90 个交叉点、16 类（空位、未知、红方 7 子、黑方 7 子），输入为 RGB NCHW float32 `[1,3,315,280]`，输出 `[1,90,16]`。模型下载固定到已核验 revision，并在下载后检查文件大小与 SHA-256；模型权重不提交 Git。
+
+已实现 Python 与 Android 两端的推理适配和置信度 / 棋子数量 / 宫位合法性门控。Android 识别入口目前使用 MuMu 900×1600 人工四角校准，并从后台虚拟显示 Surface 获取帧；尚未完成自动定位、前台采集和实机准确率验收。未知棋位不得生成可供引擎使用的完整 FEN。
+
 目标类别：
 
-- empty
-- red_king / red_advisor / red_elephant / red_horse / red_rook / red_cannon / red_pawn
-- black_king / black_advisor / black_elephant / black_horse / black_rook / black_cannon / black_pawn
+- `.`：empty
+- `x`：unknown / occluded
+- `KABNRCP`：红帅、仕、相、马、车、炮、兵
+- `kabnrcp`：黑将、士、象、马、车、炮、卒
+
+后续只有在实机样本验证显示 nano-v3 对天天象棋皮肤存在系统性缺陷时，才启动自建数据集和微调 / 替代模型。
 
 任务：
 
-1. 建立人工标注数据集和类别映射。
-2. 训练轻量 CNN 分类器，先做基线，不预设 YOLO 必须使用。
-3. 导出 ONNX。
-4. 保存输入尺寸、通道顺序、归一化、标签映射和模型 SHA-256。
-5. Python 端实现 OnnxPieceClassifier。
-6. Android 端选择并验证可用的 ONNX Runtime 推理方案。
-7. 低置信度棋位标记 unknown 或重新采样。
-8. 按棋局 / 采集批次隔离 train/val/test，避免相邻帧泄漏。
-9. 分场景报告准确率、召回率和混淆矩阵。
+1. 使用用户提供的 MuMu 实际截图和不同阶段截图建立独立验收集，不提交含账号信息的原始截图。
+2. 对比模型输出和人工标注，分别统计棋子类型、阵营、空位、unknown 的准确率和召回率。
+3. 在 Android 真机 / MuMu 上验证 Bitmap 预处理与 Python 参考实现数值一致。
+4. 测试不同分辨率、缩放、选中态、动画、遮挡和棋盘方向。
+5. 只有 nano-v3 对天天象棋皮肤存在稳定系统性错误时，才建立标注集训练替代模型。
+6. 低置信度、unknown、超额棋子或非法宫位一律阻止生成完整 FEN。
 
 ## 9. 阶段 G：棋局状态、历史与规则验证（P2）
 

@@ -18,11 +18,13 @@ Maa_Chess 的 Android 原生应用。该工程直接基于 [Aliothmoon/MAA-Meow]
 - 后台模式复用 MAA-Meow 的虚拟显示和远端启动服务；已运行于主屏的游戏会尝试移入目标虚拟显示器。
 - 天天象棋包名：`com.tencent.qqgame.xq`，可在设置中覆盖。
 - 天天象棋后台显示初始分辨率：900×1600，240 DPI。
+- 已加入 ONNX Runtime Android，nano-v3 模型按需下载到应用私有目录并进行 SHA-256 校验。
+- 已加入棋盘识别入口：从后台预览 Surface 获取 JPEG 帧，按 MuMu 四角校准进行模型预处理，展示棋位结果、FEN 棋盘串和不确定位置。
 - 标准对局和残局闯关入口已建立；当前选择只表示测试场景，不会自动操作游戏内菜单。
 
 ## 重要架构边界
 
-MAA-Meow 中的 Arknights `MaaCore` 任务类型（`StartUp`、`Fight`、`Copilot` 等）不适用于象棋。当前改造仅复用它的设备、显示器、Surface、权限和应用生命周期能力；不能调用 Arknights 任务链来声称完成象棋自动化。后续象棋任务必须接入本项目自己的 MaaFramework pipeline / custom action、BoardState、规则验证和 Pikafish 引擎。
+MAA-Meow 中的 Arknights `MaaCore` 任务类型（`StartUp`、`Fight`、`Copilot` 等）不适用于象棋。当前改造复用它的设备、显示器、Surface、权限和应用生命周期能力；象棋识别通过独立 XiangqiRecognitionService 执行，不能调用 Arknights 任务链来声称完成象棋自动化。后续棋局调度和输入执行必须接入本项目自己的 MaaFramework pipeline / custom action、BoardState、规则验证和 Pikafish 引擎。
 
 ## 构建环境
 
