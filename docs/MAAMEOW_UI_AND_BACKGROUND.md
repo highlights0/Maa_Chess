@@ -1,3 +1,7 @@
+## 当前迁移状态
+
+Maa_Chess 已直接迁移并修改 MAA-Meow Android 工程，位于 `android-app/`。设备管理、Shizuku / Root、后台虚拟显示、远程服务、Surface 与输入桥接和任务生命周期优先复用上游实现，遵循 AGPL-3.0 并保留上游许可证与第三方声明。
+
 # UI 与 Android 后台运行设计
 
 ## 1. 参考项目与结论

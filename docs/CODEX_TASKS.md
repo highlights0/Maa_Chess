@@ -1,4 +1,17 @@
-# Codex 实施任务书：MaaXiangqi
+# 当前实施状态（2026-11-12）
+
+- 已将 MAA-Meow Android 工程迁移到 android-app/，并开始改造为 Maa_Chess。
+- 已完成独立 applicationId、品牌资源、四页导航、天天象棋任务页、包名配置入口。
+- 已接入前台无特权启动、后台虚拟显示启动，以及已运行游戏移入虚拟显示器的路径。
+- 已按用户设备配置 900×1600、240 DPI 竖屏显示。
+- 已添加游戏启动路由和竖屏分辨率单元测试。
+- 当前仍未完成棋盘识别、棋子分类、规则校验、Pikafish Android 和自动落子闭环。
+- 当前用户诊断报告中 Shizuku 未安装、Root 探测未通过；后台模式必须在用户完成授权后实机验证。
+- 本轮未在 MuMu 或真机运行 APK；后续由 GitHub Actions 构建并提供 APK artifact。
+
+**架构边界：** MAA-Meow 的 Arknights AsstAppendTask 不是象棋任务引擎。象棋任务后续使用本项目 MaaFramework pipeline / custom action 与 Xiangqi Core。
+
+# Codex 实施任务书：Maa_Chess
 
 > 仓库：highlights0/Maa_Chess  
 > 目标客户端：天天象棋 Android  
@@ -22,7 +35,7 @@
 
 优先复用 MaaFramework 官方 Android Native Control Unit / MaaCore、MaaFramework Python Binding、OpenCV、ONNX Runtime 和 Pikafish。使用 MaaFramework 时以官方当前文档、发布产物和源码为准。
 
-MAA-Meow 只作为公开架构和 UI 交互参考。不得复制其 AGPL-3.0 源码、图片、图标或品牌素材。若确需复用代码，必须先评估许可证义务。
+MAA-Meow Android 工程已迁移并直接复用，所有衍生修改按 AGPL-3.0 处理，必须保留 LICENSE、版权和第三方声明。
 
 ## 1. 产品定义
 

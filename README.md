@@ -1,115 +1,93 @@
-# MaaXiangqi
+# Maa_Chess
 
-基于 MaaFramework 的天天象棋 Android 自动化与棋局分析项目。
+基于 MAA-Meow Android 基础工程改造的天天象棋自动化项目，目标客户端为腾讯《天天象棋》。
 
-> 目标客户端：腾讯《天天象棋》Android 版  
-> 首期场景：标准对局、残局闯关  
-> 产品 UI：Android 原生 Jetpack Compose / Material 3  
-> 目标运行模式：ADB 开发模式、Android 前台模式、Android 后台虚拟显示模式
+## 当前方向
 
-## 产品方向
+**Android 原生 App 是主线。** 直接复用 MAA-Meow 已有的设备管理、Shizuku / Root 权限服务、后台虚拟显示、Surface 画面桥接、定向输入和任务生命周期，不再平行重写这些基础设施。
 
-项目 UI 和后台体验参考 [Aliothmoon/MAA-Meow](https://github.com/Aliothmoon/MAA-Meow) 的公开设计思路：
+首期场景：
+- 标准对局。
+- 残局闯关。
 
-- 卡片式首页、任务页、棋谱页和设置页。
-- 清晰的设备、权限、游戏、MAA Core 和任务状态。
-- Android 原生运行 MAA Core。
-- 通过 Shizuku / Root 特权服务创建后台虚拟显示器。
-- 将天天象棋运行在独立显示器上，主界面继续用于其他操作。
+产品导航：首页、任务、棋谱、设置。
 
-本项目只借鉴其架构和交互思路，不复制 MAA-Meow 的源码、资源或品牌素材。参考项目使用 AGPL-3.0，若将来决定直接复用其代码，必须先完成许可证评估。
+## 当前已接入
 
-**重要：后台虚拟显示尚未实现。** 是否可用取决于 Android 版本、模拟器 / ROM、Shizuku 或 Root 权限和游戏对非默认显示器的兼容性。屏幕熄灭和锁屏运行不属于首版承诺。
+- MAA-Meow Android 工程迁移至 `android-app/`。
+- 应用品牌和独立 applicationId：`com.highlights0.maachess`。
+- 前台模式通过 Android 启动器直接启动天天象棋，不要求 Shizuku / Root。
+- 后台模式沿用 MAA-Meow 的虚拟显示器、远端启动、Surface 预览和 Shizuku / Root 通道。
+- 已修复后台模式下游戏已运行于主屏时，重复启动不会移入虚拟显示器的问题。
+- 天天象棋包名已在用户提供的 MuMu 诊断中核实：`com.tencent.qqgame.xq`（4.3.0.2）。
+- 初始后台分辨率使用用户设备的 900×1600、240 DPI 竖屏配置。
+- 标准对局 / 残局闯关入口、棋谱页占位和客户端包名设置入口。
 
-## 当前代码状态
+## 尚未完成
 
-当前仓库包含 Windows Python 开发与诊断工具：
+- 天天象棋大厅、标准对局和残局闯关的界面状态识别。
+- 棋盘自动定位与 90 个交叉点识别。
+- 15 类棋子识别模型与置信度校验。
+- 完整象棋规则验证和走法历史维护。
+- Pikafish Android 引擎接入。
+- 起点 / 终点触控、动画等待、走法结果复识别和自动落子闭环。
 
-- ADB 设备发现、设备显示参数读取、应用启动和 Android 内部截图。
-- MuMu / Android 环境诊断：Android API、ABI、模拟器 build properties、Root / Shizuku 线索、已安装游戏包和显示器信息。
-- MuMu 900×1600 首轮棋盘校准 profile。
-- 棋盘四角人工校准、透视坐标映射、90 个交叉点可视化。
-- 棋位图块导出，为后续棋子分类模型建立数据集。
-- BoardState、ICCS 坐标和 Pikafish 兼容 FEN 基础表示。
-- MaaFramework Python Agent 的诊断截图动作。
+**重要边界：** 当前 Android 任务页只完成游戏启动、前台/后台显示和预览接入。标准 / 残局选择目前是场景入口，不会自动点击游戏内菜单，也不会自动对弈。MAA-Meow 中的 Arknights `AsstAppendTask` 任务链不是象棋任务引擎；后续象棋识别与执行必须使用本项目的 MaaFramework pipeline / custom action 和独立 Xiangqi Core，不能把 Arknights 任务误当成已接入。
 
-这些 Python 工具用于开发、截图采集、棋盘校准和算法验证，不代表最终产品 UI 或后台运行能力已经完成。
+## 仓库结构
 
-**尚未完成：** Android 原生 App、Shizuku / Root 远程服务、虚拟显示器、MAA Core Android 运行时、天天象棋界面自动识别、14 类棋子模型、完整规则校验、Pikafish Android 引擎和自动落子闭环。
+```text
+Maa_Chess/
+├── android-app/       # MAA-Meow Android 基础工程及象棋 UI 改造
+├── src/               # Python 开发、校准和视觉算法工具
+├── agent/             # MaaFramework Python Agent
+├── assets/resource/   # MaaFramework pipeline 配置
+├── config/            # 天天象棋与 MuMu 棋盘配置
+├── tests/             # Python 单元测试
+├── docs/              # 架构、迁移和 Codex 任务书
+├── engines/           # Pikafish（后续接入）
+└── models/            # 棋子识别模型（后续接入）
+```
 
-## Windows 开发工具快速开始
+## 构建 Android App
 
-### 环境
+环境要求：JDK 25、Android SDK Platform 37、NDK 29.0.14206865、CMake 3.22.1、Python 3.12。
 
-- Windows 10/11
-- Python 3.10+
-- MuMu 模拟器已开启 ADB 调试
-- Android Platform Tools（adb.exe）
+PowerShell：
 
-### 安装
+```powershell
+cd android-app
+python scripts/setup_maa_core.py --clean
+.\gradlew.bat :app:testDebugUnitTest :app:assembleDebug
+```
 
-    py -3.11 -m venv .venv
-    .\.venv\Scripts\Activate.ps1
-    python -m pip install --upgrade pip
-    pip install -e ".[dev]"
+默认同时构建 arm64-v8a 与 x86_64，兼容 ARM64 Android 真机和 MuMu x86_64。
 
-### 检查 ADB 设备
+APK 输出：
 
-    maa-xiangqi devices
-    maa-xiangqi device-info --serial <设备序列号>
+`android-app/app/build/outputs/apk/debug/app-debug.apk`
 
-### MuMu 环境诊断
+## Python 开发工具
 
-    maa-xiangqi-diagnose --serial <设备序列号> --output debug/mumu-diagnostics.json
+保留 ADB 设备发现、Android 内部截图、MuMu 环境诊断、棋盘四角校准、90 个棋位裁剪、FEN / ICCS 坐标和 MaaFramework Python Agent。
 
-如需主动验证 su：
+```powershell
+py -3.11 -m venv .venv
+.\.venv\Scripts\Activate.ps1
+pip install -e ".[dev]"
+pytest
+ruff check .
+```
 
-    maa-xiangqi-diagnose --serial <设备序列号> --probe-root --output debug/mumu-diagnostics-root.json
+## 后台兼容性说明
 
-probe-root 可能触发 Root 授权提示。诊断报告不包含设备序列号；Shizuku 授权状态仍需在 Shizuku 管理界面核实。
+用户提供的诊断报告确认设备分辨率为 900×1600、240 DPI，已安装天天象棋包名为 `com.tencent.qqgame.xq`。该报告中 Shizuku 未安装、Root 探测未通过，虚拟显示 PoC 尚未测试。因此目前不能声称该设备已验证后台运行；前台启动不依赖这两项权限，后台模式需要先完成授权和实际显示器验证。
 
-### 获取 Android 内部截图
+## 上游与许可证
 
-    maa-xiangqi capture --serial <设备序列号> --output debug/captures/current.png
+Android 工程基于 [Aliothmoon/MAA-Meow](https://github.com/Aliothmoon/MAA-Meow) 迁移和修改，遵循 AGPL-3.0。保留上游 LICENSE 和第三方代码声明。分发衍生版本时，必须提供对应完整源代码并履行 AGPL-3.0 义务。
 
-截图通过 adb exec-out screencap -p 获取，不截取模拟器 Windows 标题栏和边框。
-
-### 使用 MuMu 900×1600 校准
-
-    maa-xiangqi overlay --image debug/captures/current.png --profile config/tiantian/mumu_900x1600.yaml --output debug/mumu-board-overlay.png
-
-    maa-xiangqi crops --image debug/captures/current.png --profile config/tiantian/mumu_900x1600.yaml --output-dir debug/mumu-crops
-
-该 profile 来自用户提供的 900×1600 Android 内部截图。更改模拟器分辨率或游戏布局后必须重新校准。
-
-### 运行测试
-
-    pytest
-    ruff check .
-
-## 项目文档
-
-- [整体架构](docs/architecture.md)
+- [Android 工程说明](android-app/README.md)
 - [MAA-Meow UI 与后台运行设计](docs/MAAMEOW_UI_AND_BACKGROUND.md)
-- [MuMu 环境诊断与棋盘校准](docs/MUMU_ENVIRONMENT.md)
-- [后台虚拟显示 PoC 候选项目评估](docs/HEADLESS_ANDROID_EVALUATION.md)
-- [Codex 完整实施任务书](docs/CODEX_TASKS.md)
-- [第一阶段操作与验收](docs/phase-1.md)
-- [项目协作约定](AGENTS.md)
-
-## 关键设计约定
-
-1. 棋盘逻辑坐标固定为 9 列 × 10 行，图像 row=0 是黑方底线，row=9 是红方底线。
-2. ICCS / Pikafish 坐标从红方视角编号：红方底线为 rank 0，黑方底线为 rank 9。
-3. 标准对局与残局闯关共用棋盘、识别、规则和引擎核心；场景状态机分别处理。
-4. ADB 主机模式不承诺真正后台运行；只有通过虚拟显示器、显示器定向采集和输入验证后，才可标记后台模式可用。
-5. 未经视觉确认的预测局面不能覆盖已确认局面；点击失败或状态不确定时必须暂停。
-6. 自动输入优先用于离线练习、残局和明确允许自动化的测试场景。
-
-## 技术参考
-
-- [MaaFramework](https://github.com/MaaXYZ/MaaFramework)
-- [MaaPracticeBoilerplate](https://github.com/MaaXYZ/MaaPracticeBoilerplate)
-- [Pikafish](https://github.com/official-pikafish/Pikafish)
-- [Shizuku](https://shizuku.rikka.app/)
-- [MAA-Meow](https://github.com/Aliothmoon/MAA-Meow)
+- [MuMu 环境与校准](docs/MUMU_ENVIRONMENT.md)
+- [Codex 实施任务书](docs/CODEX_TASKS.md)

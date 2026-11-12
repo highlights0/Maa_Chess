@@ -1,86 +1,66 @@
-<div align="center">
-<img alt="LOGO" src="/docs/zh-cn/develop/Logo.png" width="256" height="256" />
+# Maa_Chess Android App
 
-# MAA Meow 
+Maa_Chess 的 Android 原生应用。该工程直接基于 [Aliothmoon/MAA-Meow](https://github.com/Aliothmoon/MAA-Meow) Android 工程迁移和改造，优先复用其成熟基础设施：
 
-**在 Android 设备上原生运行 [MAA](https://github.com/MaaAssistantArknights/MaaAssistantArknights)**
+- Jetpack Compose / Material 3 UI。
+- 设备管理与连接状态。
+- Shizuku / Root 权限管理。
+- 后台虚拟显示器、目标应用启动、Surface 画面桥接和定向触控。
+- MAA Core 原生库装载、日志与任务生命周期。
 
-基于图像识别技术，一键完成全部日常任务！
+## 当前改造内容
 
-[![GitHub Release](https://img.shields.io/github/v/release/Aliothmoon/MAA-Meow?style=flat-square&label=Latest)](https://github.com/Aliothmoon/MAA-Meow/releases/latest)
-[![License](https://img.shields.io/github/license/Aliothmoon/MAA-Meow?style=flat-square)](LICENSE)
-[![GitHub Stars](https://img.shields.io/github/stars/Aliothmoon/MAA-Meow?style=flat-square)](https://github.com/Aliothmoon/MAA-Meow/stargazers)
-[![GitHub Downloads](https://img.shields.io/github/downloads/Aliothmoon/MAA-Meow/total?style=flat-square&label=Downloads)](https://github.com/Aliothmoon/MAA-Meow/releases)
+- 应用名称：Maa_Chess。
+- Android applicationId：`com.highlights0.maachess`。
+- Kotlin namespace 暂时保留为 `com.aliothmoon.maameow`，避免一次性重命名 AIDL 和全部源文件。
+- 主导航：首页、任务、棋谱、设置。
+- 前台模式通过 Android PackageManager 启动天天象棋，不依赖 Shizuku / Root。
+- 后台模式复用 MAA-Meow 的虚拟显示和远端启动服务；已运行于主屏的游戏会尝试移入目标虚拟显示器。
+- 天天象棋包名：`com.tencent.qqgame.xq`，可在设置中覆盖。
+- 天天象棋后台显示初始分辨率：900×1600，240 DPI。
+- 标准对局和残局闯关入口已建立；当前选择只表示测试场景，不会自动操作游戏内菜单。
 
-[下载最新版](https://github.com/Aliothmoon/MAA-Meow/releases/latest) · [常见问题](https://docs.maameow.com/faq/getting-started/) · [问题反馈](https://github.com/Aliothmoon/MAA-Meow/issues) · [QQ 交流群](https://join.maameow.com/)
+## 重要架构边界
 
-**[English](README_EN.md)** | **中文**
+MAA-Meow 中的 Arknights `MaaCore` 任务类型（`StartUp`、`Fight`、`Copilot` 等）不适用于象棋。当前改造仅复用它的设备、显示器、Surface、权限和应用生命周期能力；不能调用 Arknights 任务链来声称完成象棋自动化。后续象棋任务必须接入本项目自己的 MaaFramework pipeline / custom action、BoardState、规则验证和 Pikafish 引擎。
 
-</div>
+## 构建环境
 
----
+- JDK 25（Eclipse Temurin）。
+- Android SDK Platform 37。
+- Android NDK 29.0.14206865。
+- CMake 3.22.1。
+- Python 3.12（下载和部署 MAA Core 预编译资源）。
 
-> 无需 Root 权限，明日方舟可后台！正在开发中，功能不稳定，欢迎尝鲜体验～
+## 下载 MAA Core 依赖
 
-<p align="center">
-  <img src="docs/zh-cn/manual/screenshots/home.png" width="200" />
-  <img src="docs/zh-cn/manual/screenshots/background_task.png" width="200" />
-  <img src="docs/zh-cn/manual/screenshots/schedule.png" width="200" />
-  <img src="docs/zh-cn/manual/screenshots/auto_controls.png" width="200" />
-</p>
+在本目录执行：
 
-## 特性
+```powershell
+python scripts/setup_maa_core.py --clean
+```
 
-|  | 特性 | 说明 |
-|---|---|---|
-| 🧠 | **原生运行 MAA Core** | 直接在 Android 上运行自动化逻辑，无需 PC 或模拟器 |
-| 🪟 | **双模式运行** | 前台悬浮控制面板 / 后台虚拟显示器无界面运行 |
-| 📦 | **完整任务支持** | 理智作战、公招识别、基建托管、抄作业、自动肉鸽等 |
-| ⏱️ | **定时任务** | 按预设时间自动启动任务，适合日常挂机 |
-| 🔄 | **自动更新** | 启动时自动检查并下载应用和资源更新 |
+该脚本下载 MAA Core Android 预编译库和资源，并部署到 `app/src/main/jniLibs` 与 `app/src/main/assets/MaaSync/MaaResource`。这些生成文件不应提交到 Git。
 
-## 运行要求
+## 编译与测试
 
-| 项目 | 要求 |
-|---|---|
-| 系统版本 | Android 9+（API 28） |
-| 权限方案 | [Shizuku](https://shizuku.rikka.app/) 已运行并授权，或设备已 Root |
-| 设备架构 | arm64-v8a 或 x86_64 |
+MuMu 使用 x86_64，默认同时构建 arm64-v8a 与 x86_64：
 
-## 文档
+```powershell
+.\gradlew.bat :app:testDebugUnitTest :app:assembleDebug
+```
 
-| 文档 | 说明 |
-|---|---|
-| [构建指南](docs/zh-cn/develop/BUILDING.md) | 从源码构建 APK |
-| [外部自动化集成](docs/zh-cn/develop/AUTOMATION.md) | 通过 Intent / am 命令与 MacroDroid、Tasker 联动 |
-| [遥测](docs/zh-cn/develop/TELEMETRY.md) | 匿名上报的内容、不上报的内容与关闭方法 |
-| [Roadmap](docs/zh-cn/develop/ROADMAP.md) | 功能规划与进度 |
-| [Issue 规范](docs/zh-cn/develop/ISSUE_GUIDELINES.md) | Issue 标题格式、模块命名与示例 |
-| [PR 规范](docs/zh-cn/develop/PULL_REQUEST_GUIDELINES.md) | 提交 PR 前的标题、描述、验证与评审约定 |
-| [第三方代码声明](docs/zh-cn/develop/THIRD_PARTY_NOTICES.md) | 引用的开源组件及许可证 |
+单独构建某种 ABI：
 
-## 参与贡献
+```powershell
+.\gradlew.bat assembleDebug -Pmaa.abi=x86_64
+.\gradlew.bat assembleDebug -Pmaa.abi=arm64-v8a
+```
 
-欢迎提交 Pull Request！无论是修复 Bug、优化体验还是实现新功能，我们都非常感谢。
+Debug APK：
 
-1. Fork 本仓库
-2. 创建你的分支 (`git checkout -b feat/your-feature`)
-3. 提交更改 (`git commit -m 'feat: 添加某某功能'`)
-4. 推送到远程 (`git push origin feat/your-feature`)
-5. 发起 Pull Request
-
-> 提交信息请遵循 [Conventional Commits](https://www.conventionalcommits.org/) 规范（`feat:`、`fix:`、`docs:` 等）。
-> 首次构建请参阅 [构建指南](docs/zh-cn/develop/BUILDING.md)。
-> 提交 PR 前请阅读 [PR 规范](docs/zh-cn/develop/PULL_REQUEST_GUIDELINES.md)。
-
-如果觉得项目有用，欢迎点一个 Star ⭐ 让更多人看到！
-
-## 致谢
-
-- [MaaAssistantArknights](https://github.com/MaaAssistantArknights/MaaAssistantArknights) — 明日方舟游戏小助手，基于图像识别技术
-- [Genymobile/scrcpy](https://github.com/Genymobile/scrcpy) — Display and control your Android device.
-- [Shizuku](https://github.com/RikkaApps/Shizuku) — Using system APIs directly with adb/root privileges from normal apps through a Java process started with app_process.
+`app/build/outputs/apk/debug/app-debug.apk`
 
 ## 许可证
 
-本项目以 [AGPL-3.0](LICENSE) 许可证发布。第三方代码保留其原始许可证，详见[第三方代码声明](docs/zh-cn/develop/THIRD_PARTY_NOTICES.md)。
+本 Android 工程是 MAA-Meow 的衍生工程，遵循 AGPL-3.0。请阅读本目录的 `LICENSE` 和 `docs/zh-cn/develop/THIRD_PARTY_NOTICES.md`。分发修改后的应用时，必须履行 AGPL-3.0 对应的完整源代码提供义务。
