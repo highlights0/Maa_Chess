@@ -175,21 +175,19 @@ class XiangqiNanoV3Recognizer(
             longArrayOf(1, 3, INPUT_HEIGHT.toLong(), INPUT_WIDTH.toLong()),
         ).use { inputTensor ->
             activeSession.run(mapOf(inputName!! to inputTensor)).use { result ->
-                val tensor = result.get(outputName!!) as? OnnxTensor
+                val tensor = result.get(outputName!!).orElse(null) as? OnnxTensor
                     ?: throw IOException("nano-v3 模型输出不是 Tensor")
-                tensor.use {
-                    val shape = (it.info as TensorInfo).shape
-                    if (!shape.contentEquals(longArrayOf(1, OUTPUT_SQUARES.toLong(), OUTPUT_CLASSES.toLong()))) {
-                        throw IOException("nano-v3 模型输出尺寸不匹配：${shape.contentToString()}")
-                    }
-                    val buffer = it.floatBuffer
-                    if (buffer.remaining() != OUTPUT_SQUARES * OUTPUT_CLASSES) {
-                        throw IOException("nano-v3 模型输出数据长度不匹配")
-                    }
-                    val probabilities = FloatArray(OUTPUT_SQUARES * OUTPUT_CLASSES)
-                    buffer.get(probabilities)
-                    return decode(probabilities, redAtTopOnScreen)
+                val shape = (tensor.info as TensorInfo).shape
+                if (!shape.contentEquals(longArrayOf(1, OUTPUT_SQUARES.toLong(), OUTPUT_CLASSES.toLong()))) {
+                    throw IOException("nano-v3 模型输出尺寸不匹配：${shape.contentToString()}")
                 }
+                val buffer = tensor.floatBuffer
+                if (buffer.remaining() != OUTPUT_SQUARES * OUTPUT_CLASSES) {
+                    throw IOException("nano-v3 模型输出数据长度不匹配")
+                }
+                val probabilities = FloatArray(OUTPUT_SQUARES * OUTPUT_CLASSES)
+                buffer.get(probabilities)
+                return decode(probabilities, redAtTopOnScreen)
             }
         }
     }
