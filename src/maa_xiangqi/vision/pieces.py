@@ -221,7 +221,7 @@ def recognize_board(
     classifier: PieceClassifier,
     *,
     side_to_move: str,
-    thresholds: RecognitionThresholds = RecognitionThresholds(),
+    thresholds: RecognitionThresholds | None = None,
 ) -> BoardRecognition:
     """Recognize 90 intersections without promoting low-confidence guesses.
 
@@ -232,6 +232,7 @@ def recognize_board(
         raise ValueError("输入棋盘截图无效")
     if side_to_move not in {"w", "b"}:
         raise ValueError("side_to_move 必须为 'w'（红方）或 'b'（黑方）")
+    thresholds = thresholds or RecognitionThresholds()
     thresholds.validate()
 
     crops = _crop_intersections(image, geometry, thresholds.half_size_ratio)

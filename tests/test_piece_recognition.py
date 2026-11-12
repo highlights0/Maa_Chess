@@ -9,7 +9,7 @@ from maa_xiangqi.vision.pieces import PIECE_SYMBOLS, recognize_board
 
 class PixelLabelClassifier:
     def predict_proba(self, image: np.ndarray) -> np.ndarray:
-        index = int(round(float(image[image.shape[0] // 2, image.shape[1] // 2, 0])))
+        index = round(float(image[image.shape[0] // 2, image.shape[1] // 2, 0]))
         probabilities = np.full(len(PIECE_SYMBOLS), 0.001, dtype=np.float32)
         probabilities[index] = 0.986
         return probabilities
@@ -17,7 +17,7 @@ class PixelLabelClassifier:
 
 class AmbiguousClassifier(PixelLabelClassifier):
     def predict_proba(self, image: np.ndarray) -> np.ndarray:
-        index = int(round(float(image[image.shape[0] // 2, image.shape[1] // 2, 0])))
+        index = round(float(image[image.shape[0] // 2, image.shape[1] // 2, 0]))
         probabilities = np.full(len(PIECE_SYMBOLS), 0.001, dtype=np.float32)
         if index == 1:
             probabilities[1] = 0.48
