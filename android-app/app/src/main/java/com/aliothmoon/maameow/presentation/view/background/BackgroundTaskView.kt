@@ -1046,8 +1046,8 @@ internal fun viewToVirtualDisplay(
     val scale = minOf(viewSize.width / bufferW, viewSize.height / bufferH)
     val offsetX = (viewSize.width - bufferW * scale) / 2f
     val offsetY = (viewSize.height - bufferH * scale) / 2f
-    val vx = ((view.x - offsetX) / scale).toInt()
-    val vy = ((view.y - offsetY) / scale).toInt()
+    val vx = ((view.x - offsetX) / scale).roundToInt()
+    val vy = ((view.y - offsetY) / scale).roundToInt()
     val inside = vx in 0 until display.width && vy in 0 until display.height
     return DisplayPoint(
         IntOffset(vx.coerceIn(0, display.width - 1), vy.coerceIn(0, display.height - 1)),
