@@ -1,35 +1,18 @@
 # 棋子识别模型
 
-当前不包含预训练模型。
+## 主识别模型：nano-v3
 
-## 分类目标
+本项目优先复用 MIT 许可的 Chinese Chess Recognition nano-v3 模型，不从零训练棋子分类网络。
 
-15 类分类：
+- 来源、SHA-256、输入输出形状和预处理：`models/recognition/SOURCE.md`
+- 模型文件：`models/xiangqi-nano-v3.onnx`（不提交到 Git）
+- 下载和校验：`maa-xiangqi-download-model`
+- Python 推理依赖：`pip install -e ".[vision]"`
 
-| ID | 标签 | FEN 符号 |
-|---:|---|---|
-| 0 | empty | . |
-| 1–7 | red king / advisor / elephant / horse / rook / cannon / pawn | K A B N R C P |
-| 8–14 | black king / advisor / elephant / horse / rook / cannon / pawn | k a b n r c p |
+模型一次推理 90 个交叉点，每个交叉点输出 16 类：空位、未知、红方 7 类、黑方 7 类。未知类、低置信度、非法落子位置、超额棋子和缺失将帅都不会被自动转换成合法局面。
 
-## ONNX 推理契约
+模型预处理严格沿用上游：450×500 网格映射、中心裁剪 400×450、双线性缩放到 280×315、RGB 均值方差归一化。当前实现要求棋盘横竖对齐；MuMu 900×1600 初始配置满足此条件。若棋盘有明显透视或倾斜，需要先做经验证的透视校正，不能直接套用该模型。
 
-模型输入和输出以 `piece_classifier_contract.json` 为准：
+## 备用扩展
 
-- 输入：`float32 [1, 3, 64, 64])，NCHW、RGB、像素除以 255。
-- 输出：`float32 [1, 15]` logits，类别顺序与上表一致。
-- Python 推理端使用 ONNX Runtime CPU provider；Android 端后续使用 ONNX Runtime Android，并必须复用同一预处理和类别顺序。
-
-安装 Python 推理依赖：
-
-```powershell
-pip install -e ".[vision]"
-```
-
-## 数据要求
-
-训练数据应覆盖不同棋盘皮肤、分辨率、缩放、选中态、动画前后帧和明暗效果。每个棋位必须人工核验标签；不能把单张截图导出的 90 个棋位图块当成完整训练集。
-
-棋盘识别器采用置信度门控：只要 90 个交叉点中有一个低置信度或 top-1/top-2 差距不足，就不会生成可送入引擎的 BoardState/FEN。此时应重新采样或请求人工确认，不能把猜测当成已确认局面。
-
-目前已实现识别接口与 ONNX 推理适配器，但仓库没有训练数据和模型权重，因此尚未达到可直接识别实战棋子的状态。
+`piece_classifier_contract.json` 保留为未来自训练的逐棋位分类模型契约；它不是 nano-v3 的模型格式，也不是当前默认识别模型。当前没有训练数据和自训练权重。
