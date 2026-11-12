@@ -1,10 +1,11 @@
 # Codex / Agent 协作约定
 
-在修改本仓库前，先阅读 README.md、AGENTS.md、docs/architecture.md、docs/MAAMEOW_UI_AND_BACKGROUND.md 和 docs/CODEX_TASKS.md。
+在修改本仓库前，先阅读 README.md、AGENTS.md、docs/architecture.md、docs/MAAMEOW_UI_AND_BACKGROUND.md、docs/MUMU_ENVIRONMENT.md 和 docs/CODEX_TASKS.md。
 
 ## 工程原则
 
 1. 当前 Python 包是 Windows 开发 / 诊断工具；最终产品 UI 目标是 Android 原生 Jetpack Compose / Material 3。
+2. MuMu 环境诊断命令只收集只读系统信息；Root 探测必须显式启用，诊断报告不得包含设备序列号。
 2. Android 前台模式与 Android 后台虚拟显示模式是不同后端。ADB 主机模式不承诺真正后台运行。
 3. 后台模式必须先验证 Shizuku / Root、虚拟显示器、displayId 定向截图、displayId 定向输入和游戏进程驻留。
 4. 使用 MaaFramework Android Native Control Unit / MaaCore 时，以官方当前文档、发布产物和源码为准，不凭记忆编造接口。
