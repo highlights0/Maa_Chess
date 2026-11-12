@@ -61,7 +61,7 @@ def test_extract_display_summary():
 
 
 def _mock_diagnostic_device(monkeypatch, root_granted=False):
-    import maa_xiangqi.diagnostics as diagnostics
+    from maa_xiangqi import diagnostics
     from maa_xiangqi.adb import DeviceInfo
 
     commands = []
