@@ -12,6 +12,11 @@ on:
 permissions:
   contents: read
 
+# 同一分支只保留一轮 Android 构建，避免多个 Gradle/NDK 构建抢占 runner，造成时序测试误报。
+concurrency:
+  group: android-build-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   android:
     runs-on: ubuntu-latest
