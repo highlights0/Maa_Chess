@@ -58,6 +58,7 @@ class BoardRecognition:
     predictions: tuple[PiecePrediction, ...]
     uncertain_squares: tuple[tuple[int, int], ...]
     mean_confidence: float
+    problem: str | None = None
 
     @property
     def is_complete(self) -> bool:

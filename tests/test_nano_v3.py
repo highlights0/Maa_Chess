@@ -49,6 +49,8 @@ def test_nano_v3_preprocessing_matches_fixed_model_tensor_contract():
 
 def test_nano_v3_red_at_top_rotates_board_into_canonical_fen_orientation():
     image = np.zeros((1600, 900, 3), dtype=np.uint8)
+    image[:, :, 0] = np.arange(900, dtype=np.uint8)[None, :]
+    image[:, :, 1] = np.arange(1600, dtype=np.uint8)[:, None]
     normal = preprocess_nano_v3(image, make_geometry())
     flipped = preprocess_nano_v3(image, make_geometry(), red_at_top=True)
     assert normal.shape == flipped.shape

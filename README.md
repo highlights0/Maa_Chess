@@ -27,7 +27,7 @@
 
 - 天天象棋大厅、标准对局和残局闯关的界面状态识别。
 - 棋盘自动定位与 90 个交叉点识别。
-- 15 类棋子识别模型与置信度校验。
+- nano-v3 预训练模型的 90 棋位识别适配、置信度与局面合法性校验（Python/ADB 开发端）。
 - 完整象棋规则验证和走法历史维护。
 - Pikafish Android 引擎接入。
 - 起点 / 终点触控、动画等待、走法结果复识别和自动落子闭环。
@@ -69,12 +69,13 @@ APK 输出：
 
 ## Python 开发工具
 
-保留 ADB 设备发现、Android 内部截图、MuMu 环境诊断、棋盘四角校准、90 个棋位裁剪、FEN / ICCS 坐标和 MaaFramework Python Agent。
+保留 ADB 设备发现、Android 内部截图、MuMu 环境诊断、棋盘四角校准、nano-v3 预训练模型推理、FEN / ICCS 坐标、Pikafish UCI 和 MaaFramework Python Agent。
 
 ```powershell
 py -3.11 -m venv .venv
 .\.venv\Scripts\Activate.ps1
-pip install -e ".[dev]"
+pip install -e ".[dev,vision]"
+maa-xiangqi-download-model
 pytest
 ruff check .
 ```

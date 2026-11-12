@@ -9,6 +9,12 @@ from .pieces import (
     RecognitionThresholds,
     recognize_board,
 )
+from .nano_v3 import (
+    MODEL_CLASS_SYMBOLS,
+    OnnxNanoV3BoardClassifier,
+    preprocess_nano_v3,
+    recognize_nano_v3_board,
+)
 from .scene import SceneDetection, SceneMode, ScenePhase, classify_scene
 
 __all__ = [
@@ -16,6 +22,8 @@ __all__ = [
     "PIECE_SYMBOLS",
     "BoardRecognition",
     "OnnxPieceClassifier",
+    "MODEL_CLASS_SYMBOLS",
+    "OnnxNanoV3BoardClassifier",
     "PiecePrediction",
     "RecognitionThresholds",
     "SceneDetection",
@@ -23,4 +31,6 @@ __all__ = [
     "ScenePhase",
     "classify_scene",
     "recognize_board",
+    "preprocess_nano_v3",
+    "recognize_nano_v3_board",
 ]

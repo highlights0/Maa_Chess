@@ -21,9 +21,11 @@ from maa_xiangqi.adb import (
 )
 from maa_xiangqi.board.geometry import BoardGeometry
 from maa_xiangqi.engine import EngineError, PikafishEngine
+from maa_xiangqi.model_download import download_model
+from maa_xiangqi.vision.nano_v3 import OnnxNanoV3BoardClassifier, recognize_nano_v3_board
 from maa_xiangqi.vision.crops import extract_square_crops
 
-DEFAULT_PROFILE = Path("config/tiantian/board_profile.yaml")
+DEFAULT_PROFILE = Path("config/tiantian/mumu_900x1600.yaml")
 DEFAULT_PACKAGE = "com.tencent.qqgame.xq"
 
 
@@ -246,6 +248,52 @@ def command_engine_analyze(args: argparse.Namespace) -> int:
     return 0
 
 
+def command_download_model(args: argparse.Namespace) -> int:
+    path = download_model(args.output, force=args.force)
+    print(f"象棋识别模型已就绪：{path}")
+    return 0
+
+
+def command_recognize(args: argparse.Namespace) -> int:
+    image = _read_image(args.image)
+    height, width = image.shape[:2]
+    profile = _load_profile(args.profile)
+    geometry = _geometry_from_profile(profile, width, height)
+    red_side = args.red_side or profile.get("orientation", {}).get("red_side", "bottom")
+    if red_side not in {"top", "bottom"}:
+        raise ValueError("棋盘方向 red_side 必须为 top 或 bottom")
+
+    classifier = OnnxNanoV3BoardClassifier(args.model)
+    result = recognize_nano_v3_board(
+        image,
+        geometry,
+        classifier,
+        side_to_move=args.side_to_move,
+        red_at_top=red_side == "top",
+        min_confidence=args.min_confidence,
+        min_margin=args.min_margin,
+    )
+    predictions = {(item.row, item.col): item for item in result.predictions}
+    payload = {
+        "complete": result.is_complete,
+        "fen": result.state.to_fen() if result.state is not None else None,
+        "side_to_move": args.side_to_move,
+        "mean_confidence": round(result.mean_confidence, 5),
+        "problem": result.problem,
+        "uncertain_squares": [
+            {
+                "row": row,
+                "col": col,
+                "symbol": predictions[(row, col)].symbol,
+                "confidence": round(predictions[(row, col)].confidence, 5),
+            }
+            for row, col in result.uncertain_squares
+        ],
+    }
+    print(json.dumps(payload, ensure_ascii=False, indent=2))
+    return 0 if result.is_complete else 3
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="maa-xiangqi",
@@ -293,6 +341,25 @@ def build_parser() -> argparse.ArgumentParser:
     engine.add_argument("--hash", type=int, default=128, help="Hash 大小，单位 MB")
     engine.add_argument("--timeout", type=float, help="搜索总超时秒数")
 
+    model_download = subparsers.add_parser(
+        "download-model",
+        help="下载并校验 MIT 许可的 nano-v3 象棋识别模型",
+    )
+    model_download.add_argument("--output", type=Path)
+    model_download.add_argument("--force", action="store_true")
+
+    recognize = subparsers.add_parser(
+        "recognize",
+        help="使用 nano-v3 模型识别截图中的 90 个棋位",
+    )
+    recognize.add_argument("--image", required=True)
+    recognize.add_argument("--profile", default=str(DEFAULT_PROFILE))
+    recognize.add_argument("--model", default="models/xiangqi-nano-v3.onnx")
+    recognize.add_argument("--side-to-move", choices=["w", "b"], required=True)
+    recognize.add_argument("--red-side", choices=["top", "bottom"])
+    recognize.add_argument("--min-confidence", type=float, default=0.80)
+    recognize.add_argument("--min-margin", type=float, default=0.0)
+
     return parser
 
 
@@ -316,8 +383,12 @@ def main() -> int:
             return command_crops(args)
         if args.command == "engine-analyze":
             return command_engine_analyze(args)
+        if args.command == "download-model":
+            return command_download_model(args)
+        if args.command == "recognize":
+            return command_recognize(args)
         parser.error(f"未知命令：{args.command}")
-    except (AdbError, EngineError, FileNotFoundError, TypeError, ValueError, OSError) as exc:
+    except (AdbError, FileNotFoundError, TypeError, ValueError, OSError, RuntimeError) as exc:
         print(f"错误：{exc}", file=sys.stderr)
         return 2
     return 0
