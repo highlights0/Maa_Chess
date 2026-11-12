@@ -1,0 +1,33 @@
+schema_version: 1
+
+game:
+  display_name: 天天象棋
+  package_name: com.tencent.qqgame.xq
+  package_name_note: 请在目标模拟器上用 adb shell pm list packages 核实，必要时修改本字段
+
+capture:
+  source: android_internal_screencap
+  controller: adb
+
+board:
+  columns: 9
+  rows: 10
+  image_origin: top_left
+  calibration:
+    method: manual_four_corner
+    coordinate_space: adb_screenshot_pixels
+    # 四角必须是最外侧棋盘交叉点，顺序 TL, TR, BR, BL。
+    # 首次使用前通过 maa-xiangqi calibrate 写入真实设备坐标。
+    corners_tl_tr_br_bl: null
+    source_width: null
+    source_height: null
+  crop_half_size_ratio: 0.42
+
+scene:
+  mode: auto
+  supported_modes:
+    - standard
+    - puzzle
+
+orientation:
+  red_side: bottom

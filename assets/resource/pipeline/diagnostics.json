@@ -1,0 +1,10 @@
+{
+  "CaptureDiagnostic": {
+    "recognition": "DirectHit",
+    "action": "Custom",
+    "custom_action": "capture_android_screen",
+    "custom_action_param": {
+      "output_dir": "./debug/maa-captures"
+    }
+  }
+}

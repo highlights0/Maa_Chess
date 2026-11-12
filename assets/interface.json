@@ -1,0 +1,34 @@
+{
+  "interface_version": 2,
+  "name": "MaaXiangqi",
+  "description": "天天象棋 Android 棋盘识别与辅助分析项目",
+  "github": "https://github.com/highlights0/Maa_Chess",
+  "version": "0.1.0",
+  "controller": [
+    {
+      "name": "Android 模拟器 / 手机",
+      "type": "Adb",
+      "display_short_side": 720
+    }
+  ],
+  "resource": [
+    {
+      "name": "天天象棋",
+      "path": [
+        "./resource"
+      ]
+    }
+  ],
+  "agent": {
+    "child_exec": "python",
+    "child_args": [
+      "./agent/main.py"
+    ]
+  },
+  "task": [
+    {
+      "name": "截取当前 Android 画面（诊断）",
+      "entry": "CaptureDiagnostic"
+    }
+  ]
+}
