@@ -23,6 +23,7 @@ dev = [
 
 [project.scripts]
 maa-xiangqi = "maa_xiangqi.cli:main"
+maa-xiangqi-diagnose = "maa_xiangqi.diagnostics_cli:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
