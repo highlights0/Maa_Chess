@@ -29,6 +29,7 @@ fun wakeUpClientTypeLabel(clientType: String): UiText {
         "YoStarJP" -> uiTextOf(R.string.panel_wakeup_client_yostar_jp)
         "YoStarKR" -> uiTextOf(R.string.panel_wakeup_client_yostar_kr)
         "txwy" -> uiTextOf(R.string.panel_wakeup_client_txwy)
+        "Xiangqi" -> uiTextOf(R.string.settings_game_package_xiangqi)
         else -> uiTextDynamic(clientType)
     }
 }

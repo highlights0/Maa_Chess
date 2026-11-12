@@ -25,6 +25,9 @@ object DefaultDisplayConfig {
     val RES_720P = Resolution(1280, 720, 160)
     val RES_1080P = Resolution(1920, 1080, 240)
 
+    /** 天天象棋：匹配已提供的 900×1600、240 DPI 竖屏配置。 */
+    val RES_XIANGQI = Resolution(900, 1600, 240)
+
     /** 用户可选的后台虚拟屏分辨率偏好 */
     enum class ResolutionPreference { P720, P1080 }
 
@@ -36,6 +39,7 @@ object DefaultDisplayConfig {
         clientType: String,
         preference: ResolutionPreference
     ): Resolution {
+        if (clientType == "Xiangqi") return RES_XIANGQI
         if (clientType == "YoStarEN") return RES_1080P
         return when (preference) {
             ResolutionPreference.P720 -> RES_720P

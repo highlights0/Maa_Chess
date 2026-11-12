@@ -11,7 +11,8 @@ object Packages : Iterable<Map.Entry<String, String>> {
         "YoStarEN" to "com.YoStarEN.Arknights",
         "YoStarJP" to "com.YoStarJP.Arknights",
         "YoStarKR" to "com.YoStarKR.Arknights",
-        "txwy" to "tw.txwy.and.arknights"
+        "txwy" to "tw.txwy.and.arknights",
+        "Xiangqi" to "com.tencent.qqgame.xq"
     )
 
     private val PACKAGE_NAME = Regex("[A-Za-z][A-Za-z0-9_]*(\\.[A-Za-z][A-Za-z0-9_]*)+")

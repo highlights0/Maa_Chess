@@ -85,7 +85,7 @@ fun GamePackageSettingsView(
             }
             item {
                 SettingsGroupCard {
-                    WakeUpConfig.CLIENT_TYPES.forEachIndexed { index, client ->
+                    (WakeUpConfig.CLIENT_TYPES + "Xiangqi").forEachIndexed { index, client ->
                         if (index > 0) ListItemDivider()
                         val custom = overrides[client]
                         SettingRow(

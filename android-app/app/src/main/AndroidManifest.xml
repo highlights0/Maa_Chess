@@ -192,6 +192,7 @@
 
     <queries>
         <package android:name="moe.shizuku.privileged.api" />
+        <package android:name="com.tencent.qqgame.xq" />
         <!-- 自启动引导的厂商设置页（AutoStartHelper），targetSdk 30+ 需逐包声明才可 resolveActivity -->
         <package android:name="com.miui.securitycenter" />
         <package android:name="com.coloros.safecenter" />
