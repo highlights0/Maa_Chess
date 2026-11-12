@@ -3088,4 +3088,25 @@ MAA will not end an in-progress exploration early because this option is uncheck
     <string name="xiangqi_record_title">Game records</string>
     <string name="xiangqi_record_empty_title">No records yet</string>
     <string name="xiangqi_record_empty_message">Recognized positions, move history, and AI analysis will appear here after game-record capture is implemented.</string>
+
+    <string name="xiangqi_recognition_title">Board recognition (on-device model)</string>
+    <string name="xiangqi_model_checking">Checking local model…</string>
+    <string name="xiangqi_model_missing">Recognition model is not downloaded (31 MB)</string>
+    <string name="xiangqi_model_ready">Recognition model verified and ready</string>
+    <string name="xiangqi_model_downloading">Downloading model: %1$d / %2$d MB</string>
+    <string name="xiangqi_model_failed">Model setup failed: %1$s</string>
+    <string name="xiangqi_model_download">Download and verify recognition model</string>
+    <string name="xiangqi_recognition_action">Recognize current board</string>
+    <string name="xiangqi_recognition_running">Recognizing board…</string>
+    <string name="xiangqi_recognition_background_only">This build currently recognizes frames from the background virtual display. Foreground capture will be added next.</string>
+    <string name="xiangqi_recognition_need_background">Launch Tiantian Xiangqi and confirm it is running on the background virtual display first.</string>
+    <string name="xiangqi_recognition_error">Recognition failed: %1$s</string>
+    <string name="xiangqi_recognition_error_unknown">Unknown error</string>
+    <string name="xiangqi_recognition_no_frame">No game frame is available. Check the background preview.</string>
+    <string name="xiangqi_recognition_complete">Board recognition complete</string>
+    <string name="xiangqi_recognition_incomplete">Recognition incomplete: %1$d squares need review</string>
+    <string name="xiangqi_recognition_fen">Board FEN: %1$s</string>
+    <string name="xiangqi_recognition_confidence">Mean confidence: %1$.1f%%</string>
+    <string name="xiangqi_recognition_no_auto_move">This step only recognizes the board. It does not make moves; uncertain squares are never sent to the engine.</string>
+
 </resources>

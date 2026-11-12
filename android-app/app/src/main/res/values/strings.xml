@@ -3145,4 +3145,25 @@ MAA 不会因为取消勾选此选项而提前在局内结束探索</string>
     <string name="xiangqi_record_title">棋谱记录</string>
     <string name="xiangqi_record_empty_title">暂无棋谱</string>
     <string name="xiangqi_record_empty_message">棋局识别和走法记录接入后，历史局面、走法与 AI 分析会显示在这里。</string>
+
+    <string name="xiangqi_recognition_title">棋盘识别（Android 本地模型）</string>
+    <string name="xiangqi_model_checking">正在检查本地模型…</string>
+    <string name="xiangqi_model_missing">识别模型尚未下载（31 MB）</string>
+    <string name="xiangqi_model_ready">识别模型已校验并就绪</string>
+    <string name="xiangqi_model_downloading">正在下载模型：%1$d / %2$d MB</string>
+    <string name="xiangqi_model_failed">模型准备失败：%1$s</string>
+    <string name="xiangqi_model_download">下载并校验识别模型</string>
+    <string name="xiangqi_recognition_action">识别当前棋盘</string>
+    <string name="xiangqi_recognition_running">正在识别棋盘…</string>
+    <string name="xiangqi_recognition_background_only">当前版本先通过后台虚拟显示画面识别；前台画面采集将在后续接入。</string>
+    <string name="xiangqi_recognition_need_background">请先启动天天象棋，并确认游戏正在后台虚拟显示器运行。</string>
+    <string name="xiangqi_recognition_error">识别失败：%1$s</string>
+    <string name="xiangqi_recognition_error_unknown">未知错误</string>
+    <string name="xiangqi_recognition_no_frame">当前没有可用的游戏帧，请检查后台预览画面。</string>
+    <string name="xiangqi_recognition_complete">棋盘识别完成</string>
+    <string name="xiangqi_recognition_incomplete">识别不完整：%1$d 个棋位需要复核</string>
+    <string name="xiangqi_recognition_fen">棋盘 FEN：%1$s</string>
+    <string name="xiangqi_recognition_confidence">平均置信度：%1$.1f%%</string>
+    <string name="xiangqi_recognition_no_auto_move">当前只识别棋盘，不会自动落子；不确定棋位不会交给引擎。</string>
+
 </resources>

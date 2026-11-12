@@ -98,6 +98,8 @@ import com.aliothmoon.maameow.domain.service.MaaEventNotifier
 import com.aliothmoon.maameow.domain.service.MaaNotificationCenter
 import com.aliothmoon.maameow.domain.service.MaaResourceLoader
 import com.aliothmoon.maameow.domain.service.MaaSessionLogger
+import com.aliothmoon.maameow.domain.xiangqi.XiangqiModelRepository
+import com.aliothmoon.maameow.domain.xiangqi.XiangqiNanoV3Recognizer
 import com.aliothmoon.maameow.domain.service.OperBoxYituliuSync
 import com.aliothmoon.maameow.domain.service.RemoteAppAliveChecker
 import com.aliothmoon.maameow.domain.service.RemoteFrameSnapshotter
@@ -329,6 +331,8 @@ val appModule = module {
         )
     } bind GameMetadataGate::class
     singleOf(::MaaSessionLogger)
+    single { XiangqiModelRepository(androidContext(), get()) }
+    singleOf(::XiangqiNanoV3Recognizer)
 
     // 外部通知
     singleOf(::NotificationSettingsManager)

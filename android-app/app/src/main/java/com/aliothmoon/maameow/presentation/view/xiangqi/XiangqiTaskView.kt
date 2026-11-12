@@ -49,6 +49,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
@@ -57,6 +58,7 @@ import com.aliothmoon.maameow.R
 import com.aliothmoon.maameow.constant.DefaultDisplayConfig
 import com.aliothmoon.maameow.data.preferences.AppSettingsManager
 import com.aliothmoon.maameow.domain.models.RunMode
+import com.aliothmoon.maameow.domain.xiangqi.XiangqiModelStatus
 import com.aliothmoon.maameow.domain.service.MaaCompositionService
 import com.aliothmoon.maameow.presentation.components.MaaWindowInsets
 import com.aliothmoon.maameow.presentation.viewmodel.BackgroundTaskViewModel
@@ -79,6 +81,8 @@ fun XiangqiTaskView(
     val isSwitching by viewModel.gameSwitchBusy.collectAsStateWithLifecycle()
     val previewSurfaceEpoch by viewModel.previewSurfaceEpoch.collectAsStateWithLifecycle()
     val taskState by viewModel.state.collectAsStateWithLifecycle()
+    val modelStatus by viewModel.xiangqiModelStatus.collectAsStateWithLifecycle()
+    val recognition by viewModel.xiangqiRecognition.collectAsStateWithLifecycle()
 
     var selectedScene by rememberSaveable { mutableStateOf("standard") }
     LaunchedEffect(Unit) {
@@ -288,6 +292,147 @@ fun XiangqiTaskView(
                         modifier = Modifier.padding(16.dp),
                         style = MaterialTheme.typography.bodyMedium,
                     )
+                }
+            }
+        }
+
+        item {
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceContainer,
+                ),
+            ) {
+                Column(
+                    modifier = Modifier.padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp),
+                ) {
+                    Text(
+                        text = stringResource(R.string.xiangqi_recognition_title),
+                        style = MaterialTheme.typography.titleMedium,
+                    )
+                    val modelStatusText = when (val status = modelStatus) {
+                        XiangqiModelStatus.Checking -> stringResource(R.string.xiangqi_model_checking)
+                        XiangqiModelStatus.Missing -> stringResource(R.string.xiangqi_model_missing)
+                        XiangqiModelStatus.Ready -> stringResource(R.string.xiangqi_model_ready)
+                        is XiangqiModelStatus.Downloading -> stringResource(
+                            R.string.xiangqi_model_downloading,
+                            (status.downloadedBytes / (1024 * 1024)).toInt(),
+                            (status.totalBytes / (1024 * 1024)).toInt(),
+                        )
+                        is XiangqiModelStatus.Failed -> stringResource(
+                            R.string.xiangqi_model_failed,
+                            status.message,
+                        )
+                    }
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            text = modelStatusText,
+                            modifier = Modifier.weight(1f),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                        if (modelStatus is XiangqiModelStatus.Downloading ||
+                            modelStatus is XiangqiModelStatus.Checking
+                        ) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(18.dp),
+                                strokeWidth = 2.dp,
+                            )
+                        }
+                    }
+                    if (modelStatus != XiangqiModelStatus.Ready) {
+                        OutlinedButton(
+                            enabled = modelStatus !is XiangqiModelStatus.Downloading &&
+                                modelStatus !is XiangqiModelStatus.Checking,
+                            onClick = { viewModel.onDownloadXiangqiModel() },
+                            modifier = Modifier.fillMaxWidth(),
+                        ) {
+                            Text(stringResource(R.string.xiangqi_model_download))
+                        }
+                    }
+                    Button(
+                        enabled = modelStatus == XiangqiModelStatus.Ready &&
+                            runMode == RunMode.BACKGROUND &&
+                            gameOnDisplay &&
+                            !recognition.isRecognizing,
+                        onClick = { viewModel.onRecognizeXiangqiBoard() },
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        if (recognition.isRecognizing) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(16.dp),
+                                strokeWidth = 2.dp,
+                            )
+                            Spacer(Modifier.width(8.dp))
+                        }
+                        Text(
+                            stringResource(
+                                if (recognition.isRecognizing) R.string.xiangqi_recognition_running
+                                else R.string.xiangqi_recognition_action,
+                            ),
+                        )
+                    }
+                    if (runMode != RunMode.BACKGROUND) {
+                        Text(
+                            text = stringResource(R.string.xiangqi_recognition_background_only),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    } else if (!gameOnDisplay) {
+                        Text(
+                            text = stringResource(R.string.xiangqi_recognition_need_background),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    recognition.error?.let {
+                        Text(
+                            text = stringResource(R.string.xiangqi_recognition_error, it),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.error,
+                        )
+                    }
+                    recognition.result?.let { result ->
+                        Text(
+                            text = stringResource(
+                                if (result.isComplete) R.string.xiangqi_recognition_complete
+                                else R.string.xiangqi_recognition_incomplete,
+                                result.uncertainSquares.size,
+                            ),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = if (result.isComplete) MaterialTheme.colorScheme.primary
+                            else MaterialTheme.colorScheme.error,
+                        )
+                        Text(
+                            text = result.rows.joinToString("\n"),
+                            fontFamily = FontFamily.Monospace,
+                            style = MaterialTheme.typography.bodyMedium,
+                        )
+                        result.fenBoard?.let { fen ->
+                            Text(
+                                text = stringResource(R.string.xiangqi_recognition_fen, fen),
+                                style = MaterialTheme.typography.bodySmall,
+                            )
+                        }
+                        result.problem?.let {
+                            Text(
+                                text = it,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.error,
+                            )
+                        }
+                        Text(
+                            text = stringResource(R.string.xiangqi_recognition_confidence, result.meanConfidence),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                        Text(
+                            text = stringResource(R.string.xiangqi_recognition_no_auto_move),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
                 }
             }
         }

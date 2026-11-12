@@ -36,9 +36,12 @@ import com.aliothmoon.maameow.domain.usecase.PrepareTaskStartUseCase
 import com.aliothmoon.maameow.domain.usecase.TaskStartContext
 import com.aliothmoon.maameow.domain.usecase.TaskStartDecision
 import com.aliothmoon.maameow.domain.usecase.TaskStartMode
+import com.aliothmoon.maameow.domain.xiangqi.XiangqiBoardCalibration
+import com.aliothmoon.maameow.domain.xiangqi.XiangqiNanoV3Recognizer
 import com.aliothmoon.maameow.manager.RemoteServiceManager
 import com.aliothmoon.maameow.presentation.state.BackgroundTaskState
 import com.aliothmoon.maameow.presentation.state.PreviewTouchMarker
+import com.aliothmoon.maameow.presentation.state.XiangqiRecognitionUiState
 import com.aliothmoon.maameow.presentation.state.UiEffect
 import com.aliothmoon.maameow.remote.AppAliveStatus
 import com.aliothmoon.maameow.presentation.view.panel.PanelDialogConfirmAction
@@ -47,6 +50,7 @@ import com.aliothmoon.maameow.presentation.view.panel.PanelTab
 import com.aliothmoon.maameow.schedule.model.CountdownState
 import com.aliothmoon.maameow.utils.i18n.UiText
 import com.aliothmoon.maameow.utils.i18n.resolve
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.channels.Channel
@@ -72,6 +76,7 @@ import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import timber.log.Timber
 import java.io.File
 
@@ -91,6 +96,7 @@ class BackgroundTaskViewModel(
     private val sideTaskRunner: PlanSideTaskRunner,
     private val screenPower: ScreenPowerController,
     private val appAliveChecker: AppAliveChecker,
+    private val xiangqiRecognizer: XiangqiNanoV3Recognizer,
 ) : ViewModel() {
 
     private companion object {
@@ -168,6 +174,10 @@ class BackgroundTaskViewModel(
     private val _screenshotMessage = MutableSharedFlow<String>(extraBufferCapacity = 1)
     val screenshotMessage: SharedFlow<String> = _screenshotMessage.asSharedFlow()
 
+    private val _xiangqiRecognition = MutableStateFlow(XiangqiRecognitionUiState())
+    val xiangqiRecognition: StateFlow<XiangqiRecognitionUiState> = _xiangqiRecognition.asStateFlow()
+    val xiangqiModelStatus = xiangqiRecognizer.modelStatus
+
     private val _effects = Channel<UiEffect>(Channel.BUFFERED)
     val effects: Flow<UiEffect> = _effects.receiveAsFlow()
 
@@ -186,6 +196,7 @@ class BackgroundTaskViewModel(
         observeTouchPreviewToggle()
         observeDefaultTaskSelection()
         observeGameStatus()
+        viewModelScope.launch { xiangqiRecognizer.refreshModelStatus() }
     }
 
     private fun observeGameStatus() {
@@ -701,6 +712,64 @@ class BackgroundTaskViewModel(
 
     private fun showStartFailedDialog(message: UiText) {
         showDialog(application.createStartFailedDialog(message))
+    }
+
+    fun onDownloadXiangqiModel() {
+        viewModelScope.launch {
+            _xiangqiRecognition.update { it.copy(error = null) }
+            try {
+                xiangqiRecognizer.downloadModel()
+            } catch (error: CancellationException) {
+                throw error
+            } catch (error: Exception) {
+                Timber.e(error, "download Xiangqi recognition model failed")
+                _xiangqiRecognition.update {
+                    it.copy(error = error.message ?: application.getString(R.string.xiangqi_recognition_error_unknown))
+                }
+            }
+        }
+    }
+
+    /**
+     * Captures the frame already routed to the background preview Surface.
+     * Foreground capture and game-state side-to-move detection are separate
+     * follow-up tasks; this method never guesses whose turn it is.
+     */
+    fun onRecognizeXiangqiBoard() {
+        if (_xiangqiRecognition.value.isRecognizing) return
+        viewModelScope.launch {
+            _xiangqiRecognition.update { it.copy(isRecognizing = true, error = null) }
+            try {
+                val jpeg = withContext(Dispatchers.IO) {
+                    RemoteServiceManager.useRemoteService(timeoutMs = 8_000L) { service ->
+                        RemoteServiceManager.callOrRestart(
+                            service = service,
+                            call = "captureFrameJpeg",
+                            timeoutMs = 5_000L,
+                            onAbandoned = { Timber.e(it, "capture Xiangqi frame was abandoned") },
+                        ) { remote -> remote.captureFrameJpeg(92) }
+                    }
+                }
+                if (jpeg.isNullOrEmpty()) {
+                    throw IllegalStateException(application.getString(R.string.xiangqi_recognition_no_frame))
+                }
+                val result = xiangqiRecognizer.recognizeJpeg(
+                    jpeg = jpeg,
+                    calibration = XiangqiBoardCalibration.MUMU_900X1600,
+                )
+                _xiangqiRecognition.update { it.copy(isRecognizing = false, result = result, error = null) }
+            } catch (error: CancellationException) {
+                throw error
+            } catch (error: Exception) {
+                Timber.e(error, "recognize Xiangqi board failed")
+                _xiangqiRecognition.update {
+                    it.copy(
+                        isRecognizing = false,
+                        error = error.message ?: application.getString(R.string.xiangqi_recognition_error_unknown),
+                    )
+                }
+            }
+        }
     }
 
     // ==================== Dialog ====================
