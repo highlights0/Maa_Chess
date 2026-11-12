@@ -13,7 +13,6 @@ import kotlinx.coroutines.withContext
 import java.io.IOException
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
-import java.nio.FloatBuffer
 import java.io.File
 import kotlin.math.abs
 import kotlin.math.floor
@@ -136,17 +135,17 @@ class XiangqiNanoV3Recognizer(
                 scaledCalibration.validate(bitmap.width, bitmap.height)
                 inferenceMutex.withLock {
                     if (redAtTopOnScreen != null) {
-                        infer(bitmap, scaledCalibration, redAtTopOnScreen, modelFile)
+                        infer(bitmap, scaledCalibration, redAtTopOnScreen, modelFile).publicResult
                     } else {
                         val normal = infer(bitmap, scaledCalibration, false, modelFile)
                         if (normal.orientationIsValid) {
-                            normal
+                            normal.publicResult
                         } else {
                             val flipped = infer(bitmap, scaledCalibration, true, modelFile)
                             when {
                                 flipped.orientationIsValid -> flipped
                                 flipped.uncertainSquares.size < normal.uncertainSquares.size -> flipped
-                                else -> normal
+                                else -> normal.publicResult
                             }
                         }
                     }
@@ -335,18 +334,14 @@ class XiangqiNanoV3Recognizer(
             val offset = index * OUTPUT_CLASSES
             var best = 0
             var bestScore = Float.NEGATIVE_INFINITY
-            var runnerUpScore = Float.NEGATIVE_INFINITY
-            for (classIndex in 0 until OUTPUT_CLASSES) {
+                for (classIndex in 0 until OUTPUT_CLASSES) {
                 val score = probabilities[offset + classIndex]
                 if (!score.isFinite() || score < 0f || score > 1.001f) {
                     throw IOException("nano-v3 模型返回无效概率")
                 }
                 if (score > bestScore) {
-                    runnerUpScore = bestScore
                     bestScore = score
                     best = classIndex
-                } else if (score > runnerUpScore) {
-                    runnerUpScore = score
                 }
             }
 
@@ -466,6 +461,4 @@ class XiangqiNanoV3Recognizer(
         val publicResult: XiangqiRecognitionResult,
         val orientationIsValid: Boolean,
     )
-
-    private fun InternalResult.toPublicResult(): XiangqiRecognitionResult = publicResult
 }

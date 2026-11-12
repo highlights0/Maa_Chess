@@ -1,7 +1,6 @@
 package com.aliothmoon.maameow.domain.xiangqi
 
 import android.content.Context
-import com.aliothmoon.maameow.domain.xiangqi.XiangqiModelRepository.Companion.MODEL_SHA256
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -17,13 +16,15 @@ import java.io.FileOutputStream
 import java.io.IOException
 import java.security.MessageDigest
 
+private const val HEX_DIGITS = "0123456789abcdef"
+
 sealed interface XiangqiModelStatus {
     data object Checking : XiangqiModelStatus
     data object Missing : XiangqiModelStatus
     data object Ready : XiangqiModelStatus
     data class Downloading(
         val downloadedBytes: Long,
-        val totalBytes: Long = MODEL_SIZE_BYTES,
+        val totalBytes: Long = XiangqiModelRepository.MODEL_SIZE_BYTES,
     ) : XiangqiModelStatus
     data class Failed(val message: String) : XiangqiModelStatus
 }
@@ -169,8 +170,8 @@ class XiangqiModelRepository(
 
     private fun ByteArray.toHexString(): String = buildString(size * 2) {
         for (value in this@toHexString) {
-            append(HEX[(value.toInt() ushr 4) and 0x0f])
-            append(HEX[value.toInt() and 0x0f])
+            append(HEX_DIGITS[(value.toInt() ushr 4) and 0x0f])
+            append(HEX_DIGITS[value.toInt() and 0x0f])
         }
     }
 
