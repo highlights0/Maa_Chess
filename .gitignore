@@ -1,0 +1,20 @@
+# Python
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Local runtime data
+debug/
+logs/
+*.log
+.env
+
+# Large runtime assets (download separately; do not commit binaries by default)
+models/*.onnx
+engines/bin/
+engines/nnue/
