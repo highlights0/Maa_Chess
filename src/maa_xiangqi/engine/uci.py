@@ -96,6 +96,7 @@ class PikafishEngine:
         self.stop_timeout = stop_timeout
         self._process: subprocess.Popen[str] | None = None
         self._lines: queue.Queue[str | None] = queue.Queue()
+        self._reader_thread: threading.Thread | None = None
         self._lock = threading.RLock()
 
     def _reader(self) -> None:
@@ -155,7 +156,12 @@ class PikafishEngine:
                 )
             except OSError as exc:
                 raise EngineError(f"启动 Pikafish 失败：{self.engine_path}") from exc
-            threading.Thread(target=self._reader, name="pikafish-stdout", daemon=True).start()
+            self._reader_thread = threading.Thread(
+                target=self._reader,
+                name="pikafish-stdout",
+                daemon=True,
+            )
+            self._reader_thread.start()
             try:
                 self._send("uci")
                 self._wait_for(lambda line: line == "uciok", self.startup_timeout, "uci")
