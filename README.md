@@ -23,14 +23,15 @@
 
 ## 当前代码状态
 
-当前仓库先建立了 Windows Python 开发与诊断工具：
+当前仓库包含 Windows Python 开发与诊断工具：
 
 - ADB 设备发现、设备显示参数读取、应用启动和 Android 内部截图。
+- MuMu / Android 环境诊断：Android API、ABI、模拟器 build properties、Root / Shizuku 线索、已安装游戏包和显示器信息。
+- MuMu 900×1600 首轮棋盘校准 profile。
 - 棋盘四角人工校准、透视坐标映射、90 个交叉点可视化。
 - 棋位图块导出，为后续棋子分类模型建立数据集。
 - BoardState、ICCS 坐标和 Pikafish 兼容 FEN 基础表示。
 - MaaFramework Python Agent 的诊断截图动作。
-- Codex 分阶段实施任务书和测试基线。
 
 这些 Python 工具用于开发、截图采集、棋盘校准和算法验证，不代表最终产品 UI 或后台运行能力已经完成。
 
@@ -42,7 +43,7 @@
 
 - Windows 10/11
 - Python 3.10+
-- Android 模拟器已开启 ADB 调试
+- MuMu 模拟器已开启 ADB 调试
 - Android Platform Tools（adb.exe）
 
 ### 安装
@@ -57,27 +58,29 @@
     maa-xiangqi devices
     maa-xiangqi device-info --serial <设备序列号>
 
+### MuMu 环境诊断
+
+    maa-xiangqi-diagnose --serial <设备序列号> --output debug/mumu-diagnostics.json
+
+如需主动验证 su：
+
+    maa-xiangqi-diagnose --serial <设备序列号> --probe-root --output debug/mumu-diagnostics-root.json
+
+probe-root 可能触发 Root 授权提示。诊断报告不包含设备序列号；Shizuku 授权状态仍需在 Shizuku 管理界面核实。
+
 ### 获取 Android 内部截图
 
     maa-xiangqi capture --serial <设备序列号> --output debug/captures/current.png
 
 截图通过 adb exec-out screencap -p 获取，不截取模拟器 Windows 标题栏和边框。
 
-### 校准棋盘
+### 使用 MuMu 900×1600 校准
 
-四角必须是最外侧棋盘交叉点，按左上、右上、右下、左下顺序填写：
+    maa-xiangqi overlay --image debug/captures/current.png --profile config/tiantian/mumu_900x1600.yaml --output debug/mumu-board-overlay.png
 
-    maa-xiangqi calibrate --image debug/captures/current.png --corners "xTL,yTL;xTR,yTR;xBR,yBR;xBL,yBL" --profile config/tiantian/board_profile.yaml
+    maa-xiangqi crops --image debug/captures/current.png --profile config/tiantian/mumu_900x1600.yaml --output-dir debug/mumu-crops
 
-生成网格叠加图：
-
-    maa-xiangqi overlay --image debug/captures/current.png --profile config/tiantian/board_profile.yaml --output debug/board_overlay.png
-
-导出 90 个棋位图块：
-
-    maa-xiangqi crops --image debug/captures/current.png --profile config/tiantian/board_profile.yaml --output-dir debug/crops
-
-若 Android 内部截图分辨率或宽高比改变，应重新校准或确认缩放适配结果。
+该 profile 来自用户提供的 900×1600 Android 内部截图。更改模拟器分辨率或游戏布局后必须重新校准。
 
 ### 运行测试
 
@@ -88,6 +91,7 @@
 
 - [整体架构](docs/architecture.md)
 - [MAA-Meow UI 与后台运行设计](docs/MAAMEOW_UI_AND_BACKGROUND.md)
+- [MuMu 环境诊断与棋盘校准](docs/MUMU_ENVIRONMENT.md)
 - [Codex 完整实施任务书](docs/CODEX_TASKS.md)
 - [第一阶段操作与验收](docs/phase-1.md)
 - [项目协作约定](AGENTS.md)
