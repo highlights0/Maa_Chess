@@ -22,8 +22,8 @@ from maa_xiangqi.adb import (
 from maa_xiangqi.board.geometry import BoardGeometry
 from maa_xiangqi.engine import EngineError, PikafishEngine
 from maa_xiangqi.model_download import download_model
-from maa_xiangqi.vision.nano_v3 import OnnxNanoV3BoardClassifier, recognize_nano_v3_board
 from maa_xiangqi.vision.crops import extract_square_crops
+from maa_xiangqi.vision.nano_v3 import OnnxNanoV3BoardClassifier, recognize_nano_v3_board
 
 DEFAULT_PROFILE = Path("config/tiantian/mumu_900x1600.yaml")
 DEFAULT_PACKAGE = "com.tencent.qqgame.xq"
