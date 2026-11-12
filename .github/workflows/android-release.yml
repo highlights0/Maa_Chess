@@ -1,0 +1,36 @@
+name: 发布 Android 预览版
+
+on:
+  push:
+    tags:
+      - android-preview-*
+
+permissions:
+  actions: read
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 检出发布说明
+        uses: actions/checkout@v4
+
+      - name: 下载同一提交已通过 CI 的 APK
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          run_id=$(gh api "repos/${{ github.repository }}/actions/workflows/android-build.yml/runs?head_sha=${{ github.sha }}&status=success&per_page=20" --jq '.workflow_runs[0].id // empty')
+          test -n "$run_id"
+          gh run download "$run_id" --repo "${{ github.repository }}" --name Maa_Chess-debug --dir release
+          test -s release/app-debug.apk
+
+      - name: 发布预览版
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" release/app-debug.apk \
+            --repo "${{ github.repository }}" \
+            --title "Maa_Chess Android 预览版" \
+            --notes-file .github/release-notes/android-preview.md \
+            --prerelease --verify-tag
