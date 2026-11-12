@@ -1,0 +1,77 @@
+name: Android 构建与测试
+
+on:
+  push:
+    branches:
+      - android/maameow-foundation
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  android:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 检出仓库
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          submodules: recursive
+
+      - name: 配置 JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '25'
+
+      - name: 配置 Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: 安装 Android SDK、NDK 和 CMake
+        run: |
+          yes | sdkmanager --licenses
+          sdkmanager "platforms;android-37" "build-tools;36.0.0" "platform-tools" "ndk;29.0.14206865" "cmake;3.22.1"
+
+      - name: 配置 Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: 下载并部署 MAA Core Android 依赖
+        working-directory: android-app
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: python scripts/setup_maa_core.py --clean
+
+      - name: 运行 Android 单元测试
+        working-directory: android-app
+        run: |
+          chmod +x ./gradlew
+          ./gradlew :app:testDebugUnitTest
+
+      - name: Lint 并编译 Debug APK
+        working-directory: android-app
+        run: ./gradlew :app:lintDebug :app:assembleDebug --stacktrace
+
+      - name: 上传 Debug APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: Maa_Chess-debug
+          path: android-app/app/build/outputs/apk/debug/*.apk
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: 上传测试与 Lint 报告
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: Maa_Chess-reports
+          path: |
+            android-app/app/build/reports/tests/testDebugUnitTest/
+            android-app/app/build/reports/lint-results-debug.html
+          if-no-files-found: ignore
+          retention-days: 14
