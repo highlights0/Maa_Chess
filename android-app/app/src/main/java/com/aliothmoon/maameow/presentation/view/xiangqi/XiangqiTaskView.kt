@@ -1,8 +1,11 @@
 package com.aliothmoon.maameow.presentation.view.xiangqi
 
+import android.content.Intent
 import android.graphics.Paint as AndroidPaint
 import android.graphics.PixelFormat
 import android.graphics.Typeface
+import android.os.Build
+import android.provider.Settings
 import android.view.Surface
 import android.view.SurfaceHolder
 import android.view.SurfaceView
@@ -55,6 +58,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.graphics.nativeCanvas
@@ -64,6 +68,7 @@ import androidx.compose.ui.input.pointer.changedToUpIgnoreConsumed
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.positionChangedIgnoreConsumed
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -73,13 +78,19 @@ import com.aliothmoon.maameow.data.preferences.AppSettingsManager
 import com.aliothmoon.maameow.domain.models.RunMode
 import com.aliothmoon.maameow.domain.xiangqi.XiangqiModelStatus
 import com.aliothmoon.maameow.domain.xiangqi.XiangqiNanoV3Recognizer
+import com.aliothmoon.maameow.domain.xiangqi.XiangqiMove
+import com.aliothmoon.maameow.domain.xiangqi.xiangqiPieceName
 import com.aliothmoon.maameow.domain.service.MaaCompositionService
 import com.aliothmoon.maameow.presentation.components.MaaWindowInsets
 import com.aliothmoon.maameow.presentation.state.PreviewPointerSlots
 import com.aliothmoon.maameow.presentation.view.background.viewToVirtualDisplay
 import com.aliothmoon.maameow.presentation.viewmodel.BackgroundTaskViewModel
 import com.aliothmoon.maameow.remote.AppAliveStatus
+import com.aliothmoon.maameow.service.AccessibilityHelperService
 import org.koin.compose.koinInject
+import kotlin.math.atan2
+import kotlin.math.cos
+import kotlin.math.sin
 
 private const val XIANGQI_CLIENT_TYPE = "Xiangqi"
 
@@ -99,13 +110,17 @@ fun XiangqiTaskView(
     val taskState by viewModel.state.collectAsStateWithLifecycle()
     val modelStatus by viewModel.xiangqiModelStatus.collectAsStateWithLifecycle()
     val recognition by viewModel.xiangqiRecognition.collectAsStateWithLifecycle()
+    val accessibilityConnected by AccessibilityHelperService.isConnected.collectAsStateWithLifecycle()
+    val context = LocalContext.current
 
     var selectedScene by rememberSaveable { mutableStateOf("standard") }
     var selectedSide by rememberSaveable { mutableStateOf<String?>(null) }
     var freshPositionConfirmed by rememberSaveable { mutableStateOf(false) }
+    var offlineMoveConfirmed by rememberSaveable { mutableStateOf(false) }
     LaunchedEffect(recognition.result) {
         selectedSide = null
         freshPositionConfirmed = false
+        offlineMoveConfirmed = false
     }
     LaunchedEffect(Unit) {
         viewModel.refreshGameStatus(XIANGQI_CLIENT_TYPE)
@@ -422,9 +437,12 @@ fun XiangqiTaskView(
                     }
                     Button(
                         enabled = modelStatus == XiangqiModelStatus.Ready &&
-                            runMode == RunMode.BACKGROUND &&
-                            gameOnDisplay &&
-                            !recognition.isRecognizing && !recognition.isAnalyzing,
+                            ((runMode == RunMode.BACKGROUND && gameOnDisplay) ||
+                                (runMode == RunMode.FOREGROUND &&
+                                    gameStatus == AppAliveStatus.ALIVE &&
+                                    accessibilityConnected && Build.VERSION.SDK_INT >= Build.VERSION_CODES.R)) &&
+                            !recognition.isRecognizing && !recognition.isAnalyzing &&
+                            !recognition.isExecutingMove,
                         onClick = { viewModel.onRecognizeXiangqiBoard() },
                         modifier = Modifier.fillMaxWidth(),
                     ) {
@@ -442,13 +460,21 @@ fun XiangqiTaskView(
                             ),
                         )
                     }
-                    if (runMode != RunMode.BACKGROUND) {
+                    if (runMode == RunMode.FOREGROUND && Build.VERSION.SDK_INT < Build.VERSION_CODES.R) {
+                        Text(stringResource(R.string.xiangqi_recognition_foreground_android11))
+                    } else if (runMode == RunMode.FOREGROUND && !accessibilityConnected) {
                         Text(
-                            text = stringResource(R.string.xiangqi_recognition_background_only),
+                            text = stringResource(R.string.xiangqi_recognition_foreground_accessibility),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
-                    } else if (!gameOnDisplay) {
+                        OutlinedButton(
+                            onClick = { context.startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)) },
+                            modifier = Modifier.fillMaxWidth(),
+                        ) {
+                            Text(stringResource(R.string.xiangqi_recognition_open_accessibility))
+                        }
+                    } else if (runMode == RunMode.BACKGROUND && !gameOnDisplay) {
                         Text(
                             text = stringResource(R.string.xiangqi_recognition_need_background),
                             style = MaterialTheme.typography.bodySmall,
@@ -463,6 +489,12 @@ fun XiangqiTaskView(
                         )
                     }
                     recognition.result?.let { result ->
+                        val displayedAnalysis = recognition.analysis?.takeIf {
+                            freshPositionConfirmed && selectedSide == it.side.toString()
+                        }
+                        val suggestedMove = displayedAnalysis?.let {
+                            XiangqiMove.parse(it.bestMove, result.rows, it.side)
+                        }
                         Text(
                             text = if (result.isComplete) {
                                 stringResource(R.string.xiangqi_recognition_complete)
@@ -479,6 +511,7 @@ fun XiangqiTaskView(
                         XiangqiBoardPreview(
                             rows = result.rows,
                             redAtTopOnScreen = result.redAtTopOnScreen,
+                            move = suggestedMove,
                         )
                         Text(
                             text = stringResource(R.string.xiangqi_recognition_piece_legend),
@@ -509,7 +542,7 @@ fun XiangqiTaskView(
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                         Text(
-                            text = stringResource(R.string.xiangqi_recognition_no_auto_move),
+                            text = stringResource(R.string.xiangqi_recognition_move_guard),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
@@ -549,7 +582,8 @@ fun XiangqiTaskView(
                             }
                             Button(
                                 enabled = selectedSide != null && freshPositionConfirmed &&
-                                    viewModel.xiangqiEngineSupported && !recognition.isAnalyzing,
+                                    viewModel.xiangqiEngineSupported && !recognition.isAnalyzing &&
+                                    !recognition.isExecutingMove,
                                 onClick = { selectedSide?.singleOrNull()?.let(viewModel::onAnalyzeXiangqiBoard) },
                                 modifier = Modifier.fillMaxWidth(),
                             ) {
@@ -561,9 +595,7 @@ fun XiangqiTaskView(
                             recognition.analysisError?.let {
                                 Text(it, color = MaterialTheme.colorScheme.error)
                             }
-                            recognition.analysis?.takeIf {
-                                freshPositionConfirmed && selectedSide == it.side.toString()
-                            }?.let { analysis ->
+                            displayedAnalysis?.let { analysis ->
                                 Text(
                                     text = stringResource(R.string.xiangqi_analysis_bestmove, analysis.bestMove),
                                     style = MaterialTheme.typography.titleMedium,
@@ -585,6 +617,39 @@ fun XiangqiTaskView(
                                         style = MaterialTheme.typography.bodySmall,
                                     )
                                 }
+                                if (suggestedMove != null) {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Checkbox(
+                                            checked = offlineMoveConfirmed,
+                                            onCheckedChange = { offlineMoveConfirmed = it },
+                                        )
+                                        Text(
+                                            stringResource(R.string.xiangqi_move_offline_confirm),
+                                            style = MaterialTheme.typography.bodySmall,
+                                        )
+                                    }
+                                    Button(
+                                        enabled = offlineMoveConfirmed && !recognition.isExecutingMove,
+                                        onClick = {
+                                            viewModel.onExecuteXiangqiMove(
+                                                offlineMoveConfirmed,
+                                                freshPositionConfirmed,
+                                            )
+                                        },
+                                        modifier = Modifier.fillMaxWidth(),
+                                    ) {
+                                        Text(stringResource(
+                                            if (recognition.isExecutingMove) R.string.xiangqi_move_running
+                                            else R.string.xiangqi_move_action,
+                                        ))
+                                    }
+                                }
+                            }
+                            recognition.moveError?.let {
+                                Text(it, color = MaterialTheme.colorScheme.error)
+                            }
+                            if (recognition.moveVerified) {
+                                Text(stringResource(R.string.xiangqi_move_verified))
                             }
                         }
                     }
@@ -698,6 +763,7 @@ private fun XiangqiDisplaySurface(
 private fun XiangqiBoardPreview(
     rows: List<String>,
     redAtTopOnScreen: Boolean,
+    move: XiangqiMove?,
 ) {
     val displayRows = if (redAtTopOnScreen) {
         rows.asReversed().map { it.reversed() }
@@ -785,6 +851,34 @@ private fun XiangqiBoardPreview(
             strokeWidth = strokeWidth,
         )
 
+        fun squareCenter(row: Int, col: Int): Offset {
+            val displayRow = if (redAtTopOnScreen) 9 - row else row
+            val displayCol = if (redAtTopOnScreen) 8 - col else col
+            return Offset(left + displayCol * cellWidth, top + displayRow * cellHeight)
+        }
+        val from = move?.let { squareCenter(it.from.row, it.from.col) }
+        val to = move?.let { squareCenter(it.to.row, it.to.col) }
+        if (from != null && to != null) {
+            val angle = atan2(to.y - from.y, to.x - from.x)
+            val radius = minOf(cellWidth, cellHeight) * 0.40f
+            val arrowEnd = Offset(
+                to.x - cos(angle) * radius * 1.25f,
+                to.y - sin(angle) * radius * 1.25f,
+            )
+            drawLine(Color(0xFF167D45), from, arrowEnd, strokeWidth = 4.dp.toPx())
+            for (wing in listOf(-0.6f, 0.6f)) {
+                drawLine(
+                    Color(0xFF167D45),
+                    arrowEnd,
+                    Offset(
+                        arrowEnd.x - cos(angle + wing) * radius * 0.55f,
+                        arrowEnd.y - sin(angle + wing) * radius * 0.55f,
+                    ),
+                    strokeWidth = 4.dp.toPx(),
+                )
+            }
+        }
+
         drawIntoCanvas { canvas ->
             val paint = AndroidPaint(AndroidPaint.ANTI_ALIAS_FLAG).apply {
                 textAlign = AndroidPaint.Align.CENTER
@@ -818,10 +912,15 @@ private fun XiangqiBoardPreview(
                     paint.textSize = radius * 1.18f
                     val metrics = paint.fontMetrics
                     val baseline = centerY - (metrics.ascent + metrics.descent) / 2f
-                    val glyph = if (symbol == 'x') "?" else symbol.toString()
+                    val glyph = xiangqiPieceName(symbol)
                     canvas.nativeCanvas.drawText(glyph, centerX, baseline, paint)
                 }
             }
+        }
+        if (from != null && to != null) {
+            val radius = minOf(cellWidth, cellHeight) * 0.46f
+            drawCircle(Color(0xFFFFA000), radius, from, style = Stroke(width = 3.dp.toPx()))
+            drawCircle(Color(0xFF167D45), radius, to, style = Stroke(width = 3.dp.toPx()))
         }
     }
 }

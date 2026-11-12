@@ -223,3 +223,32 @@ domain/xiangqi/XiangqiNanoV3Recognizer.kt	无法解码象棋画面
 domain/xiangqi/XiangqiNanoV3Recognizer.kt	棋盘分辨率过低
 domain/xiangqi/XiangqiNanoV3Recognizer.kt	棋盘四角顺序或位置无效
 domain/xiangqi/XiangqiNanoV3Recognizer.kt	棋盘校准点超出当前截图范围
+# 象棋棋子原始字形，与天天象棋棋盘一致
+domain/xiangqi/XiangqiMove.kt	仕
+domain/xiangqi/XiangqiMove.kt	兵
+domain/xiangqi/XiangqiMove.kt	卒
+domain/xiangqi/XiangqiMove.kt	士
+domain/xiangqi/XiangqiMove.kt	將
+domain/xiangqi/XiangqiMove.kt	帥
+domain/xiangqi/XiangqiMove.kt	炮
+domain/xiangqi/XiangqiMove.kt	相
+domain/xiangqi/XiangqiMove.kt	象
+domain/xiangqi/XiangqiMove.kt	車
+domain/xiangqi/XiangqiMove.kt	馬
+# 自动输入与前台截图的内部诊断；界面使用字符串资源
+presentation/viewmodel/BackgroundTaskViewModel.kt	后台输入服务不可用
+presentation/viewmodel/BackgroundTaskViewModel.kt	未安装天天象棋
+presentation/viewmodel/BackgroundTaskViewModel.kt	未配置天天象棋包名
+presentation/viewmodel/BackgroundTaskViewModel.kt	棋盘已变化或识别不稳定，已停止落子
+presentation/viewmodel/BackgroundTaskViewModel.kt	游戏包名缺失
+presentation/viewmodel/BackgroundTaskViewModel.kt	游戏已离开后台显示器
+presentation/viewmodel/BackgroundTaskViewModel.kt	落子后截图未确认目标棋位
+presentation/viewmodel/BackgroundTaskViewModel.kt	运行模式已变化
+service/AccessibilityHelperService.kt	前台截图失败：$errorCode
+service/AccessibilityHelperService.kt	前台截图需要 Android 11 或更高版本
+service/AccessibilityHelperService.kt	前台触摸被取消
+service/AccessibilityHelperService.kt	当前画面不是天天象棋
+service/AccessibilityHelperService.kt	截图时游戏已离开前台
+service/AccessibilityHelperService.kt	无法注入前台触摸
+service/AccessibilityHelperService.kt	无法读取前台截图
+service/AccessibilityHelperService.kt	请先启用 Maa_Chess 无障碍服务

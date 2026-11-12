@@ -19,8 +19,9 @@ Maa_Chess 的 Android 原生应用。该工程直接基于 [Aliothmoon/MAA-Meow]
 - 天天象棋包名：`com.tencent.qqgame.xq`，可在设置中覆盖。
 - 天天象棋后台显示初始分辨率：900×1600，240 DPI。
 - 已加入 ONNX Runtime Android，nano-v3 模型按需下载到应用私有目录并进行 SHA-256 校验。
-- 已加入棋盘识别入口：从后台预览 Surface 获取 JPEG 帧，按 MuMu 四角校准进行模型预处理，展示棋位结果、FEN 棋盘串和不确定位置。
-- 已加入 ARM64 Pikafish 建议入口：完整识别后需人工确认行棋方及新局面起点，显示 ICCS 推荐走法、深度、评分和参考变化；不自动落子。引擎与 NNUE 的实机分析仍待验收。
+- 已加入棋盘识别入口：后台从虚拟显示采帧，前台经无障碍服务截图；分别使用已实测的 MuMu 900×1600 与手机 1080×2400 四角校准。棋盘展示中文棋子名、FEN 和不确定位置。
+- 已在 ARM64 真机标准开局验证 Pikafish 建议入口：完整识别后需人工确认行棋方及新局面起点，显示走法箭头、ICCS 坐标、深度、评分和参考变化。
+- 已加入离线场景单步落子入口：输入前连续截图核对棋盘，输入后再次截图复核；前台采集与落子仍需实机验证，行棋方仍需人工确认。
 - 标准对局和残局闯关入口已建立；当前选择只表示测试场景，不会自动操作游戏内菜单。
 
 ## 重要架构边界
@@ -44,7 +45,7 @@ MAA-Meow 中的 Arknights `MaaCore` 任务类型（`StartUp`、`Fight`、`Copilo
 python scripts/setup_maa_core.py --clean
 ```
 
-该脚本下载 MAA Core Android 预编译库和资源，并部署到 `app/src/main/jniLibs` 与 `app/src/main/assets/MaaSync/MaaResource`。这些生成文件不应提交到 Git。
+该脚本下载 MAA Core Android 预编译库和资源，并部署到 `app/src/main/jniLibs` 与 `app/src/main/assets/MaaSync/MaaResource`。它的 `--clean` 会清空生成的原生库，所以完成后再运行 `python scripts/setup_pikafish.py`。这些生成文件不应提交到 Git。
 
 ## 编译与测试
 

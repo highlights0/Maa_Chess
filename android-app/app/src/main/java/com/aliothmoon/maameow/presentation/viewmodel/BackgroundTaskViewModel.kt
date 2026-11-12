@@ -37,7 +37,10 @@ import com.aliothmoon.maameow.domain.usecase.TaskStartContext
 import com.aliothmoon.maameow.domain.usecase.TaskStartDecision
 import com.aliothmoon.maameow.domain.usecase.TaskStartMode
 import com.aliothmoon.maameow.domain.xiangqi.XiangqiBoardCalibration
+import com.aliothmoon.maameow.domain.xiangqi.XiangqiMove
 import com.aliothmoon.maameow.domain.xiangqi.XiangqiNanoV3Recognizer
+import com.aliothmoon.maameow.domain.xiangqi.XiangqiRecognitionResult
+import com.aliothmoon.maameow.domain.xiangqi.screenPoint
 import com.aliothmoon.maameow.domain.xiangqi.PikafishAnalyzer
 import com.aliothmoon.maameow.manager.RemoteServiceManager
 import com.aliothmoon.maameow.presentation.state.BackgroundTaskState
@@ -49,6 +52,8 @@ import com.aliothmoon.maameow.presentation.view.panel.PanelDialogConfirmAction
 import com.aliothmoon.maameow.presentation.view.panel.PanelDialogUiState
 import com.aliothmoon.maameow.presentation.view.panel.PanelTab
 import com.aliothmoon.maameow.schedule.model.CountdownState
+import com.aliothmoon.maameow.service.AccessibilityHelperService
+import com.aliothmoon.maameow.utils.Misc
 import com.aliothmoon.maameow.utils.i18n.UiText
 import com.aliothmoon.maameow.utils.i18n.resolve
 import kotlinx.coroutines.CancellationException
@@ -733,33 +738,20 @@ class BackgroundTaskViewModel(
         }
     }
 
-    /**
-     * Captures the frame already routed to the background preview Surface.
-     * Foreground capture and game-state side-to-move detection are separate
-     * follow-up tasks; this method never guesses whose turn it is.
-     */
+    /** Captures the active game screen without guessing whose turn it is. */
     fun onRecognizeXiangqiBoard() {
-        if (_xiangqiRecognition.value.isRecognizing || _xiangqiRecognition.value.isAnalyzing) return
+        if (_xiangqiRecognition.value.isRecognizing || _xiangqiRecognition.value.isAnalyzing ||
+            _xiangqiRecognition.value.isExecutingMove) return
         viewModelScope.launch {
-            _xiangqiRecognition.update { it.copy(isRecognizing = true, error = null) }
+            _xiangqiRecognition.update { it.copy(isRecognizing = true, error = null, moveError = null, moveVerified = false) }
             try {
-                val jpeg = withContext(Dispatchers.IO) {
-                    RemoteServiceManager.useRemoteService(timeoutMs = 8_000L) { service ->
-                        RemoteServiceManager.callOrRestart(
-                            service = service,
-                            call = "captureFrameJpeg",
-                            timeoutMs = 5_000L,
-                            onAbandoned = { Timber.e(it, "capture Xiangqi frame was abandoned") },
-                        ) { remote -> remote.captureFrameJpeg(92) }
-                    }
+                val mode = appSettingsManager.runMode.value
+                val jpeg = if (mode == RunMode.FOREGROUND) {
+                    withForegroundXiangqiGame { pkg -> AccessibilityHelperService.captureGameJpeg(pkg) }
+                } else {
+                    captureBackgroundXiangqiFrame()
                 }
-                if (jpeg == null || jpeg.isEmpty()) {
-                    throw IllegalStateException(application.getString(R.string.xiangqi_recognition_no_frame))
-                }
-                val result = xiangqiRecognizer.recognizeJpeg(
-                    jpeg = jpeg,
-                    calibration = XiangqiBoardCalibration.MUMU_900X1600,
-                )
+                val result = recognizeXiangqiFrame(jpeg, mode)
                 _xiangqiRecognition.update {
                     it.copy(isRecognizing = false, result = result, error = null, analysis = null, analysisError = null)
                 }
@@ -785,10 +777,50 @@ class BackgroundTaskViewModel(
         }
     }
 
+    private suspend fun <T> withForegroundXiangqiGame(action: suspend (String) -> T): T {
+        val pkg = Packages["Xiangqi"] ?: error("未配置天天象棋包名")
+        val intent = application.packageManager.getLaunchIntentForPackage(pkg)
+            ?: error("未安装天天象棋")
+        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        AccessibilityHelperService.expectGameWindow()
+        application.startActivity(intent)
+        return try {
+            action(pkg)
+        } finally {
+            runCatching { Misc.bringAppToFront(application) }
+                .onFailure { Timber.e(it, "return from Xiangqi game failed") }
+        }
+    }
+
+    private suspend fun captureBackgroundXiangqiFrame(): ByteArray {
+        val jpeg = withContext(Dispatchers.IO) {
+            RemoteServiceManager.useRemoteService(timeoutMs = 8_000L) { service ->
+                RemoteServiceManager.callOrRestart(
+                    service = service,
+                    call = "captureFrameJpeg",
+                    timeoutMs = 5_000L,
+                    onAbandoned = { Timber.e(it, "capture Xiangqi frame was abandoned") },
+                ) { remote -> remote.captureFrameJpeg(92) }
+            }
+        }
+        return jpeg?.takeIf { it.isNotEmpty() }
+            ?: error(application.getString(R.string.xiangqi_recognition_no_frame))
+    }
+
+    private suspend fun recognizeXiangqiFrame(jpeg: ByteArray, mode: RunMode): XiangqiRecognitionResult =
+        xiangqiRecognizer.recognizeJpeg(
+            jpeg = jpeg,
+            calibration = if (mode == RunMode.FOREGROUND) {
+                XiangqiBoardCalibration.PHONE_1080X2400
+            } else {
+                XiangqiBoardCalibration.MUMU_900X1600
+            },
+        )
+
     fun onAnalyzeXiangqiBoard(side: Char) {
         val recognized = _xiangqiRecognition.value.result?.takeIf { it.isComplete } ?: return
         val board = recognized.fenBoard ?: return
-        if (_xiangqiRecognition.value.isAnalyzing) return
+        if (_xiangqiRecognition.value.isAnalyzing || _xiangqiRecognition.value.isExecutingMove) return
         viewModelScope.launch {
             _xiangqiRecognition.update { it.copy(isAnalyzing = true, analysis = null, analysisError = null) }
             try {
@@ -800,6 +832,90 @@ class BackgroundTaskViewModel(
                 Timber.e(error, "analyze Xiangqi board failed")
                 _xiangqiRecognition.update {
                     it.copy(isAnalyzing = false, analysisError = application.getString(R.string.xiangqi_analysis_error))
+                }
+            }
+        }
+    }
+
+    fun onExecuteXiangqiMove(offlineSceneConfirmed: Boolean, freshPositionConfirmed: Boolean) {
+        val state = _xiangqiRecognition.value
+        val before = state.result?.takeIf { it.isComplete } ?: return
+        val analysis = state.analysis ?: return
+        val move = XiangqiMove.parse(analysis.bestMove, before.rows, analysis.side) ?: return
+        if (!offlineSceneConfirmed || !freshPositionConfirmed || state.isRecognizing ||
+            state.isAnalyzing || state.isExecutingMove) return
+
+        viewModelScope.launch {
+            _xiangqiRecognition.update { it.copy(isExecutingMove = true, moveError = null, moveVerified = false) }
+            var inputSent = false
+            try {
+                val mode = appSettingsManager.runMode.value
+                suspend fun capture(pkg: String?): XiangqiRecognitionResult {
+                    val jpeg = if (mode == RunMode.FOREGROUND) {
+                        AccessibilityHelperService.captureGameJpeg(pkg ?: error("游戏包名缺失"))
+                    } else {
+                        captureBackgroundXiangqiFrame()
+                    }
+                    return recognizeXiangqiFrame(jpeg, mode)
+                }
+                suspend fun verifyAndPlay(pkg: String?): XiangqiRecognitionResult {
+                    repeat(2) { checkIndex ->
+                        val current = capture(pkg)
+                        check(current.isComplete && current.rows == before.rows &&
+                            current.redAtTopOnScreen == before.redAtTopOnScreen &&
+                            current.calibration == before.calibration) {
+                            "棋盘已变化或识别不稳定，已停止落子"
+                        }
+                        if (checkIndex == 0) delay(250)
+                    }
+                    check(appSettingsManager.runMode.value == mode) { "运行模式已变化" }
+                    if (mode == RunMode.BACKGROUND) {
+                        check(gameOnDisplay.value) { "游戏已离开后台显示器" }
+                    }
+                    val from = move.from.screenPoint(before.calibration, before.redAtTopOnScreen)
+                    val to = move.to.screenPoint(before.calibration, before.redAtTopOnScreen)
+                    if (mode == RunMode.FOREGROUND) {
+                        inputSent = true
+                        AccessibilityHelperService.tapGameMove(pkg ?: error("游戏包名缺失"), from.x, from.y, to.x, to.y)
+                    } else {
+                        val remote = RemoteServiceManager.getInstanceOrNull() ?: error("后台输入服务不可用")
+                        inputSent = true
+                        remote.touchDown(from.x, from.y, 0)
+                        delay(80)
+                        remote.touchUp(from.x, from.y, 0)
+                        delay(270)
+                        remote.touchDown(to.x, to.y, 0)
+                        delay(80)
+                        remote.touchUp(to.x, to.y, 0)
+                    }
+                    delay(700)
+                    val after = capture(pkg)
+                    check(after.isComplete && after.calibration == before.calibration &&
+                        after.redAtTopOnScreen == before.redAtTopOnScreen &&
+                        move.isObservedAfter(before.rows, after.rows)) {
+                        "落子后截图未确认目标棋位"
+                    }
+                    return after
+                }
+                val after = if (mode == RunMode.FOREGROUND) {
+                    withForegroundXiangqiGame { pkg -> verifyAndPlay(pkg) }
+                } else {
+                    verifyAndPlay(null)
+                }
+                _xiangqiRecognition.update {
+                    it.copy(isExecutingMove = false, result = after, analysis = null, moveVerified = true)
+                }
+            } catch (error: CancellationException) {
+                throw error
+            } catch (error: Exception) {
+                Timber.e(error, "execute Xiangqi move failed")
+                _xiangqiRecognition.update {
+                    it.copy(
+                        isExecutingMove = false,
+                        moveError = application.getString(
+                            if (inputSent) R.string.xiangqi_move_unverified else R.string.xiangqi_move_aborted,
+                        ),
+                    )
                 }
             }
         }

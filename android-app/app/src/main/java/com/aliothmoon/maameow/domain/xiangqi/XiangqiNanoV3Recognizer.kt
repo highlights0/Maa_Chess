@@ -61,6 +61,16 @@ data class XiangqiBoardCalibration(
             right = 834.0,
             bottom = 1227.0,
         )
+
+        // Measured from the user's 1080x2400 standard and puzzle screenshots.
+        val PHONE_1080X2400 = XiangqiBoardCalibration(
+            left = 80.0,
+            top = 665.0,
+            right = 1000.0,
+            bottom = 1690.0,
+            sourceWidth = 1080,
+            sourceHeight = 2400,
+        )
     }
 }
 
@@ -75,6 +85,7 @@ data class XiangqiPiecePrediction(
 
 data class XiangqiRecognitionResult(
     val rows: List<String>,
+    val calibration: XiangqiBoardCalibration,
     val fenBoard: String?,
     val predictions: List<XiangqiPiecePrediction>,
     val uncertainSquares: List<XiangqiSquare>,
@@ -187,7 +198,7 @@ class XiangqiNanoV3Recognizer(
                 }
                 val probabilities = FloatArray(OUTPUT_SQUARES * OUTPUT_CLASSES)
                 buffer.get(probabilities)
-                return decode(probabilities, redAtTopOnScreen)
+                return decode(probabilities, redAtTopOnScreen, calibration)
             }
         }
     }
@@ -239,6 +250,7 @@ class XiangqiNanoV3Recognizer(
     private fun decode(
         probabilities: FloatArray,
         redAtTopOnScreen: Boolean,
+        calibration: XiangqiBoardCalibration,
     ): InternalResult {
         val rows = Array(10) { CharArray(9) { '.' } }
         val predictions = ArrayList<XiangqiPiecePrediction>(OUTPUT_SQUARES)
@@ -282,6 +294,7 @@ class XiangqiNanoV3Recognizer(
         }
         val result = XiangqiRecognitionResult(
             rows = rows.map { String(it) },
+            calibration = calibration,
             fenBoard = fenBoard,
             predictions = predictions,
             uncertainSquares = uncertain.toList(),

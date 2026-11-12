@@ -10,4 +10,7 @@ data class XiangqiRecognitionUiState(
     val isAnalyzing: Boolean = false,
     val analysis: XiangqiAnalysis? = null,
     val analysisError: String? = null,
+    val isExecutingMove: Boolean = false,
+    val moveError: String? = null,
+    val moveVerified: Boolean = false,
 )
