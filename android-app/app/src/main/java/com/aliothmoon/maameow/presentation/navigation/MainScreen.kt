@@ -29,11 +29,11 @@ import com.aliothmoon.maameow.presentation.components.rememberPageVisible
 import com.aliothmoon.maameow.presentation.components.rememberStagedBeyondViewportCount
 import com.aliothmoon.maameow.presentation.pip.LocalIsInPip
 import com.aliothmoon.maameow.presentation.onboarding.onboardingBlocksStartupDialogs
-import com.aliothmoon.maameow.presentation.view.background.BackgroundTaskView
+import com.aliothmoon.maameow.presentation.view.xiangqi.XiangqiTaskView
+import com.aliothmoon.maameow.presentation.view.xiangqi.GameRecordView
 import com.aliothmoon.maameow.presentation.view.home.HomeView
 import com.aliothmoon.maameow.presentation.view.settings.SettingsView
 import com.aliothmoon.maameow.presentation.viewmodel.BackgroundTaskViewModel
-import com.aliothmoon.maameow.schedule.ui.ScheduleListView
 import com.aliothmoon.maameow.theme.LocalReduceMotion
 import com.aliothmoon.maameow.theme.MaaMotion
 import com.aliothmoon.maameow.theme.PagerPageSpacing
@@ -105,16 +105,6 @@ fun MainScreen(
         goToPage(BottomNavTab.all.indexOf(tab), animate)
     }
 
-    // 定时任务触发时自动浮出后台任务页
-    // （恢复旧导航 navigate(BACKGROUND){popUpTo(HOME)} 的“自动浮出后台页”语义）。
-    val pendingNavigateRequestId by backgroundTaskViewModel.pendingNavigateRequestId.collectAsStateWithLifecycle()
-    LaunchedEffect(pendingNavigateRequestId) {
-        if (pendingNavigateRequestId != null) {
-            surfaceToTab(BottomNavTab.BACKGROUND)
-            backgroundTaskViewModel.onNavigateForScheduledLaunch()
-        }
-    }
-
     // 子页面的「回到主界面并切 Tab」请求
     val mainTabNavigator: MainTabNavigator = koinInject()
     val mainTabRequest by mainTabNavigator.request.collectAsStateWithLifecycle()
@@ -163,18 +153,12 @@ fun MainScreen(
                         CompositionLocalProvider(LocalPageVisible provides rememberPageVisible(pagerState, page)) {
                             when (BottomNavTab.all[page]) {
                                 BottomNavTab.HOME -> HomeView(navController = navController)
-                                BottomNavTab.BACKGROUND -> BackgroundTaskView(
+                                BottomNavTab.BACKGROUND -> XiangqiTaskView(
                                     viewModel = backgroundTaskViewModel,
                                     isActivePage = { mainVisible.value && pagerState.targetPage == page },
                                 )
 
-                                BottomNavTab.SCHEDULE -> ScheduleListView(
-                                    navController = navController,
-                                    isActivePage = {
-                                        mainVisible.value && !pagerState.isScrollInProgress &&
-                                                pagerState.settledPage == page
-                                    },
-                                )
+                                BottomNavTab.SCHEDULE -> GameRecordView()
                                 BottomNavTab.SETTINGS -> SettingsView(
                                     navController = navController,
                                     onViewAnnouncement = onViewAnnouncement,

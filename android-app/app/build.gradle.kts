@@ -47,12 +47,12 @@ val gitVersionName: String by lazy {
     }
 }
 
-// 本机默认只编 arm64、关 LTO；CI=true 保持双 ABI + LTO
-// -Pmaa.abi=all|arm64-v8a|x86_64 或 local.properties 覆盖
+// 默认同时构建 arm64-v8a 与 x86_64，兼容 Android 真机和 MuMu 模拟器。
+// 可通过 -Pmaa.abi=arm64-v8a 或 -Pmaa.abi=x86_64 单独构建。
 val ci = System.getenv("CI")?.equals("true", ignoreCase = true) == true
 val abiRaw = (findProperty("maa.abi") as String?)?.trim().orEmpty()
     .ifEmpty { localProperties.getProperty("maa.abi", "").trim() }
-    .ifEmpty { if (ci) "all" else "arm64-v8a" }
+    .ifEmpty { "all" }
 val nativeAbis: List<String> = if (abiRaw.equals("all", ignoreCase = true)) {
     listOf("arm64-v8a", "x86_64")
 } else {
@@ -76,7 +76,7 @@ android {
 
 
     defaultConfig {
-        applicationId = "com.aliothmoon.maameow"
+        applicationId = "com.highlights0.maachess"
         minSdk = 28
         targetSdk = 36
         versionCode = gitVersionCode

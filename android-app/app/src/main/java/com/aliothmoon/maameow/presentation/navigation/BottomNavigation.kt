@@ -12,7 +12,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.DateRange
+import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Settings
@@ -49,9 +49,9 @@ sealed class BottomNavTab(
     )
 
     data object SCHEDULE : BottomNavTab(
-        route = Routes.SCHEDULE,
-        labelRes = R.string.bottom_nav_schedule,
-        icon = Icons.Default.DateRange
+        route = Routes.GAME_RECORD,
+        labelRes = R.string.bottom_nav_records,
+        icon = Icons.Default.History
     )
 
     data object SETTINGS : BottomNavTab(

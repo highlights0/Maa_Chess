@@ -1,0 +1,395 @@
+package com.aliothmoon.maameow.presentation.view.xiangqi
+
+import android.graphics.PixelFormat
+import android.view.Surface
+import android.view.SurfaceHolder
+import android.view.SurfaceView
+import android.view.View
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material3.Button
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.viewinterop.AndroidView
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.aliothmoon.maameow.R
+import com.aliothmoon.maameow.constant.DefaultDisplayConfig
+import com.aliothmoon.maameow.data.preferences.AppSettingsManager
+import com.aliothmoon.maameow.domain.models.RunMode
+import com.aliothmoon.maameow.domain.service.MaaCompositionService
+import com.aliothmoon.maameow.presentation.components.MaaWindowInsets
+import com.aliothmoon.maameow.presentation.viewmodel.BackgroundTaskViewModel
+import com.aliothmoon.maameow.remote.AppAliveStatus
+import org.koin.compose.koinInject
+
+private const val XIANGQI_CLIENT_TYPE = "Xiangqi"
+
+@Composable
+fun XiangqiTaskView(
+    viewModel: BackgroundTaskViewModel,
+    isActivePage: () -> Boolean = { true },
+) {
+    val appSettings: AppSettingsManager = koinInject()
+    val compositionService: MaaCompositionService = koinInject()
+    val runMode by appSettings.runMode.collectAsStateWithLifecycle()
+    val displayResolution by compositionService.displayResolution.collectAsStateWithLifecycle()
+    val gameStatus by viewModel.gameStatus.collectAsStateWithLifecycle()
+    val gameOnDisplay by viewModel.gameOnDisplay.collectAsStateWithLifecycle()
+    val isSwitching by viewModel.gameSwitchBusy.collectAsStateWithLifecycle()
+    val previewSurfaceEpoch by viewModel.previewSurfaceEpoch.collectAsStateWithLifecycle()
+    val taskState by viewModel.state.collectAsStateWithLifecycle()
+
+    var selectedScene by rememberSaveable { mutableStateOf("standard") }
+    LaunchedEffect(Unit) {
+        viewModel.refreshGameStatus(XIANGQI_CLIENT_TYPE)
+    }
+
+    val previewResolution = if (
+        displayResolution.width == DefaultDisplayConfig.WIDTH &&
+        displayResolution.height == DefaultDisplayConfig.HEIGHT
+    ) {
+        DefaultDisplayConfig.RES_XIANGQI
+    } else {
+        displayResolution
+    }
+
+    if (taskState.isFullscreenMonitor) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Color.Black),
+        ) {
+            XiangqiDisplaySurface(
+                viewModel = viewModel,
+                resolution = previewResolution,
+                surfaceEpoch = previewSurfaceEpoch,
+                active = isActivePage(),
+                modifier = Modifier.fillMaxSize(),
+            )
+            IconButton(
+                onClick = { viewModel.onToggleFullscreenMonitor() },
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .padding(12.dp),
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Close,
+                    contentDescription = stringResource(R.string.task_close_preview_cd),
+                    tint = Color.White,
+                    modifier = Modifier.size(28.dp),
+                )
+            }
+        }
+        return
+    }
+
+    val statusText = when {
+        isSwitching -> stringResource(R.string.xiangqi_status_busy)
+        gameOnDisplay -> stringResource(R.string.xiangqi_status_background)
+        gameStatus == AppAliveStatus.ALIVE -> stringResource(R.string.xiangqi_status_running)
+        gameStatus == AppAliveStatus.DEAD -> stringResource(R.string.xiangqi_status_stopped)
+        else -> stringResource(R.string.xiangqi_status_unknown)
+    }
+
+    LazyColumn(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(horizontal = 16.dp)
+            .windowInsetsPadding(MaaWindowInsets.topBar),
+        contentPadding = PaddingValues(top = 12.dp, bottom = 24.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        item {
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text(
+                    text = stringResource(R.string.xiangqi_task_title),
+                    style = MaterialTheme.typography.headlineMedium,
+                )
+                Text(
+                    text = stringResource(R.string.xiangqi_task_subtitle),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
+
+        item {
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceContainer,
+                ),
+            ) {
+                Column(
+                    modifier = Modifier.padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            imageVector = Icons.Default.PlayArrow,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                        )
+                        Spacer(Modifier.width(8.dp))
+                        Text("天天象棋", style = MaterialTheme.typography.titleLarge)
+                        Spacer(Modifier.weight(1f))
+                        IconButton(
+                            onClick = { viewModel.refreshGameStatus(XIANGQI_CLIENT_TYPE) },
+                        ) {
+                            Icon(Icons.Default.Refresh, contentDescription = null)
+                        }
+                    }
+                    Text(
+                        text = statusText,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = if (gameOnDisplay || gameStatus == AppAliveStatus.ALIVE) {
+                            MaterialTheme.colorScheme.primary
+                        } else {
+                            MaterialTheme.colorScheme.onSurfaceVariant
+                        },
+                    )
+                    Text(
+                        text = "com.tencent.qqgame.xq",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        FilterChip(
+                            selected = selectedScene == "standard",
+                            onClick = { selectedScene = "standard" },
+                            label = { Text(stringResource(R.string.xiangqi_scene_standard)) },
+                        )
+                        FilterChip(
+                            selected = selectedScene == "puzzle",
+                            onClick = { selectedScene = "puzzle" },
+                            label = { Text(stringResource(R.string.xiangqi_scene_puzzle)) },
+                        )
+                    }
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        Button(
+                            modifier = Modifier.weight(1f),
+                            enabled = !isSwitching,
+                            onClick = { viewModel.startGame(XIANGQI_CLIENT_TYPE) },
+                        ) {
+                            if (isSwitching) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(16.dp),
+                                    strokeWidth = 2.dp,
+                                )
+                                Spacer(Modifier.width(8.dp))
+                            } else {
+                                Icon(Icons.Default.PlayArrow, contentDescription = null)
+                                Spacer(Modifier.width(8.dp))
+                            }
+                            Text(stringResource(R.string.xiangqi_action_start))
+                        }
+                        OutlinedButton(
+                            modifier = Modifier.weight(1f),
+                            enabled = !isSwitching && gameStatus == AppAliveStatus.ALIVE,
+                            onClick = { viewModel.closeGame(XIANGQI_CLIENT_TYPE) },
+                        ) {
+                            Icon(Icons.Default.Close, contentDescription = null)
+                            Spacer(Modifier.width(8.dp))
+                            Text(stringResource(R.string.xiangqi_action_close))
+                        }
+                    }
+                }
+            }
+        }
+
+        item {
+            if (runMode == RunMode.BACKGROUND) {
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    Text(
+                        text = stringResource(R.string.xiangqi_preview_title),
+                        style = MaterialTheme.typography.titleMedium,
+                    )
+                    Card(
+                        onClick = { viewModel.onToggleFullscreenMonitor() },
+                        modifier = Modifier
+                            .width(225.dp)
+                            .height(400.dp),
+                        shape = RoundedCornerShape(16.dp),
+                        colors = CardDefaults.cardColors(containerColor = Color.Black),
+                    ) {
+                        XiangqiDisplaySurface(
+                            viewModel = viewModel,
+                            resolution = previewResolution,
+                            surfaceEpoch = previewSurfaceEpoch,
+                            active = isActivePage(),
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .clip(RoundedCornerShape(16.dp)),
+                        )
+                    }
+                    Text(
+                        text = stringResource(R.string.xiangqi_preview_hint),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            } else {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceContainer,
+                    ),
+                ) {
+                    Text(
+                        text = stringResource(R.string.xiangqi_foreground_hint),
+                        modifier = Modifier.padding(16.dp),
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
+                }
+            }
+        }
+
+        item {
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+                ),
+            ) {
+                Column(
+                    modifier = Modifier.padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(6.dp),
+                ) {
+                    Text(
+                        text = stringResource(R.string.xiangqi_task_note_title),
+                        style = MaterialTheme.typography.titleMedium,
+                    )
+                    Text(
+                        text = stringResource(R.string.xiangqi_task_note_message),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun XiangqiDisplaySurface(
+    viewModel: BackgroundTaskViewModel,
+    resolution: DefaultDisplayConfig.Resolution,
+    surfaceEpoch: Int,
+    active: Boolean,
+    modifier: Modifier = Modifier,
+) {
+    var lastSentSurface by remember { mutableStateOf<Surface?>(null) }
+    val currentResolution by rememberUpdatedState(resolution)
+    val currentActive by rememberUpdatedState(active)
+
+    DisposableEffect(viewModel) {
+        onDispose {
+            if (lastSentSurface != null) {
+                lastSentSurface = null
+                viewModel.onSurfaceDestroyed()
+            }
+        }
+    }
+
+    key(surfaceEpoch) {
+        AndroidView(
+            factory = { context ->
+                SurfaceView(context).apply {
+                    holder.setFormat(PixelFormat.RGBA_8888)
+                    holder.addCallback(object : SurfaceHolder.Callback {
+                        override fun surfaceCreated(holder: SurfaceHolder) {
+                            val target = currentResolution
+                            holder.setFixedSize(target.width, target.height)
+                        }
+
+                        override fun surfaceChanged(
+                            holder: SurfaceHolder,
+                            format: Int,
+                            width: Int,
+                            height: Int,
+                        ) {
+                            val target = currentResolution
+                            if (
+                                width == target.width &&
+                                height == target.height &&
+                                holder.surface.isValid &&
+                                lastSentSurface != holder.surface
+                            ) {
+                                lastSentSurface = holder.surface
+                                viewModel.onSurfaceAvailable(holder.surface)
+                            }
+                        }
+
+                        override fun surfaceDestroyed(holder: SurfaceHolder) {
+                            if (lastSentSurface != null) {
+                                lastSentSurface = null
+                                viewModel.onSurfaceDestroyed()
+                            }
+                        }
+                    })
+                }
+            },
+            modifier = modifier,
+            update = { view ->
+                view.visibility = if (currentActive) View.VISIBLE else View.INVISIBLE
+                val target = currentResolution
+                val frame = view.holder.surfaceFrame
+                if (
+                    view.holder.surface.isValid &&
+                    (frame.width() != target.width || frame.height() != target.height)
+                ) {
+                    view.holder.setFixedSize(target.width, target.height)
+                }
+            },
+        )
+    }
+}

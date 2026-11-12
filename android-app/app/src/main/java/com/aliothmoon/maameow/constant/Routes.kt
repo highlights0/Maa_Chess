@@ -8,6 +8,7 @@ object Routes {
     const val LOG_HISTORY = "log_history"
     const val ERROR_LOG = "error_log"
     const val BACKGROUND_TASK = "background_task"
+    const val GAME_RECORD = "game_record"
     const val SCHEDULE = "schedule"
     const val SCHEDULE_EDIT = "schedule_edit/{strategyId}"
     const val SCHEDULE_TRIGGER_LOG = "schedule_trigger_log"

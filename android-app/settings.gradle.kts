@@ -28,7 +28,7 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "MaaMeow"
+rootProject.name = "Maa_Chess"
 include(":app")
 include(":hidden-api")
 include(":annotation-api")
