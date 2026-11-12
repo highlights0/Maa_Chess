@@ -16,6 +16,11 @@ class PackagesTest {
     }
 
     @Test
+    fun xiangqiClientUsesVerifiedTiantianPackage() {
+        assertEquals("com.tencent.qqgame.xq", Packages["Xiangqi"])
+    }
+
+    @Test
     fun get_prefersOverride_andFallsBackToDefault() {
         val overrides = MutableStateFlow(mapOf("YoStarKR" to "com.YoStarKR.Samsung.Arknights"))
         Packages.bindOverrides(overrides)

@@ -38,6 +38,7 @@ import com.aliothmoon.maameow.manager.RemoteAccessCoordinator
 import com.aliothmoon.maameow.manager.RemoteCallStuckException
 import com.aliothmoon.maameow.manager.RemoteServiceManager
 import com.aliothmoon.maameow.manager.RemoteServiceManager.useRemoteService
+import com.aliothmoon.maameow.remote.AppAliveStatus
 import com.aliothmoon.maameow.remote.PermissionGrantRequest
 import com.aliothmoon.maameow.utils.EyeProtectionDetector
 import com.aliothmoon.maameow.utils.Misc
@@ -591,7 +592,22 @@ class MaaCompositionService(
                     if (!ready) return@useRemoteService false
                     displayStarted = mode == RunMode.BACKGROUND
                     grantGameBatteryExemption(clientType)
-                    service.bounded("launchGame", LAUNCH_GAME_TIMEOUT_MS) { it.launchGame(pkg) }
+                    val gameAlive = mode == RunMode.BACKGROUND &&
+                        service.bounded("isAppAlive") { it.isAppAlive(pkg) } == AppAliveStatus.ALIVE
+                    val alreadyOnBackgroundDisplay = gameAlive &&
+                        service.bounded("isAppOnVirtualDisplay") { it.isAppOnVirtualDisplay(pkg) }
+                    when (resolveGameLaunchAction(mode, gameAlive, alreadyOnBackgroundDisplay)) {
+                        GameLaunchAction.START -> service.bounded("launchGame", LAUNCH_GAME_TIMEOUT_MS) {
+                            it.launchGame(pkg)
+                        }
+
+                        GameLaunchAction.MOVE_TO_BACKGROUND_DISPLAY ->
+                            service.bounded("moveAppToVirtualDisplay", LAUNCH_GAME_TIMEOUT_MS) {
+                                it.moveAppToVirtualDisplay(pkg)
+                            }
+
+                        GameLaunchAction.KEEP_ON_BACKGROUND_DISPLAY -> true
+                    }
                 }
             }
         } catch (e: CancellationException) {

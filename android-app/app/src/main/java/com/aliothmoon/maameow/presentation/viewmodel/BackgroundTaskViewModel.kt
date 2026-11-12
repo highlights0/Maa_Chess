@@ -1,6 +1,7 @@
 package com.aliothmoon.maameow.presentation.viewmodel
 
 import android.content.Context
+import android.content.Intent
 import android.view.Surface
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -18,6 +19,7 @@ import com.aliothmoon.maameow.domain.launch.PlanSideTaskRunner
 import com.aliothmoon.maameow.domain.launch.LaunchRequest
 import com.aliothmoon.maameow.domain.launch.LaunchSession
 import com.aliothmoon.maameow.domain.launch.LaunchUserEvent
+import com.aliothmoon.maameow.domain.models.RunMode
 import com.aliothmoon.maameow.domain.launch.toCountdownState
 import com.aliothmoon.maameow.constant.Packages
 import com.aliothmoon.maameow.domain.service.AchievementReporter
@@ -156,6 +158,7 @@ class BackgroundTaskViewModel(
         .distinctUntilChanged()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
 
+    private val selectedGameClientType = MutableStateFlow<String?>(null)
     private val _gameStatus = MutableStateFlow(AppAliveStatus.UNKNOWN)
     val gameStatus: StateFlow<Int> = _gameStatus.asStateFlow()
     private val _gameSwitchBusy = MutableStateFlow(false)
@@ -196,7 +199,8 @@ class BackgroundTaskViewModel(
         }
     }
 
-    fun refreshGameStatus() {
+    fun refreshGameStatus(clientType: String? = null) {
+        if (clientType != null) selectedGameClientType.value = clientType
         viewModelScope.launch { updateGameStatus() }
     }
 
@@ -206,23 +210,43 @@ class BackgroundTaskViewModel(
         if (!_gameSwitchBusy.value) _gameStatus.value = status
     }
 
-    private fun currentGamePackage(): String? = compositionService.backgroundDisplayPackage.value
-        ?: Packages[
-            if (compositionService.state.value.isIdle) chainState.clientType
-            else chainState.lastUsedClientType ?: chainState.clientType
-        ]
+    private fun currentGamePackage(): String? {
+        val clientType = selectedGameClientType.value
+            ?: if (compositionService.state.value.isIdle) {
+                chainState.clientType
+            } else {
+                chainState.lastUsedClientType ?: chainState.clientType
+            }
+        return compositionService.backgroundDisplayPackage.value ?: Packages[clientType]
+    }
 
-    fun startGame() {
-        val clientType = chainState.clientType
-        val pkg = Packages[clientType] ?: return
+    /**
+     * 前台模式通过 Android 启动器拉起游戏，不要求 Shizuku / Root。
+     * 后台模式复用远端虚拟显示启动链；已运行的游戏会被移入目标显示器。
+     */
+    fun startGame(clientType: String? = null) {
+        val targetClientType = clientType ?: chainState.clientType
+        selectedGameClientType.value = targetClientType
+        val pkg = Packages[targetClientType] ?: return
         if (!compositionService.state.value.isIdle || !_gameSwitchBusy.compareAndSet(false, true)) return
         viewModelScope.launch {
             var running = false
             try {
-                // 判不出死活也照拉，已在跑时 startActivity 只是切到前台
-                running = appAliveChecker.isAppAlive(pkg) == AppAliveStatus.ALIVE ||
-                    compositionService.launchGame(clientType)
-                // 前台拉起不等进程起来，pidof 可能还查不到
+                running = if (appSettingsManager.runMode.value == RunMode.FOREGROUND) {
+                    val intent = application.packageManager.getLaunchIntentForPackage(pkg)
+                    if (intent == null) {
+                        false
+                    } else {
+                        runCatching {
+                            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                            application.startActivity(intent)
+                            true
+                        }.onFailure { Timber.e(it, "Failed to launch game: %s", pkg) }
+                            .getOrDefault(false)
+                    }
+                } else {
+                    compositionService.launchGame(targetClientType)
+                }
                 if (running) _gameStatus.value = AppAliveStatus.ALIVE
                 else _effects.send(UiEffect.toast(R.string.bg_action_start_game_failed))
             } finally {
@@ -232,7 +256,8 @@ class BackgroundTaskViewModel(
         }
     }
 
-    fun closeGame() {
+    fun closeGame(clientType: String? = null) {
+        if (clientType != null) selectedGameClientType.value = clientType
         val pkg = currentGamePackage() ?: return
         if (!_gameSwitchBusy.compareAndSet(false, true)) return
         viewModelScope.launch {
