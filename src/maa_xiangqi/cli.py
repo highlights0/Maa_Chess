@@ -259,6 +259,8 @@ def command_download_model(args: argparse.Namespace) -> int:
 
 
 def command_recognize(args: argparse.Namespace) -> int:
+    if (args.rule60_count is None) != (args.fullmove_number is None):
+        raise ValueError("rule60 和回合数必须同时提供")
     image = _read_image(args.image)
     height, width = image.shape[:2]
     profile = _load_profile(args.profile)
@@ -276,11 +278,18 @@ def command_recognize(args: argparse.Namespace) -> int:
         red_at_top=red_side == "top",
         min_confidence=args.min_confidence,
         min_margin=args.min_margin,
+        rule60_count=args.rule60_count,
+        fullmove_number=args.fullmove_number,
     )
     predictions = {(item.row, item.col): item for item in result.predictions}
     payload = {
         "complete": result.is_complete,
-        "fen": result.state.to_fen() if result.state is not None else None,
+        "fen": (
+            result.state.to_fen()
+            if result.state is not None and args.rule60_count is not None
+            else None
+        ),
+        "board_rows": ["".join(row) for row in result.state.rows] if result.state else None,
         "side_to_move": args.side_to_move,
         "mean_confidence": round(result.mean_confidence, 5),
         "problem": result.problem,
@@ -363,6 +372,8 @@ def build_parser() -> argparse.ArgumentParser:
     recognize.add_argument("--red-side", choices=["top", "bottom"])
     recognize.add_argument("--min-confidence", type=float, default=0.80)
     recognize.add_argument("--min-margin", type=float, default=0.0)
+    recognize.add_argument("--rule60-count", type=int, help="从已知走法历史取得的 rule60")
+    recognize.add_argument("--fullmove-number", type=int, help="从已知走法历史取得的回合数")
 
     return parser
 

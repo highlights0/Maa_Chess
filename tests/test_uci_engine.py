@@ -46,6 +46,13 @@ def test_rejects_invalid_history_move_before_starting_engine():
     engine.close()
 
 
+def test_rejects_unknown_counters_before_starting_engine():
+    engine = make_engine()
+    with pytest.raises(ValueError, match="未知 rule60"):
+        engine.analyze(START_FEN.split(" w ")[0] + " w")
+    engine.close()
+
+
 def test_rejects_malformed_bestmove():
     with make_engine("bad") as engine, pytest.raises(
         EngineProtocolError,

@@ -57,9 +57,9 @@ data class XiangqiBoardCalibration(
         // Measured against the user's 900x1600 MuMu internal screenshot.
         val MUMU_900X1600 = XiangqiBoardCalibration(
             left = 66.0,
-            top = 327.0,
+            top = 363.0,
             right = 834.0,
-            bottom = 1191.0,
+            bottom = 1227.0,
         )
     }
 }
@@ -318,7 +318,7 @@ class XiangqiNanoV3Recognizer(
         }
 
         if (counts['K']?.size != 1 || counts['k']?.size != 1) {
-            return "局面必须且只能识别到一个红帅和一个黑将"
+            return PROBLEM_GENERAL_COUNT
         }
         return null
     }

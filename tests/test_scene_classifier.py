@@ -39,3 +39,19 @@ def test_unknown_text_does_not_force_a_scene_guess():
     assert result.mode is SceneMode.UNKNOWN
     assert result.phase is ScenePhase.UNKNOWN
     assert result.confidence == 0.0
+
+
+def test_labels_seen_on_standard_game_screen_identify_match():
+    result = classify_scene(["小白", "0步", "菜单", "显示分析", "悔棋", "提示"])
+
+    assert result.mode is SceneMode.STANDARD
+    assert result.phase is ScenePhase.STANDARD_MATCH
+    assert "显示分析" in result.evidence
+
+
+def test_labels_seen_on_puzzle_screen_identify_level():
+    result = classify_scene(["第1关", "小兵", "9/10", "0步", "提示", "分享"])
+
+    assert result.mode is SceneMode.PUZZLE
+    assert result.phase is ScenePhase.PUZZLE_BOARD
+    assert result.puzzle_level == 1

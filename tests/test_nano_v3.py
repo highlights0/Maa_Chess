@@ -73,9 +73,26 @@ def test_nano_v3_prediction_maps_the_16_model_classes_to_board_state():
     assert result.state.has_both_generals()
     assert result.state.rows[0][4] == "k"
     assert result.state.rows[9][4] == "K"
+    assert result.state.rule60_count is None
+    with pytest.raises(ValueError, match="未知 rule60"):
+        result.state.to_fen()
     assert len(result.predictions) == 90
     assert result.problem is None
     assert MODEL_CLASS_SYMBOLS[1] == "x"
+
+
+def test_nano_v3_uses_counters_only_when_supplied_from_history():
+    result = recognize_nano_v3_board(
+        np.zeros((1600, 900, 3), dtype=np.uint8),
+        make_geometry(),
+        FakeNanoV3(),
+        side_to_move="w",
+        rule60_count=0,
+        fullmove_number=1,
+    )
+
+    assert result.state is not None
+    assert result.state.to_fen() == "4k4/9/9/9/9/9/9/9/9/4K4 w - - 0 1"
 
 
 def test_unknown_model_class_never_becomes_an_empty_square():

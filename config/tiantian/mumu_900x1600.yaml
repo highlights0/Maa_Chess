@@ -13,8 +13,8 @@ device:
   density_dpi: 240
   calibration_source: user_supplied_android_internal_screenshot
   calibration_note: >
-    四角由 2026-11-12 提供的 900x1600 Android 内部截图人工测量，
-    网格叠加已目视检查；如果棋盘布局或分辨率变化，请重新校准。
+    四角由 2026-11-12 提供的 900x1600 Android 内部截图重新测量，
+    修正了旧配置整体偏上的 36 像素；如果棋盘布局或分辨率变化，请重新校准。
 
 capture:
   source: android_internal_screencap
@@ -28,10 +28,10 @@ board:
     method: manual_four_corner
     coordinate_space: adb_screenshot_pixels
     corners_tl_tr_br_bl:
-      - [66, 327]
-      - [834, 327]
-      - [834, 1191]
-      - [66, 1191]
+      - [66, 363]
+      - [834, 363]
+      - [834, 1227]
+      - [66, 1227]
     source_width: 900
     source_height: 1600
   crop_half_size_ratio: 0.42

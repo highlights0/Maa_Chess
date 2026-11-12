@@ -26,10 +26,13 @@ def _encode_rank(row: tuple[str, ...] | list[str]) -> str:
 def board_to_fen(state: BoardState) -> str:
     """Serialize a board to six-field Xiangqi FEN.
 
-    Pikafish uses the fifth field as its rule60 counter. It is not safe to
-    invent this value from a screenshot; callers should retain it from history
-    when available, otherwise the default remains zero.
+    Pikafish uses the fifth field as its rule60 counter. A screenshot cannot
+    supply the counters; callers must retain them from known move history.
     """
+    if state.side_to_move is None:
+        raise ValueError("未知行棋方，不能生成完整 FEN")
+    if state.rule60_count is None or state.fullmove_number is None:
+        raise ValueError("未知 rule60 或回合数，不能生成完整 FEN")
     placement = "/".join(_encode_rank(row) for row in state.rows)
     return (
         f"{placement} {state.side_to_move} - - "
@@ -39,8 +42,8 @@ def board_to_fen(state: BoardState) -> str:
 
 def parse_fen(fen: str) -> BoardState:
     fields = fen.strip().split()
-    if len(fields) < 2:
-        raise ValueError("FEN 至少需要棋子布局和行棋方两个字段")
+    if len(fields) not in {2, 6}:
+        raise ValueError("FEN 必须是仅含布局和行棋方的两字段，或完整的六字段")
     if fields[1] not in {"w", "b"}:
         raise ValueError("FEN 行棋方字段必须为 w 或 b")
 
@@ -66,14 +69,13 @@ def parse_fen(fen: str) -> BoardState:
             )
         rows.append(row)
 
-    rule60_count = 0
-    fullmove_number = 1
-    if len(fields) >= 5:
+    rule60_count = None
+    fullmove_number = None
+    if len(fields) == 6:
         try:
             rule60_count = int(fields[4])
         except ValueError as exc:
             raise ValueError("FEN 第五字段 rule60 必须是整数") from exc
-    if len(fields) >= 6:
         try:
             fullmove_number = int(fields[5])
         except ValueError as exc:

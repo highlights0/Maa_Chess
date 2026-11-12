@@ -5,11 +5,14 @@
 - 已接入前台无特权启动、后台虚拟显示启动，以及已运行游戏移入虚拟显示器的路径。
 - 已按用户设备配置 900×1600、240 DPI 竖屏显示。
 - 已添加游戏启动路由和竖屏分辨率单元测试。
-- Python 端已接入 MIT 许可 nano-v3 预训练模型、固定预处理、置信度门控和真实模型冒烟测试；CI 已验证 59 项 Python 测试与 Ruff。
-- Android 端已加入 nano-v3 模型下载 / SHA-256 校验、ONNX Runtime 推理、后台帧采集和棋盘结果展示入口；仍需通过 Android CI 并在 MuMu 实机验证识别结果。
+- Python 端已接入 MIT 许可 nano-v3 预训练模型、固定预处理、置信度门控和真实模型冒烟测试；本地 67 项 Python 测试与 Ruff 已通过。
+- 已用真实手机的标准开局和“第1关 小兵”残局截图验证 nano-v3 棋子识别；这两次使用人工校准 `config/tiantian/phone_1080x2400.yaml` 和人工指定行棋方，原始截图留在本地忽略目录。MuMu 900×1600 旧校准整体偏上约 36 像素，已按现有内部截图修正并目视检查网格。
+- Android 端已加入 nano-v3 模型下载 / SHA-256 校验、ONNX Runtime 推理、后台帧采集和棋盘结果展示入口；尚未在手机或 MuMu 的 APK 中验证。2026-11-12 的 Android CI 在国际化字面量测试中失败，原因是缺将/帅错误返回了中文文案而非既有错误代码；已修正，待重跑 Android CI。
+- 已核对官方 Pikafish Android arm64 发布包和 NNUE，并在手机 shell 中完成 UCI 握手及标准开局、该残局的搜索测试；Python UCI 适配器经 ADB 调用也返回该残局的一步杀 `f8e8`。尚未接入 Android App。官方发布包未提供 Android x86_64 可执行文件，MuMu 兼容性需另行验证。
+- 截图无法提供 rule60、回合数和完整走法历史；Python 识别结果在未知计数时不再生成完整 FEN，避免把推测状态交给引擎。
 - 尚未完成自动棋盘定位、行棋方识别、Pikafish Android 引擎、完整规则历史和自动落子闭环。
 - 当前用户诊断报告中 Shizuku 未安装、Root 探测未通过；后台模式必须在用户完成授权后实机验证。
-- 本轮未在 MuMu 或真机运行 APK；后续由 GitHub Actions 构建并提供 APK artifact。
+- 本轮未在 MuMu 或真机运行 APK；Android CI 修复尚未重跑，仍无本轮可验证的 APK artifact。
 
 **架构边界：** MAA-Meow 的 Arknights AsstAppendTask 不是象棋任务引擎。象棋任务后续使用本项目 MaaFramework pipeline / custom action 与 Xiangqi Core。
 
@@ -92,7 +95,7 @@ MAA-Meow Android 工程已迁移并直接复用，所有衍生修改按 AGPL-3.0
 
 设备连接、权限、MAA Core、虚拟显示、游戏进程和任务状态必须分开显示。首版不需要定时任务页。
 
-## 2. 当前已有基础
+## 2. 阶段 A 开始时的基础（历史记录）
 
 - ADB 设备发现、设备参数读取、应用启动和 Android 内部截图 CLI。
 - MuMu / Android 环境诊断命令 maa-xiangqi-diagnose，支持 API、ABI、Root / Shizuku 线索、游戏包和显示器摘要。
@@ -102,7 +105,7 @@ MAA-Meow Android 工程已迁移并直接复用，所有衍生修改按 AGPL-3.0
 - MaaFramework Python Agent 诊断截图动作和 General UI interface/pipeline 初始配置。
 - 单元测试和 GitHub Actions。
 
-当前没有 Android 原生 App、Shizuku / Root 远程服务、虚拟显示器、MAA Core Android 运行时、自动棋盘定位、棋子分类模型、完整规则引擎、Pikafish Android 引擎或自动落子闭环。不要在文档或 UI 中宣称这些已经完成。
+以上为阶段 A 开始时的清单；当前进度以本文开头的实施状态为准。未完成的能力不得在文档或 UI 中宣称已完成。
 
 ## 3. 阶段 A：完成现有 ADB 开发工具验收（P0）
 

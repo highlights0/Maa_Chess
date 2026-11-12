@@ -269,6 +269,8 @@ def recognize_nano_v3_board(
     red_at_top: bool = False,
     min_confidence: float = DEFAULT_MIN_CONFIDENCE,
     min_margin: float = DEFAULT_MIN_MARGIN,
+    rule60_count: int | None = None,
+    fullmove_number: int | None = None,
 ) -> BoardRecognition:
     """Decode all 90 squares; unknown/low-confidence predictions never become empty."""
     if image is None or image.size == 0:
@@ -324,7 +326,12 @@ def recognize_nano_v3_board(
     mean_confidence = float(np.mean([item.confidence for item in predictions]))
     state = None
     if not uncertain and problem is None:
-        state = BoardState(rows=rows, side_to_move=side_to_move)
+        state = BoardState(
+            rows=rows,
+            side_to_move=side_to_move,
+            rule60_count=rule60_count,
+            fullmove_number=fullmove_number,
+        )
 
     return BoardRecognition(
         state=state,

@@ -1,0 +1,29 @@
+schema_version: 1
+
+profile_name: Phone 1080x2400 observed board
+
+device:
+  screenshot_width: 1080
+  screenshot_height: 2400
+  calibration_source: android_internal_screenshot
+  calibration_note: >
+    2026-11-12 的标准开局与残局画面共用此四角；不同手机布局须重新校准。
+
+board:
+  columns: 9
+  rows: 10
+  image_origin: top_left
+  calibration:
+    method: manual_four_corner
+    coordinate_space: adb_screenshot_pixels
+    corners_tl_tr_br_bl:
+      - [80, 665]
+      - [1000, 665]
+      - [1000, 1690]
+      - [80, 1690]
+    source_width: 1080
+    source_height: 2400
+  crop_half_size_ratio: 0.42
+
+orientation:
+  red_side: bottom

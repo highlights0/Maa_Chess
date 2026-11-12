@@ -7,6 +7,15 @@ import org.junit.Test
 
 class XiangqiNanoV3PreprocessorTest {
     @Test
+    fun mumuCalibrationUsesMeasuredBoardIntersections() {
+        val calibration = XiangqiBoardCalibration.MUMU_900X1600
+        assertEquals(66.0, calibration.left, 0.0)
+        assertEquals(363.0, calibration.top, 0.0)
+        assertEquals(834.0, calibration.right, 0.0)
+        assertEquals(1227.0, calibration.bottom, 0.0)
+    }
+
+    @Test
     fun solidRgbFrameProducesExpectedNchwTensorAndNormalization() {
         val width = 900
         val height = 1600

@@ -15,7 +15,7 @@ from enum import Enum
 _LEVEL_RE = re.compile(r"第\s*(\d+|[一二三四五六七八九十百]+)\s*关")
 _PUZZLE_MARKERS = ("残局", "闯关")
 _PUZZLE_BOARD_ACTIONS = ("悔棋", "提示", "分享")
-_STANDARD_MARKERS = ("匹配", "排位", "对局", "认输", "求和", "观战", "红方", "黑方")
+_STANDARD_MARKERS = ("匹配", "排位", "对局", "认输", "求和", "观战", "红方", "黑方", "显示分析")
 _HOME_MARKERS = ("开始游戏", "进入游戏", "快速开始")
 
 
@@ -96,7 +96,7 @@ def classify_scene(ocr_texts: Iterable[str]) -> SceneDetection:
 
     standard_evidence = tuple(marker for marker in _STANDARD_MARKERS if marker in compact)
     if standard_evidence:
-        in_match = any(marker in compact for marker in ("认输", "求和", "观战", "红方", "黑方"))
+        in_match = any(marker in compact for marker in ("认输", "求和", "观战", "红方", "黑方", "显示分析"))
         return SceneDetection(
             mode=SceneMode.STANDARD,
             phase=ScenePhase.STANDARD_MATCH if in_match else ScenePhase.GAME_HOME,

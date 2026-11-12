@@ -23,6 +23,6 @@ def test_mumu_900x1600_profile_has_90_board_intersections():
     points = geometry.grid_points()
     assert len(points) == 10
     assert all(len(row) == 9 for row in points)
-    assert points[0][0] == (66.0, 327.0)
-    assert points[9][8] == (834.0, 1191.0)
+    assert points[0][0] == (66.0, 363.0)
+    assert points[9][8] == (834.0, 1227.0)
     assert profile["device"]["emulator_vendor"] == "MuMu"
