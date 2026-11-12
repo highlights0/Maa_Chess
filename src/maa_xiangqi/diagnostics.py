@@ -69,7 +69,9 @@ def parse_package_list(output: str) -> set[str]:
 
 def detect_emulator_vendor(
     properties: dict[str, str],
+    display_output: str = "",
 ) -> tuple[str | None, tuple[str, ...]]:
+    """Infer emulator family from build properties and display-device metadata."""
     keys = (
         "ro.product.manufacturer",
         "ro.product.brand",
@@ -79,9 +81,10 @@ def detect_emulator_vendor(
         "ro.hardware",
         "ro.build.fingerprint",
     )
-    searchable = " ".join(properties.get(key, "") for key in keys).lower()
+    searchable = " ".join(properties.get(key, "") for key in keys)
+    searchable = f"{searchable} {display_output}".lower()
     signatures = {
-        "MuMu": ("mumu", "netease", "nemu"),
+        "MuMu": ("mumuscreen", "mumu", "netease", "nemu"),
         "雷电": ("leidian", "ldplayer", "dnplayer"),
         "蓝叠": ("bluestacks", "bst"),
         "夜神": ("nox", "noxplayer"),
@@ -140,6 +143,26 @@ def _package_version(serial: str, package: str, adb_path: str | Path) -> str | N
         return None
     match = re.search(r"\bversionName=([^\s]+)", output)
     return match.group(1) if match else None
+
+
+def _classify_root_probe(output: str) -> bool | None:
+    """Return True/False only for conclusive evidence; timeout remains unknown."""
+    if re.search(r"\buid=0\b", output):
+        return True
+    uid_match = re.search(r"\buid=(\d+)\b", output)
+    if uid_match:
+        return int(uid_match.group(1)) == 0
+
+    lowered = output.lower()
+    if re.search(
+        r"permission denied|not found|inaccessible|not permitted|"
+        r"operation not permitted|access denied",
+        lowered,
+    ):
+        return False
+    if re.search(r"timeout|timed out|超时|temporarily unavailable", lowered):
+        return None
+    return None
 
 
 def diagnose_device(
@@ -208,12 +231,23 @@ def diagnose_device(
                     timeout=10,
                 )
             )
-            root_available = bool(re.search(r"\buid=0\b", root_probe_output))
+            root_available = _classify_root_probe(root_probe_output)
         except AdbError as exc:
             root_probe_output = str(exc).splitlines()[0]
-            root_available = False
+            root_available = _classify_root_probe(root_probe_output)
 
-    vendor, vendor_markers = detect_emulator_vendor(properties)
+    try:
+        display_output = _decode(
+            _run_adb(
+                ["-s", serial, "shell", "dumpsys", "display"],
+                adb_path,
+                timeout=20,
+            )
+        )
+    except AdbError as exc:
+        display_output = f"display diagnostics unavailable: {exc}"
+
+    vendor, vendor_markers = detect_emulator_vendor(properties, display_output)
     emulator_markers = list(vendor_markers)
     for key in ("ro.kernel.qemu", "ro.boot.qemu"):
         if properties.get(key) == "1":
@@ -239,17 +273,6 @@ def diagnose_device(
         f"{package}: {_package_version(serial, package, adb_path) or 'unknown'}"
         for package in game_packages
     )
-
-    try:
-        display_output = _decode(
-            _run_adb(
-                ["-s", serial, "shell", "dumpsys", "display"],
-                adb_path,
-                timeout=20,
-            )
-        )
-    except AdbError as exc:
-        display_output = f"display diagnostics unavailable: {exc}"
 
     try:
         android_api = int(properties.get("ro.build.version.sdk", ""))
