@@ -70,6 +70,10 @@ jobs:
         working-directory: android-app
         run: ./gradlew :app:lintDebug :app:assembleDebug --stacktrace
 
+      - name: 验证 ONNX 原生库版本一致
+        working-directory: android-app
+        run: python scripts/verify_onnx_abi.py app/build/outputs/apk/debug/app-debug.apk
+
       - name: 上传 Debug APK
         uses: actions/upload-artifact@v4
         with:

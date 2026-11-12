@@ -765,6 +765,14 @@ class BackgroundTaskViewModel(
                 }
             } catch (error: CancellationException) {
                 throw error
+            } catch (error: LinkageError) {
+                Timber.e(error, "load Xiangqi recognition runtime failed")
+                _xiangqiRecognition.update {
+                    it.copy(
+                        isRecognizing = false,
+                        error = application.getString(R.string.xiangqi_recognition_error_generic),
+                    )
+                }
             } catch (error: Exception) {
                 Timber.e(error, "recognize Xiangqi board failed")
                 _xiangqiRecognition.update {
