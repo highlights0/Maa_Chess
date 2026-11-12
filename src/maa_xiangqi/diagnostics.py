@@ -198,7 +198,7 @@ def diagnose_device(
         )
     )
     root_probe_output: str | None = None
-    root_available: bool | None = shell_uid == 0 if shell_uid is not None else None
+    root_available: bool | None = True if shell_uid == 0 else None
     if probe_root:
         try:
             root_probe_output = _decode(
