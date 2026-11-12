@@ -311,8 +311,7 @@
 
     <!-- home: foreground-mode section -->
     <string name="home_resolution_title">Resolution Adjustment</string>
-    <string name="home_resolution_apply_16_9">Apply 16:9 Resolution</string>
-    <string name="home_resolution_reset">Reset Resolution</string>
+    <string name="home_resolution_reset">Restore Original Phone Resolution</string>
     <string name="home_overlay_mode_title">Overlay Mode</string>
     <string name="home_overlay_mode_accessibility_desc">Press volume up + down together to toggle the panel</string>
     <string name="home_overlay_mode_floatball_desc">Tap the floating ball to toggle the panel</string>
@@ -353,10 +352,7 @@
     <string name="home_toast_open_shizuku_failed">Failed to open Shizuku. Please make sure Shizuku is installed</string>
     <string name="home_toast_open_service_failed">Failed to open service: %1$s</string>
     <string name="home_toast_close_service_failed">Failed to close service: %1$s</string>
-    <string name="home_toast_change_resolution_failed">Failed to change resolution: %1$s</string>
-    <string name="home_toast_resolution_too_small">Screen size %1$dx%2$d is below the 1280x720 minimum</string>
     <string name="home_toast_reset_resolution_failed">Failed to reset resolution: %1$s</string>
-    <string name="home_toast_not_16_9_resolution">Current resolution is not 16:9. Please use background task or adjust the resolution</string>
 
     <!-- dialog: update found -->
     <string name="dialog_update_found_title">Update Available</string>
@@ -3081,7 +3077,7 @@ MAA will not end an in-progress exploration early because this option is uncheck
     <string name="xiangqi_action_start">Launch Tiantian Xiangqi</string>
     <string name="xiangqi_action_close">Close game</string>
     <string name="xiangqi_preview_title">Background display preview</string>
-    <string name="xiangqi_preview_hint">Tap the preview to view it full screen. Background mode requires Shizuku or Root.</string>
+    <string name="xiangqi_preview_hint">Tap the preview to view and control the game full screen. Background mode requires Shizuku or Root.</string>
     <string name="xiangqi_foreground_hint">Foreground mode is active. The game is shown on the Android main display and does not require virtual-display privileges.</string>
     <string name="xiangqi_task_note_title">Current scope</string>
     <string name="xiangqi_task_note_message">Game launch, foreground/background display, background preview, and a local nano-v3 board-recognition entry point are connected. Recognition accuracy still needs validation on MuMu. Automatic side-to-move detection, the Android Pikafish engine, and the guarded move-execution loop remain in development.</string>

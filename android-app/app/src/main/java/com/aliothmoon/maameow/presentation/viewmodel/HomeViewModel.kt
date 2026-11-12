@@ -26,7 +26,6 @@ import com.aliothmoon.maameow.presentation.state.StatusColorType
 import com.aliothmoon.maameow.presentation.state.UiEffect
 import com.aliothmoon.maameow.schedule.data.ScheduleStrategyRepository
 import com.aliothmoon.maameow.schedule.service.ScheduleAlarmManager
-import com.aliothmoon.maameow.utils.Misc
 import com.aliothmoon.maameow.utils.i18n.remoteBackendPermissionLabel
 import com.aliothmoon.maameow.utils.i18n.uiTextOf
 import kotlinx.coroutines.channels.Channel
@@ -329,12 +328,6 @@ class HomeViewModel(
                     return@launch
                 }
 
-                // 检查分辨率是否为 16:9
-                if (!checkResolution()) {
-                    _uiState.update { it.copy(isLoading = false) }
-                    return@launch
-                }
-
                 overlayController.show(currentMode)
                 _uiState.update { it.copy(isLoading = false) }
             } catch (e: Exception) {
@@ -459,54 +452,6 @@ class HomeViewModel(
         }
     }
 
-    fun onChangeTo16x9Resolution(ctx: Context) {
-        viewModelScope.launch {
-            try {
-                val label =
-                    application.remoteBackendPermissionLabel(permissionManager.permissions.startupBackend)
-                if (!permissionManager.permissions.remoteAccessGranted) {
-                    val ret = permissionManager.requestRemoteAccess()
-                    if (!ret) {
-                        _effects.send(
-                            UiEffect.toast(
-                                R.string.home_toast_backend_not_acquired, label
-                            )
-                        )
-                        return@launch
-                    }
-                }
-                val (width, height) = Misc.getPhysicalSize(ctx)
-                val target = Misc.calculate16x9Resolution(width, height)
-                if (target == null) {
-                    _effects.send(
-                        UiEffect.toast(
-                            R.string.home_toast_resolution_too_small,
-                            maxOf(width, height),
-                            minOf(width, height),
-                        )
-                    )
-                    return@launch
-                }
-                _uiState.update { it.copy(isLoading = true) }
-                val (targetWidth, targetHeight) = target
-                val ret = useRemoteService { service ->
-                    service.setForcedDisplaySize(targetWidth, targetHeight)
-                }
-                Timber.i("onChangeTo16x9Resolution: setForcedDisplaySize result: %s", ret)
-
-                _uiState.update { it.copy(isLoading = false) }
-            } catch (e: Exception) {
-                Timber.e(e, "onChangeTo16x9Resolution: Error changing resolution")
-                _uiState.update { it.copy(isLoading = false) }
-                _effects.send(
-                    UiEffect.toast(
-                        R.string.home_toast_change_resolution_failed, e.message.orEmpty()
-                    )
-                )
-            }
-        }
-    }
-
     fun onResetResolution() {
         Timber.i("onResetResolution: Resetting resolution to default")
         viewModelScope.launch {
@@ -538,20 +483,6 @@ class HomeViewModel(
                 )
             }
         }
-    }
-
-    private fun checkResolution(): Boolean {
-        // 不能用 application.resources.displayMetrics：application context 的 DisplayMetrics
-        // 不反映 setForcedDisplaySize 修改后的 forced size（在 Android 9 上持续返回原生物理分辨率
-        // 减去系统栏的值）。改用 Misc.getScreenSize，其底层走 Display.getRealMetrics /
-        // WindowMetrics.getBounds，能正确读到 IWindowManager 层的 forced size。
-        val (width, height) = Misc.getScreenSize(application)
-        val isValid = Misc.isAspectRatio16x9(width, height)
-        if (!isValid) {
-            _effects.trySend(UiEffect.toast(R.string.home_toast_not_16_9_resolution, long = true))
-            Timber.w("resolution check failed: ${width}x${height}, required 16:9")
-        }
-        return isValid
     }
 
     fun onRunModeChange(isBackground: Boolean) {

@@ -1034,9 +1034,9 @@ fun BackgroundTaskView(
 }
 
 /** offset 已钳到边缘，inside 取原始落点 */
-private class DisplayPoint(val offset: IntOffset, val inside: Boolean)
+internal class DisplayPoint(val offset: IntOffset, val inside: Boolean)
 
-private fun viewToVirtualDisplay(
+internal fun viewToVirtualDisplay(
     view: Offset,
     viewSize: IntSize,
     display: DefaultDisplayConfig.Resolution,

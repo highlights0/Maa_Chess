@@ -573,8 +573,7 @@
 
     <!-- home: foreground-mode section -->
     <string name="home_resolution_title">해상도 조정</string>
-    <string name="home_resolution_apply_16_9">지원 해상도로 조정</string>
-    <string name="home_resolution_reset">해상도 초기화</string>
+    <string name="home_resolution_reset">휴대전화 원래 해상도 복원</string>
     <string name="home_overlay_mode_title">플로팅 창 모드</string>
     <string name="home_overlay_mode_accessibility_desc">볼륨 +/- 키를 동시에 눌러 패널을 전환합니다</string>
     <string name="home_overlay_mode_floatball_desc">플로팅 볼을 탭하여 패널을 전환합니다</string>
@@ -615,10 +614,7 @@
     <string name="home_toast_open_shizuku_failed">Shizuku를 열지 못했습니다. Shizuku가 설치되어 있는지 확인하세요</string>
     <string name="home_toast_open_service_failed">서비스 시작 실패: %1$s</string>
     <string name="home_toast_close_service_failed">서비스 종료 실패: %1$s</string>
-    <string name="home_toast_change_resolution_failed">해상도 변경 실패: %1$s</string>
-    <string name="home_toast_resolution_too_small">화면 크기 %1$dx%2$d이(가) 최소 요구 사항 1280x720보다 작습니다</string>
     <string name="home_toast_reset_resolution_failed">해상도 초기화 실패: %1$s</string>
-    <string name="home_toast_not_16_9_resolution">현재 해상도가 16:9가 아닙니다. 백그라운드 작업을 사용하거나 해상도를 조정하세요</string>
 
     <!-- dialog: update found -->
     <string name="dialog_update_found_title">새 버전 발견</string>
@@ -3138,7 +3134,7 @@
     <string name="xiangqi_action_start">천천기상 실행</string>
     <string name="xiangqi_action_close">게임 종료</string>
     <string name="xiangqi_preview_title">백그라운드 화면 미리보기</string>
-    <string name="xiangqi_preview_hint">미리보기를 누르면 전체 화면으로 볼 수 있습니다. 백그라운드 모드에는 Shizuku 또는 Root 권한이 필요합니다.</string>
+    <string name="xiangqi_preview_hint">미리보기를 누르면 전체 화면에서 게임을 터치할 수 있습니다. 백그라운드 모드에는 Shizuku 또는 Root 권한이 필요합니다.</string>
     <string name="xiangqi_foreground_hint">전경 모드입니다. 게임은 Android 기본 화면에 표시되며 가상 디스플레이 권한이 필요하지 않습니다.</string>
     <string name="xiangqi_task_note_title">현재 기능 범위</string>
     <string name="xiangqi_task_note_message">게임 실행, 전경/백그라운드 표시, 백그라운드 미리보기 및 nano-v3 기반 로컬 보드 인식 진입점을 연결했습니다. MuMu 실기기에서 인식 정확도를 검증해야 합니다. 자동 차례 감지, Android Pikafish 엔진 및 안전한 자동 착수 흐름은 계속 개발 중입니다.</string>

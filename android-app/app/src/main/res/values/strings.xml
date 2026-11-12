@@ -573,8 +573,7 @@
 
     <!-- home: foreground-mode section -->
     <string name="home_resolution_title">分辨率调整</string>
-    <string name="home_resolution_apply_16_9">调整为适配分辨率</string>
-    <string name="home_resolution_reset">重置分辨率</string>
+    <string name="home_resolution_reset">恢复手机原始分辨率</string>
     <string name="home_overlay_mode_title">悬浮窗模式</string>
     <string name="home_overlay_mode_accessibility_desc">音量上下键同时按切换面板</string>
     <string name="home_overlay_mode_floatball_desc">点击悬浮球切换面板</string>
@@ -615,10 +614,7 @@
     <string name="home_toast_open_shizuku_failed">打开 Shizuku 失败，请确认已安装 Shizuku</string>
     <string name="home_toast_open_service_failed">打开服务失败: %1$s</string>
     <string name="home_toast_close_service_failed">关闭服务失败: %1$s</string>
-    <string name="home_toast_change_resolution_failed">修改分辨率失败: %1$s</string>
-    <string name="home_toast_resolution_too_small">屏幕尺寸 %1$dx%2$d 小于最低要求 1280x720</string>
     <string name="home_toast_reset_resolution_failed">重置分辨率失败: %1$s</string>
-    <string name="home_toast_not_16_9_resolution">当前分辨率不是 16:9，请使用后台任务或调整分辨率</string>
 
     <!-- dialog: update found -->
     <string name="dialog_update_found_title">发现新版本</string>
@@ -3138,7 +3134,7 @@ MAA 不会因为取消勾选此选项而提前在局内结束探索</string>
     <string name="xiangqi_action_start">启动天天象棋</string>
     <string name="xiangqi_action_close">关闭游戏</string>
     <string name="xiangqi_preview_title">后台画面预览</string>
-    <string name="xiangqi_preview_hint">点击画面可全屏查看。后台模式需要 Shizuku 或 Root 权限。</string>
+    <string name="xiangqi_preview_hint">点击画面可全屏查看并触摸操作。后台模式需要 Shizuku 或 Root 权限。</string>
     <string name="xiangqi_foreground_hint">当前为前台模式。游戏画面显示在 Android 主屏，无需后台虚拟显示权限。</string>
     <string name="xiangqi_task_note_title">当前功能范围</string>
     <string name="xiangqi_task_note_message">已接入游戏启动、前台/后台显示、后台画面预览，以及基于 nano-v3 的本地棋盘识别入口。当前仍需在 MuMu 实机验证识别准确率；自动行棋方识别、Pikafish Android 引擎和安全落子闭环仍在开发中。</string>

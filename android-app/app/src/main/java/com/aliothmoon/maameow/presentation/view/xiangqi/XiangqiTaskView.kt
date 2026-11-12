@@ -7,6 +7,7 @@ import android.view.Surface
 import android.view.SurfaceHolder
 import android.view.SurfaceView
 import android.view.View
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -57,6 +58,10 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.input.pointer.changedToDownIgnoreConsumed
+import androidx.compose.ui.input.pointer.changedToUpIgnoreConsumed
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.input.pointer.positionChangedIgnoreConsumed
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
@@ -69,6 +74,8 @@ import com.aliothmoon.maameow.domain.xiangqi.XiangqiModelStatus
 import com.aliothmoon.maameow.domain.xiangqi.XiangqiNanoV3Recognizer
 import com.aliothmoon.maameow.domain.service.MaaCompositionService
 import com.aliothmoon.maameow.presentation.components.MaaWindowInsets
+import com.aliothmoon.maameow.presentation.state.PreviewPointerSlots
+import com.aliothmoon.maameow.presentation.view.background.viewToVirtualDisplay
 import com.aliothmoon.maameow.presentation.viewmodel.BackgroundTaskViewModel
 import com.aliothmoon.maameow.remote.AppAliveStatus
 import org.koin.compose.koinInject
@@ -107,18 +114,65 @@ fun XiangqiTaskView(
     }
 
     if (taskState.isFullscreenMonitor) {
+        BackHandler { viewModel.onToggleFullscreenMonitor() }
         Box(
             modifier = Modifier
                 .fillMaxSize()
                 .background(Color.Black),
+            contentAlignment = Alignment.Center,
         ) {
-            XiangqiDisplaySurface(
-                viewModel = viewModel,
-                resolution = previewResolution,
-                surfaceEpoch = previewSurfaceEpoch,
-                active = isActivePage(),
-                modifier = Modifier.fillMaxSize(),
-            )
+            Box(
+                modifier = Modifier
+                    .aspectRatio(previewResolution.width.toFloat() / previewResolution.height)
+                    .pointerInput(previewResolution) {
+                        val slots = PreviewPointerSlots()
+                        try {
+                            awaitPointerEventScope {
+                                while (true) {
+                                    val event = awaitPointerEvent()
+                                    for (change in event.changes) {
+                                        val pointerId = change.id.value
+                                        val down = change.changedToDownIgnoreConsumed()
+                                        val up = change.changedToUpIgnoreConsumed()
+                                        if (!down && !up && !change.positionChangedIgnoreConsumed()) continue
+
+                                        val point = viewToVirtualDisplay(change.position, size, previewResolution)
+                                        val (x, y) = point.offset
+                                        when {
+                                            down -> {
+                                                if (!point.inside) continue
+                                                val contact = slots.acquire(pointerId)
+                                                if (contact < 0) continue
+                                                viewModel.onTouchDown(x, y, contact)
+                                            }
+                                            up -> {
+                                                val contact = slots.release(pointerId)
+                                                if (contact < 0) continue
+                                                viewModel.onTouchUp(x, y, contact)
+                                            }
+                                            else -> {
+                                                val contact = slots.indexOf(pointerId)
+                                                if (contact < 0) continue
+                                                viewModel.onTouchMove(x, y, contact)
+                                            }
+                                        }
+                                        change.consume()
+                                    }
+                                }
+                            }
+                        } finally {
+                            viewModel.onTouchCancel()
+                        }
+                    },
+            ) {
+                XiangqiDisplaySurface(
+                    viewModel = viewModel,
+                    resolution = previewResolution,
+                    surfaceEpoch = previewSurfaceEpoch,
+                    active = isActivePage(),
+                    modifier = Modifier.fillMaxSize(),
+                )
+            }
             IconButton(
                 onClick = { viewModel.onToggleFullscreenMonitor() },
                 modifier = Modifier
@@ -690,4 +744,3 @@ private fun XiangqiBoardPreview(
         }
     }
 }
-

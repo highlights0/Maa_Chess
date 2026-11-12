@@ -21,8 +21,6 @@ interface RemoteService {
 
     void screencap(int width, int height) = 4;
 
-    boolean setForcedDisplaySize(int width, int height) = 6;
-
     boolean clearForcedDisplaySize() = 7;
 
     MaaCoreService getMaaCoreService() = 9;

@@ -288,10 +288,6 @@ class RemoteServiceImpl : RemoteService.Stub() {
         }
     }
 
-    override fun setForcedDisplaySize(width: Int, height: Int): Boolean {
-        return ScreenManager.setForcedDisplaySize(width, height)
-    }
-
     override fun clearForcedDisplaySize(): Boolean {
         return ScreenManager.clearForcedDisplaySize()
     }

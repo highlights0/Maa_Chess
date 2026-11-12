@@ -48,48 +48,6 @@ object Misc {
         return abs(ratio - target) <= target * tolerance
     }
 
-    fun getPhysicalSize(context: Context): Pair<Int, Int> {
-        val display = if (Build.VERSION.SDK_INT >= 30) {
-            context.display
-        } else {
-            @Suppress("DEPRECATION")
-            (context.getSystemService(Context.WINDOW_SERVICE) as WindowManager).defaultDisplay
-        }
-
-        val mode = display?.mode
-        val physicalWidth = mode?.physicalWidth ?: 0
-        val physicalHeight = mode?.physicalHeight ?: 0
-
-        return physicalWidth to physicalHeight
-    }
-
-    /** null = 尺寸无效或小于 1280x720 */
-    fun calculate16x9Resolution(physicalWidth: Int, physicalHeight: Int): Pair<Int, Int>? {
-        // 16:9 的最小单位
-        val unitW = 16
-        val unitH = 9
-
-        // 是否是横屏
-        val isLandscape = physicalWidth >= physicalHeight
-        val maxW = if (isLandscape) physicalWidth else physicalHeight
-        val maxH = if (isLandscape) physicalHeight else physicalWidth
-
-        if (maxW < 1280 || maxH < 720) return null
-
-        val scaleByWidth = maxW / unitW
-        val scaleByHeight = maxH / unitH
-        val scale = minOf(scaleByWidth, scaleByHeight)
-
-        val width = unitW * scale
-        val height = unitH * scale
-
-        return if (isLandscape) {
-            width to height
-        } else {
-            height to width
-        }
-    }
-
     fun bringAppToFront(context: Context) {
         val intent = context.packageManager.getLaunchIntentForPackage(context.packageName)
         intent?.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP)

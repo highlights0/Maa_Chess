@@ -28,12 +28,6 @@ object ScreenManager {
             }
         }
 
-    fun setForcedDisplaySize(width: Int, height: Int): Boolean {
-        flag = true
-        return ServiceManager.getWindowManager()
-            .setForcedDisplaySize(Display.DEFAULT_DISPLAY, width, height)
-    }
-
     fun clearForcedDisplaySize(): Boolean {
         flag = false
         return ServiceManager.getWindowManager().clearForcedDisplaySize(Display.DEFAULT_DISPLAY)

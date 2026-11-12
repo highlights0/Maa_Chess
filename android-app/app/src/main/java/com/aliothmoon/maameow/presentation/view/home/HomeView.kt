@@ -7,7 +7,6 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
@@ -370,7 +369,6 @@ fun HomeView(
                             overlayControlMode = uiState.overlayControlMode,
                             isShowControlOverlay = uiState.isShowControlOverlay,
                             isLoading = uiState.isLoading,
-                            onChangeTo16x9Resolution = { viewModel.onChangeTo16x9Resolution(context) },
                             onResetResolution = { viewModel.onResetResolution() },
                             onControlOverlayModeChanged = { viewModel.onControlOverlayModeChanged(it) },
                             onToggleOverlay = {
@@ -833,7 +831,6 @@ private fun ForegroundModeSection(
     overlayControlMode: OverlayControlMode,
     isShowControlOverlay: Boolean,
     isLoading: Boolean,
-    onChangeTo16x9Resolution: () -> Unit,
     onResetResolution: () -> Unit,
     onControlOverlayModeChanged: (OverlayControlMode) -> Unit,
     onToggleOverlay: () -> Unit
@@ -858,47 +855,22 @@ private fun ForegroundModeSection(
                     color = MaterialTheme.colorScheme.onSurface,
                     modifier = Modifier.padding(bottom = 8.dp)
                 )
-                FlowRow(
+                Button(
+                    onClick = onResetResolution,
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
-                    maxItemsInEachRow = 2
+                    shape = MaterialTheme.shapes.medium,
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.primary,
+                        contentColor = MaterialTheme.colorScheme.onPrimary
+                    ),
+                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp)
                 ) {
-                    Button(
-                        onClick = onChangeTo16x9Resolution,
-                        modifier = Modifier.weight(1f),
-                        shape = MaterialTheme.shapes.medium,
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = MaterialTheme.colorScheme.primary,
-                            contentColor = MaterialTheme.colorScheme.onPrimary
-                        ),
-                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp)
-                    ) {
-                        Text(
-                            text = stringResource(R.string.home_resolution_apply_16_9),
-                            style = MaterialTheme.typography.bodyMedium,
-                            textAlign = TextAlign.Center,
-                            maxLines = 1
-                        )
-                    }
-
-                    Button(
-                        onClick = onResetResolution,
-                        modifier = Modifier.weight(1f),
-                        shape = MaterialTheme.shapes.medium,
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = MaterialTheme.colorScheme.primary,
-                            contentColor = MaterialTheme.colorScheme.onPrimary
-                        ),
-                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp)
-                    ) {
-                        Text(
-                            text = stringResource(R.string.home_resolution_reset),
-                            style = MaterialTheme.typography.bodyMedium,
-                            textAlign = TextAlign.Center,
-                            maxLines = 1
-                        )
-                    }
+                    Text(
+                        text = stringResource(R.string.home_resolution_reset),
+                        style = MaterialTheme.typography.bodyMedium,
+                        textAlign = TextAlign.Center,
+                        maxLines = 1
+                    )
                 }
             }
         }

@@ -443,8 +443,8 @@ class MaaCompositionService(
                 StartResult.ResourceError(loaded.exceptionOrNull())
             )
         }
-        // 前台（含定时 / LAUNCH_PROFILE）必须横屏且 16:9；后台走虚拟屏自带 16:9
-        if (mode == RunMode.FOREGROUND) {
+        // 象棋前台沿用手机原生竖屏；其他客户端保留原有横屏校验。
+        if (mode == RunMode.FOREGROUND && clientType != "Xiangqi") {
             val (width, height) = Misc.getScreenSize(context)
             if (height > width) {
                 return rejectStart(
