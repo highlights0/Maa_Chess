@@ -26,15 +26,28 @@ def extract_square_crops(
         geometry = geometry.scaled_to(width, height)
 
     points = geometry.grid_points()
-    horizontal = [
-        np.linalg.norm(np.asarray(points[0][col + 1]) - np.asarray(points[0][col]))
-        for col in range(8)
-    ]
-    vertical = [
-        np.linalg.norm(np.asarray(points[row + 1][0]) - np.asarray(points[row][0]))
-        for row in range(9)
-    ]
-    half_size = max(4, int(round(min(horizontal + vertical) * half_size_ratio)))
+    spacings: list[float] = []
+    for row in range(10):
+        for col in range(8):
+            spacings.append(
+                float(
+                    np.linalg.norm(
+                        np.asarray(points[row][col + 1])
+                        - np.asarray(points[row][col])
+                    )
+                )
+            )
+    for row in range(9):
+        for col in range(9):
+            spacings.append(
+                float(
+                    np.linalg.norm(
+                        np.asarray(points[row + 1][col])
+                        - np.asarray(points[row][col])
+                    )
+                )
+            )
+    half_size = max(4, int(round(min(spacings) * half_size_ratio)))
 
     destination = Path(output_dir)
     destination.mkdir(parents=True, exist_ok=True)

@@ -8,9 +8,10 @@ __pycache__/
 .coverage
 htmlcov/
 
-# Local runtime data
+# Local runtime data and user-provided captures
 debug/
 logs/
+data/dataset/
 *.log
 .env
 

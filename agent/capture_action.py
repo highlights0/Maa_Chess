@@ -23,6 +23,9 @@ class CaptureAndroidScreenAction(CustomAction):
         except json.JSONDecodeError:
             print("capture_android_screen: custom_action_param 不是有效 JSON")
             return False
+        if not isinstance(params, dict):
+            print("capture_android_screen: custom_action_param 必须是 JSON 对象")
+            return False
 
         output_dir = Path(params.get("output_dir", "debug/maa-captures"))
         if not output_dir.is_absolute():
