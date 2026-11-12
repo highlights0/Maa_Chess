@@ -3067,4 +3067,27 @@ MAA will not end an in-progress exploration early because this option is uncheck
     <string name="oper_progress_result_recognition">Recognition or operation failed</string>
     <string name="oper_progress_log_detail">%1$s: %2$s%3$s</string>
     <string name="oper_progress_log_summary">Operator training results: %1$d successful, %2$d failed, %3$d skipped (starting mastery also counts as success).</string>
+    <string name="app_name">Maa_Chess</string>
+    <string name="home_app_title">Maa_Chess</string>
+    <string name="bottom_nav_records">Records</string>
+    <string name="settings_game_package_xiangqi">Tiantian Xiangqi</string>
+    <string name="xiangqi_task_title">Xiangqi Tasks</string>
+    <string name="xiangqi_task_subtitle">Choose Standard Match or Puzzle Challenge and launch Tiantian Xiangqi. This build first connects game launch and foreground/background display.</string>
+    <string name="xiangqi_scene_standard">Standard match</string>
+    <string name="xiangqi_scene_puzzle">Puzzle challenge</string>
+    <string name="xiangqi_status_busy">Processing game request…</string>
+    <string name="xiangqi_status_background">Game is running on the background virtual display</string>
+    <string name="xiangqi_status_running">Game is running</string>
+    <string name="xiangqi_status_stopped">Game is not running</string>
+    <string name="xiangqi_status_unknown">Game status is unknown</string>
+    <string name="xiangqi_action_start">Launch Tiantian Xiangqi</string>
+    <string name="xiangqi_action_close">Close game</string>
+    <string name="xiangqi_preview_title">Background display preview</string>
+    <string name="xiangqi_preview_hint">Tap the preview to view it full screen. Background mode requires Shizuku or Root.</string>
+    <string name="xiangqi_foreground_hint">Foreground mode is active. The game is shown on the Android main display and does not require virtual-display privileges.</string>
+    <string name="xiangqi_task_note_title">Current scope</string>
+    <string name="xiangqi_task_note_message">Game launch, foreground/background display, and background preview are connected. Standard-match and puzzle automation, board recognition, AI analysis, and automated moves are still in development.</string>
+    <string name="xiangqi_record_title">Game records</string>
+    <string name="xiangqi_record_empty_title">No records yet</string>
+    <string name="xiangqi_record_empty_message">Recognized positions, move history, and AI analysis will appear here after game-record capture is implemented.</string>
 </resources>
