@@ -9,8 +9,8 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass
+from collections.abc import Iterable
 from enum import Enum
-from typing import Iterable
 
 _LEVEL_RE = re.compile(r"第\s*(\d+|[一二三四五六七八九十百]+)\s*关")
 _PUZZLE_MARKERS = ("残局", "闯关")

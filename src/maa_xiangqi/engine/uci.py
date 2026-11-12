@@ -8,9 +8,9 @@ import shutil
 import subprocess
 import threading
 import time
+from collections.abc import Mapping, Sequence
 from dataclasses import asdict, dataclass
 from pathlib import Path
-from collections.abc import Mapping, Sequence
 
 from maa_xiangqi.board.fen import board_to_fen, parse_fen
 
