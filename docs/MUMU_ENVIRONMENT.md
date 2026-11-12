@@ -13,9 +13,23 @@
 
 ## 1. 连接 MuMu ADB
 
-先在 MuMu 设置中确认 ADB 调试已启用，然后在 Windows PowerShell 执行：
+MuMu 官方 Windows 开发者手册说明，常见默认 ADB 地址为 127.0.0.1:7555；部分安装版本使用 MuMu 自带的 adb_server.exe。端口也可能被用户自定义，优先以 MuMu 当前实例显示的 ADB 端口为准。
 
+官方参考：
+- https://www.mumuplayer.com/help/win/developers-essentials-manual.html
+
+先尝试：
+
+    adb connect 127.0.0.1:7555
     adb devices -l
+
+如果系统没有 adb 命令，可以使用 MuMu 安装目录内的 adb_server.exe。常见旧版路径示例：
+
+    C:\\Program Files (x86)\\Nemu\\vmonitor\\bin\\adb_server.exe
+
+实际路径随 MuMu 版本和安装位置变化。运行诊断时可以通过 --adb 指定该可执行文件：
+
+    maa-xiangqi-diagnose --adb "C:\\Program Files (x86)\\Nemu\\vmonitor\\bin\\adb_server.exe" --serial 127.0.0.1:7555 --output debug/mumu-diagnostics.json
 
 记下状态为 device 的序列号。不要把序列号提交到 GitHub。
 
