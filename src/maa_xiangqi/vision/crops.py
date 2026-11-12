@@ -47,7 +47,7 @@ def extract_square_crops(
                     )
                 )
             )
-    half_size = max(4, int(round(min(spacings) * half_size_ratio)))
+    half_size = max(4, round(min(spacings) * half_size_ratio))
 
     destination = Path(output_dir)
     destination.mkdir(parents=True, exist_ok=True)
@@ -56,7 +56,7 @@ def extract_square_crops(
     for row in range(10):
         for col in range(9):
             x_float, y_float = points[row][col]
-            x, y = int(round(x_float)), int(round(y_float))
+            x, y = round(x_float), round(y_float)
             left, right = max(0, x - half_size), min(width, x + half_size + 1)
             top, bottom = max(0, y - half_size), min(height, y + half_size + 1)
             crop = image[top:bottom, left:right]

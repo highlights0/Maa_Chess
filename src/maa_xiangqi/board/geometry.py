@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
+from collections.abc import Iterable
 from dataclasses import dataclass
-from typing import Iterable
 
 import cv2
 import numpy as np
@@ -65,7 +65,7 @@ class BoardGeometry:
     def grid_points(self) -> list[list[Point]]:
         return [[self.point(col, row) for col in range(9)] for row in range(10)]
 
-    def scaled_to(self, width: int, height: int) -> "BoardGeometry":
+    def scaled_to(self, width: int, height: int) -> BoardGeometry:
         """Scale calibration only when the screenshot aspect ratio is unchanged."""
         if width <= 0 or height <= 0:
             raise ValueError("目标截图尺寸必须为正数")
@@ -99,7 +99,7 @@ class BoardGeometry:
         corners: Iterable[Iterable[float]],
         source_width: int,
         source_height: int,
-    ) -> "BoardGeometry":
+    ) -> BoardGeometry:
         values = tuple((float(point[0]), float(point[1])) for point in corners)
         if len(values) != 4:
             raise ValueError("必须提供四个棋盘角点")

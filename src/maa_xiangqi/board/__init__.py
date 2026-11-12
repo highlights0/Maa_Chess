@@ -5,9 +5,9 @@ from .geometry import BoardGeometry
 from .state import BoardState
 
 __all__ = [
+    "START_FEN",
     "BoardGeometry",
     "BoardState",
-    "START_FEN",
     "board_to_fen",
     "parse_fen",
 ]

@@ -4,9 +4,9 @@ from __future__ import annotations
 
 import re
 import subprocess
+from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Sequence
 
 
 class AdbError(RuntimeError):
@@ -39,8 +39,7 @@ def _run_adb(
     try:
         completed = subprocess.run(
             command,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
+            capture_output=True,
             timeout=timeout,
             check=False,
         )

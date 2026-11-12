@@ -6,8 +6,8 @@ Uppercase pieces belong to Red, lowercase pieces belong to Black, and '.' is emp
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from dataclasses import dataclass
-from typing import Sequence
 
 PIECE_SYMBOLS = frozenset("KAB CNRPkabcnrp".replace(" ", ""))
 EMPTY = "."

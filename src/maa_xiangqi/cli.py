@@ -55,7 +55,7 @@ def _load_profile(path: str | Path) -> dict:
         raise FileNotFoundError(f"配置文件不存在：{profile_path}")
     data = yaml.safe_load(profile_path.read_text(encoding="utf-8")) or {}
     if not isinstance(data, dict):
-        raise ValueError("棋盘配置文件根节点必须是 YAML 对象")
+        raise TypeError("棋盘配置文件根节点必须是 YAML 对象")
     return data
 
 
@@ -97,7 +97,7 @@ def _parse_corners(value: str) -> list[tuple[float, float]]:
             points.append((float(x_text), float(y_text)))
     except (ValueError, TypeError) as exc:
         raise ValueError(
-            '角点格式错误。示例： "36,218;428,218;428,660;36,660"'
+            '角点格式错误。示例： "xTL,yTL;xTR,yTR;xBR,yBR;xBL,yBL"'
         ) from exc
     if len(points) != 4:
         raise ValueError("必须且只能提供四个角点：TL;TR;BR;BL")
@@ -289,7 +289,7 @@ def main() -> int:
         if args.command == "crops":
             return command_crops(args)
         parser.error(f"未知命令：{args.command}")
-    except (AdbError, FileNotFoundError, ValueError, OSError) as exc:
+    except (AdbError, FileNotFoundError, TypeError, ValueError, OSError) as exc:
         print(f"错误：{exc}", file=sys.stderr)
         return 2
     return 0

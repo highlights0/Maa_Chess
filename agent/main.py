@@ -5,10 +5,9 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
+import capture_action  # noqa: F401 - importing registers the custom action
 from maa.agent.agent_server import AgentServer
 from maa.toolkit import Toolkit
-
-import capture_action  # noqa: F401 - importing registers the custom action
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 
