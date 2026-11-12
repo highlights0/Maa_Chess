@@ -28,10 +28,10 @@
 - 天天象棋大厅、标准对局和残局闯关的自动场景识别。
 - 棋盘自动定位与自动校准；当前 Android 端先使用 MuMu 900×1600 四角校准。
 - 自动识别行棋方、维护增量走法历史。
-- Pikafish Android ABI 引擎接入与 UCI 生命周期管理。
+- Pikafish Android x86_64 引擎、自动行棋方识别与中途局面历史管理。
 - 走法合法性复核、起点 / 终点触控、动画等待和落子后复识别闭环。
 
-**重要边界：** Android 任务页已接入游戏启动、前台/后台显示、后台帧采集、nano-v3 模型下载与校验、ONNX Runtime 本地推理和棋盘结果展示入口；但尚未完成 MuMu 实机准确率验收，也不会自动点击游戏内菜单或自动对弈。行棋方识别、Pikafish Android 引擎和自动落子闭环仍在开发。MAA-Meow 中的 Arknights `AsstAppendTask` 任务链不是象棋任务引擎；象棋识别与执行使用本项目独立 Xiangqi Core，并通过受控 MaaFramework pipeline / custom action 接入。
+**重要边界：** Android 任务页已接入游戏启动、前台/后台显示、后台帧采集、nano-v3 棋盘识别及 ARM64 Pikafish 建议入口；后者要求用户确认行棋方和新局面起点，仍待实机验收。MuMu 实机识别准确率、自动行棋方识别和自动落子闭环尚未完成，不会自动点击游戏内菜单或自动对弈。MAA-Meow 中的 Arknights `AsstAppendTask` 任务链不是象棋任务引擎；象棋识别与执行使用本项目独立 Xiangqi Core，并通过受控 MaaFramework pipeline / custom action 接入。
 
 ## 仓库结构
 

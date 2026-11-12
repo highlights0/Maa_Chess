@@ -3137,7 +3137,7 @@
     <string name="xiangqi_preview_hint">미리보기를 누르면 전체 화면에서 게임을 터치할 수 있습니다. 백그라운드 모드에는 Shizuku 또는 Root 권한이 필요합니다.</string>
     <string name="xiangqi_foreground_hint">전경 모드입니다. 게임은 Android 기본 화면에 표시되며 가상 디스플레이 권한이 필요하지 않습니다.</string>
     <string name="xiangqi_task_note_title">현재 기능 범위</string>
-    <string name="xiangqi_task_note_message">게임 실행, 전경/백그라운드 표시, 백그라운드 미리보기 및 nano-v3 기반 로컬 보드 인식 진입점을 연결했습니다. MuMu 실기기에서 인식 정확도를 검증해야 합니다. 자동 차례 감지, Android Pikafish 엔진 및 안전한 자동 착수 흐름은 계속 개발 중입니다.</string>
+    <string name="xiangqi_task_note_message">게임 실행, 백그라운드 미리보기, 보드 인식 및 ARM64 Pikafish 추천 수 기능을 연결했습니다. 보정 및 엔진 분석은 기기 검증이 필요합니다. 자동 차례 감지와 안전한 자동 착수 기능은 개발 중입니다.</string>
     <string name="xiangqi_record_title">기보 기록</string>
     <string name="xiangqi_record_empty_title">기록이 없습니다</string>
     <string name="xiangqi_record_empty_message">기보 수집 기능이 구현되면 인식된 국면, 착수 기록 및 AI 분석 결과가 여기에 표시됩니다.</string>
@@ -3165,4 +3165,15 @@
     <string name="xiangqi_recognition_error_generic">자세한 원인은 앱 로그에 기록되었습니다. 스크린샷, 보드 보정 및 모델 파일을 확인하세요.</string>
     <string name="xiangqi_recognition_generals_missing">홍/흑 장군을 신뢰성 있게 인식하지 못했습니다. 이 국면은 엔진에 전달할 수 없습니다.</string>
     <string name="xiangqi_recognition_piece_legend">기물 표기: 대문자는 홍, 소문자는 흑이며 ?는 미확인 칸입니다.</string>
+    <string name="xiangqi_analysis_side">현재 어느 쪽 차례인가요?</string>
+    <string name="xiangqi_analysis_red">홍</string>
+    <string name="xiangqi_analysis_black">흑</string>
+    <string name="xiangqi_analysis_fresh_position">새 대국 또는 퍼즐의 시작임을 확인합니다(rule60 = 0, 전체 수 = 1). 진행 중인 대국에는 선택하지 마세요.</string>
+    <string name="xiangqi_analysis_arm64_only">Pikafish 분석은 현재 ARM64 기기에서만 지원됩니다.</string>
+    <string name="xiangqi_analysis_action">추천 수 받기</string>
+    <string name="xiangqi_analysis_running">분석 중…</string>
+    <string name="xiangqi_analysis_bestmove">추천 수: %1$s</string>
+    <string name="xiangqi_analysis_details">깊이: %1$s; 점수: %2$s (현재 차례 기준)</string>
+    <string name="xiangqi_analysis_variation">참고 변화: %1$s</string>
+    <string name="xiangqi_analysis_error">엔진 분석에 실패했습니다. 판, 차례, 엔진 파일 및 앱 로그를 확인하세요.</string>
 </resources>

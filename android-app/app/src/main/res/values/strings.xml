@@ -3137,7 +3137,7 @@ MAA 不会因为取消勾选此选项而提前在局内结束探索</string>
     <string name="xiangqi_preview_hint">点击画面可全屏查看并触摸操作。后台模式需要 Shizuku 或 Root 权限。</string>
     <string name="xiangqi_foreground_hint">当前为前台模式。游戏画面显示在 Android 主屏，无需后台虚拟显示权限。</string>
     <string name="xiangqi_task_note_title">当前功能范围</string>
-    <string name="xiangqi_task_note_message">已接入游戏启动、前台/后台显示、后台画面预览，以及基于 nano-v3 的本地棋盘识别入口。当前仍需在 MuMu 实机验证识别准确率；自动行棋方识别、Pikafish Android 引擎和安全落子闭环仍在开发中。</string>
+    <string name="xiangqi_task_note_message">已接入游戏启动、后台预览、棋盘识别和 ARM64 Pikafish 推荐走法入口。识别校准与引擎分析仍需实机验证；自动行棋方识别和安全落子闭环继续开发中。</string>
     <string name="xiangqi_record_title">棋谱记录</string>
     <string name="xiangqi_record_empty_title">暂无棋谱</string>
     <string name="xiangqi_record_empty_message">棋局识别和走法记录接入后，历史局面、走法与 AI 分析会显示在这里。</string>
@@ -3165,4 +3165,15 @@ MAA 不会因为取消勾选此选项而提前在局内结束探索</string>
     <string name="xiangqi_recognition_error_generic">详细原因已记录到应用日志。请检查截图、棋盘校准和模型文件后重试。</string>
     <string name="xiangqi_recognition_generals_missing">红帅或黑将识别不可靠，当前局面不能交给引擎。</string>
     <string name="xiangqi_recognition_piece_legend">棋子标记：大写为红方，小写为黑方；? 表示未知棋位。</string>
+    <string name="xiangqi_analysis_side">当前轮到哪方行棋？</string>
+    <string name="xiangqi_analysis_red">红方</string>
+    <string name="xiangqi_analysis_black">黑方</string>
+    <string name="xiangqi_analysis_fresh_position">我确认这是新对局或残局的起点（rule60 为 0，回合数为 1）。中途局面请不要勾选。</string>
+    <string name="xiangqi_analysis_arm64_only">当前仅支持 ARM64 设备上的 Pikafish 分析。</string>
+    <string name="xiangqi_analysis_action">获取推荐走法</string>
+    <string name="xiangqi_analysis_running">正在分析…</string>
+    <string name="xiangqi_analysis_bestmove">推荐走法：%1$s</string>
+    <string name="xiangqi_analysis_details">深度：%1$s；评分：%2$s（行棋方视角）</string>
+    <string name="xiangqi_analysis_variation">参考变化：%1$s</string>
+    <string name="xiangqi_analysis_error">引擎分析失败；请检查棋盘、行棋方和引擎文件，并查看应用日志。</string>
 </resources>

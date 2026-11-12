@@ -3080,7 +3080,7 @@ MAA will not end an in-progress exploration early because this option is uncheck
     <string name="xiangqi_preview_hint">Tap the preview to view and control the game full screen. Background mode requires Shizuku or Root.</string>
     <string name="xiangqi_foreground_hint">Foreground mode is active. The game is shown on the Android main display and does not require virtual-display privileges.</string>
     <string name="xiangqi_task_note_title">Current scope</string>
-    <string name="xiangqi_task_note_message">Game launch, foreground/background display, background preview, and a local nano-v3 board-recognition entry point are connected. Recognition accuracy still needs validation on MuMu. Automatic side-to-move detection, the Android Pikafish engine, and the guarded move-execution loop remain in development.</string>
+    <string name="xiangqi_task_note_message">Game launch, background preview, board recognition, and an ARM64 Pikafish move-suggestion entry point are connected. Calibration and engine analysis still need device validation. Automatic side-to-move detection and guarded move execution remain in development.</string>
     <string name="xiangqi_record_title">Game records</string>
     <string name="xiangqi_record_empty_title">No records yet</string>
     <string name="xiangqi_record_empty_message">Recognized positions, move history, and AI analysis will appear here after game-record capture is implemented.</string>
@@ -3108,4 +3108,15 @@ MAA will not end an in-progress exploration early because this option is uncheck
     <string name="xiangqi_recognition_error_generic">Details were written to the app log. Check the screenshot, board calibration, and model file.</string>
     <string name="xiangqi_recognition_generals_missing">The red or black general could not be identified reliably; this position cannot be sent to the engine.</string>
     <string name="xiangqi_recognition_piece_legend">Piece labels: uppercase for Red, lowercase for Black; ? marks an unknown square.</string>
+    <string name="xiangqi_analysis_side">Whose turn is it?</string>
+    <string name="xiangqi_analysis_red">Red</string>
+    <string name="xiangqi_analysis_black">Black</string>
+    <string name="xiangqi_analysis_fresh_position">I confirm this is the start of a new game or puzzle (rule60 = 0, fullmove = 1). Do not select this for a game in progress.</string>
+    <string name="xiangqi_analysis_arm64_only">Pikafish analysis currently supports ARM64 devices only.</string>
+    <string name="xiangqi_analysis_action">Get suggested move</string>
+    <string name="xiangqi_analysis_running">Analyzing…</string>
+    <string name="xiangqi_analysis_bestmove">Suggested move: %1$s</string>
+    <string name="xiangqi_analysis_details">Depth: %1$s; score: %2$s (side-to-move view)</string>
+    <string name="xiangqi_analysis_variation">Principal variation: %1$s</string>
+    <string name="xiangqi_analysis_error">Engine analysis failed. Check the board, side to move, and engine files, then inspect the app log.</string>
 </resources>

@@ -33,6 +33,7 @@ import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
@@ -100,6 +101,12 @@ fun XiangqiTaskView(
     val recognition by viewModel.xiangqiRecognition.collectAsStateWithLifecycle()
 
     var selectedScene by rememberSaveable { mutableStateOf("standard") }
+    var selectedSide by rememberSaveable { mutableStateOf<String?>(null) }
+    var freshPositionConfirmed by rememberSaveable { mutableStateOf(false) }
+    LaunchedEffect(recognition.result) {
+        selectedSide = null
+        freshPositionConfirmed = false
+    }
     LaunchedEffect(Unit) {
         viewModel.refreshGameStatus(XIANGQI_CLIENT_TYPE)
     }
@@ -417,7 +424,7 @@ fun XiangqiTaskView(
                         enabled = modelStatus == XiangqiModelStatus.Ready &&
                             runMode == RunMode.BACKGROUND &&
                             gameOnDisplay &&
-                            !recognition.isRecognizing,
+                            !recognition.isRecognizing && !recognition.isAnalyzing,
                         onClick = { viewModel.onRecognizeXiangqiBoard() },
                         modifier = Modifier.fillMaxWidth(),
                     ) {
@@ -506,6 +513,80 @@ fun XiangqiTaskView(
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
+                        if (result.isComplete) {
+                            Text(
+                                text = stringResource(R.string.xiangqi_analysis_side),
+                                style = MaterialTheme.typography.bodyMedium,
+                            )
+                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                FilterChip(
+                                    selected = selectedSide == "w",
+                                    onClick = { selectedSide = "w" },
+                                    label = { Text(stringResource(R.string.xiangqi_analysis_red)) },
+                                )
+                                FilterChip(
+                                    selected = selectedSide == "b",
+                                    onClick = { selectedSide = "b" },
+                                    label = { Text(stringResource(R.string.xiangqi_analysis_black)) },
+                                )
+                            }
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Checkbox(
+                                    checked = freshPositionConfirmed,
+                                    onCheckedChange = { freshPositionConfirmed = it },
+                                )
+                                Text(
+                                    text = stringResource(R.string.xiangqi_analysis_fresh_position),
+                                    style = MaterialTheme.typography.bodySmall,
+                                )
+                            }
+                            if (!viewModel.xiangqiEngineSupported) {
+                                Text(
+                                    text = stringResource(R.string.xiangqi_analysis_arm64_only),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.error,
+                                )
+                            }
+                            Button(
+                                enabled = selectedSide != null && freshPositionConfirmed &&
+                                    viewModel.xiangqiEngineSupported && !recognition.isAnalyzing,
+                                onClick = { selectedSide?.singleOrNull()?.let(viewModel::onAnalyzeXiangqiBoard) },
+                                modifier = Modifier.fillMaxWidth(),
+                            ) {
+                                Text(stringResource(
+                                    if (recognition.isAnalyzing) R.string.xiangqi_analysis_running
+                                    else R.string.xiangqi_analysis_action,
+                                ))
+                            }
+                            recognition.analysisError?.let {
+                                Text(it, color = MaterialTheme.colorScheme.error)
+                            }
+                            recognition.analysis?.takeIf {
+                                freshPositionConfirmed && selectedSide == it.side.toString()
+                            }?.let { analysis ->
+                                Text(
+                                    text = stringResource(R.string.xiangqi_analysis_bestmove, analysis.bestMove),
+                                    style = MaterialTheme.typography.titleMedium,
+                                )
+                                Text(
+                                    text = stringResource(
+                                        R.string.xiangqi_analysis_details,
+                                        analysis.depth?.toString() ?: "?",
+                                        analysis.score ?: "?",
+                                    ),
+                                    style = MaterialTheme.typography.bodySmall,
+                                )
+                                if (analysis.variation.isNotEmpty()) {
+                                    Text(
+                                        text = stringResource(
+                                            R.string.xiangqi_analysis_variation,
+                                            analysis.variation.take(8).joinToString(" "),
+                                        ),
+                                        style = MaterialTheme.typography.bodySmall,
+                                    )
+                                }
+                            }
+                        }
                     }
                 }
             }

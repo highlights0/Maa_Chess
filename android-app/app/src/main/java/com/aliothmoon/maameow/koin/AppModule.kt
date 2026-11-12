@@ -100,6 +100,7 @@ import com.aliothmoon.maameow.domain.service.MaaResourceLoader
 import com.aliothmoon.maameow.domain.service.MaaSessionLogger
 import com.aliothmoon.maameow.domain.xiangqi.XiangqiModelRepository
 import com.aliothmoon.maameow.domain.xiangqi.XiangqiNanoV3Recognizer
+import com.aliothmoon.maameow.domain.xiangqi.PikafishAnalyzer
 import com.aliothmoon.maameow.domain.service.OperBoxYituliuSync
 import com.aliothmoon.maameow.domain.service.RemoteAppAliveChecker
 import com.aliothmoon.maameow.domain.service.RemoteFrameSnapshotter
@@ -333,6 +334,7 @@ val appModule = module {
     singleOf(::MaaSessionLogger)
     single { XiangqiModelRepository(androidContext(), get()) }
     singleOf(::XiangqiNanoV3Recognizer)
+    single { PikafishAnalyzer(androidContext()) }
 
     // 外部通知
     singleOf(::NotificationSettingsManager)

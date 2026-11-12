@@ -20,6 +20,7 @@ Maa_Chess 的 Android 原生应用。该工程直接基于 [Aliothmoon/MAA-Meow]
 - 天天象棋后台显示初始分辨率：900×1600，240 DPI。
 - 已加入 ONNX Runtime Android，nano-v3 模型按需下载到应用私有目录并进行 SHA-256 校验。
 - 已加入棋盘识别入口：从后台预览 Surface 获取 JPEG 帧，按 MuMu 四角校准进行模型预处理，展示棋位结果、FEN 棋盘串和不确定位置。
+- 已加入 ARM64 Pikafish 建议入口：完整识别后需人工确认行棋方及新局面起点，显示 ICCS 推荐走法、深度、评分和参考变化；不自动落子。引擎与 NNUE 的实机分析仍待验收。
 - 标准对局和残局闯关入口已建立；当前选择只表示测试场景，不会自动操作游戏内菜单。
 
 ## 重要架构边界
@@ -32,6 +33,7 @@ MAA-Meow 中的 Arknights `MaaCore` 任务类型（`StartUp`、`Fight`、`Copilo
 - Android SDK Platform 37。
 - Android NDK 29.0.14206865。
 - CMake 3.22.1。
+- `pip install py7zr==1.1.4`，再运行 `python scripts/setup_pikafish.py`，将校验后的官方引擎和 NNUE 放入 Git 忽略的 APK 构建输入目录。x86_64 APK 可安装，但当前官方发布包没有 Android x86_64 引擎。
 - Python 3.12（下载和部署 MAA Core 预编译资源）。
 
 ## 下载 MAA Core 依赖

@@ -38,6 +38,7 @@ import com.aliothmoon.maameow.domain.usecase.TaskStartDecision
 import com.aliothmoon.maameow.domain.usecase.TaskStartMode
 import com.aliothmoon.maameow.domain.xiangqi.XiangqiBoardCalibration
 import com.aliothmoon.maameow.domain.xiangqi.XiangqiNanoV3Recognizer
+import com.aliothmoon.maameow.domain.xiangqi.PikafishAnalyzer
 import com.aliothmoon.maameow.manager.RemoteServiceManager
 import com.aliothmoon.maameow.presentation.state.BackgroundTaskState
 import com.aliothmoon.maameow.presentation.state.PreviewTouchMarker
@@ -97,6 +98,7 @@ class BackgroundTaskViewModel(
     private val screenPower: ScreenPowerController,
     private val appAliveChecker: AppAliveChecker,
     private val xiangqiRecognizer: XiangqiNanoV3Recognizer,
+    private val pikafishAnalyzer: PikafishAnalyzer,
 ) : ViewModel() {
 
     private companion object {
@@ -176,6 +178,7 @@ class BackgroundTaskViewModel(
 
     private val _xiangqiRecognition = MutableStateFlow(XiangqiRecognitionUiState())
     val xiangqiRecognition: StateFlow<XiangqiRecognitionUiState> = _xiangqiRecognition.asStateFlow()
+    val xiangqiEngineSupported: Boolean get() = pikafishAnalyzer.isSupported
     val xiangqiModelStatus = xiangqiRecognizer.modelStatus
 
     private val _effects = Channel<UiEffect>(Channel.BUFFERED)
@@ -736,7 +739,7 @@ class BackgroundTaskViewModel(
      * follow-up tasks; this method never guesses whose turn it is.
      */
     fun onRecognizeXiangqiBoard() {
-        if (_xiangqiRecognition.value.isRecognizing) return
+        if (_xiangqiRecognition.value.isRecognizing || _xiangqiRecognition.value.isAnalyzing) return
         viewModelScope.launch {
             _xiangqiRecognition.update { it.copy(isRecognizing = true, error = null) }
             try {
@@ -757,7 +760,9 @@ class BackgroundTaskViewModel(
                     jpeg = jpeg,
                     calibration = XiangqiBoardCalibration.MUMU_900X1600,
                 )
-                _xiangqiRecognition.update { it.copy(isRecognizing = false, result = result, error = null) }
+                _xiangqiRecognition.update {
+                    it.copy(isRecognizing = false, result = result, error = null, analysis = null, analysisError = null)
+                }
             } catch (error: CancellationException) {
                 throw error
             } catch (error: Exception) {
@@ -767,6 +772,26 @@ class BackgroundTaskViewModel(
                         isRecognizing = false,
                         error = application.getString(R.string.xiangqi_recognition_error_generic),
                     )
+                }
+            }
+        }
+    }
+
+    fun onAnalyzeXiangqiBoard(side: Char) {
+        val recognized = _xiangqiRecognition.value.result?.takeIf { it.isComplete } ?: return
+        val board = recognized.fenBoard ?: return
+        if (_xiangqiRecognition.value.isAnalyzing) return
+        viewModelScope.launch {
+            _xiangqiRecognition.update { it.copy(isAnalyzing = true, analysis = null, analysisError = null) }
+            try {
+                val analysis = pikafishAnalyzer.analyze(board, side)
+                _xiangqiRecognition.update { it.copy(isAnalyzing = false, analysis = analysis) }
+            } catch (error: CancellationException) {
+                throw error
+            } catch (error: Exception) {
+                Timber.e(error, "analyze Xiangqi board failed")
+                _xiangqiRecognition.update {
+                    it.copy(isAnalyzing = false, analysisError = application.getString(R.string.xiangqi_analysis_error))
                 }
             }
         }
@@ -817,6 +842,7 @@ class BackgroundTaskViewModel(
 
     override fun onCleared() {
         touchPreviewController.onClear()
+        pikafishAnalyzer.close()
         super.onCleared()
     }
 }

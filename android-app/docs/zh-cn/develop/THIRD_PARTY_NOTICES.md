@@ -72,3 +72,13 @@
 - **项目地址**：[MaaAssistantArknights](https://github.com/MaaAssistantArknights/MaaAssistantArknights)
 - **许可证**：[AGPL-3.0](https://www.gnu.org/licenses/agpl-3.0.html)
 - **使用方式**：通过 `scripts/setup_maa_core.py` 下载预编译产物（`libMaaCore.so` 及资源文件），运行时由 JNA 动态加载
+
+---
+
+## Pikafish
+
+- **项目与源码**：[official-pikafish/Pikafish](https://github.com/official-pikafish/Pikafish/tree/Pikafish-2026-09-06)
+- **发布包**：[Pikafish 2026-09-06](https://github.com/official-pikafish/Pikafish/releases/tag/Pikafish-2026-09-06)，归档 SHA-256 `41952bbfe2520faceb5902c69e6ab4845cc999841d2b49a95cc1be7867a25e5b`。
+- **引擎**：官方 Android arm64 可执行文件，SHA-256 `6c06b8752e10c1ed605fa836d2c9bbf885e9c402b216023040ddf4586f4320b1`，GPL-3.0。许可证文本随 APK 放在 `assets/pikafish/COPYING`。
+- **NNUE 权重**：SHA-256 `7d13d73569a9b571ba0eb20cf1596247bc2a42738967e61afef6482b231e900e`。上游权重另附使用条款，包括未经许可不得商用；条款随 APK 放在 `assets/pikafish/NNUE-License.md`。
+- **构建方式**：`scripts/setup_pikafish.py` 下载并校验发布包，将引擎与权重复制到被 Git 忽略的构建输入目录；这两个大文件不直接提交到 Git。

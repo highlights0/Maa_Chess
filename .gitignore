@@ -52,6 +52,8 @@ android-app/.maa-cache/
 android-app/.maaversion
 android-app/app/src/main/assets/MaaSync/MaaResource/
 android-app/app/src/main/jniLibs/
+android-app/app/src/main/assets/pikafish.nnue
+android-app/app/src/main/assets/pikafish/
 *.apk
 *.aab
 *.jks
