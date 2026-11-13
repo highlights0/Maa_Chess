@@ -460,7 +460,7 @@ fun XiangqiTaskView(
                         OutlinedButton(
                             enabled = (recognition.isAutoPlaying && !recognition.isAutoHinting) || (ready && !busy && !recognition.inputUnverified),
                             onClick = {
-                                if (recognition.isAutoPlaying) viewModel.onStopAutoXiangqi()
+                                if (recognition.isAutoPlaying) viewModel.onStopAutoXiangqi("task-auto-button")
                                 else viewModel.onStartAutoXiangqi(selectedSide?.singleOrNull())
                             },
                             modifier = Modifier.weight(1f),
@@ -469,7 +469,7 @@ fun XiangqiTaskView(
                     OutlinedButton(
                         enabled = (recognition.isAutoPlaying && recognition.isAutoHinting) || (ready && !busy && !recognition.inputUnverified),
                         onClick = {
-                            if (recognition.isAutoPlaying) viewModel.onStopAutoXiangqi()
+                            if (recognition.isAutoPlaying) viewModel.onStopAutoXiangqi("task-hints-button")
                             else viewModel.onStartXiangqiHints(selectedSide?.singleOrNull())
                         },
                         modifier = Modifier.fillMaxWidth(),

@@ -447,7 +447,7 @@ class BackgroundTaskViewModel(
     // ==================== Touch Input ====================
 
     fun onTouchDown(x: Int, y: Int, contact: Int) {
-        if (_xiangqiRecognition.value.isAutoPlaying) onStopAutoXiangqi()
+        if (_xiangqiRecognition.value.isAutoPlaying) onStopAutoXiangqi("preview-touch")
         runCatching {
             RemoteServiceManager.getInstanceOrNull()?.touchDown(x, y, contact)
         }.onFailure {
@@ -787,6 +787,7 @@ class BackgroundTaskViewModel(
 
     private var xiangqiJob: Job? = null
     private var xiangqiHintWatchJob: Job? = null
+    private var xiangqiStopSource: String? = null
 
     private fun launchXiangqiOperation(name: String, automatic: Boolean = false, hintsOnly: Boolean = false, action: suspend (XiangqiTrace) -> Unit) {
         val trace = XiangqiTrace(name)
@@ -795,20 +796,25 @@ class BackgroundTaskViewModel(
             return
         }
         xiangqiHintWatchJob?.cancel()
+        xiangqiStopSource = null
         _xiangqiRecognition.update { it.copy(isAutoPlaying = automatic, isAutoHinting = hintsOnly, isStoppingAutomation = false, error = null, moveError = null,
             analysisError = null, moveVerified = false, automationStatus = null) }
         xiangqiJob = viewModelScope.launch {
             var serviceRun: XiangqiAutomationService.Companion.Run? = null
+            var termination = "completed"
             try {
                 if (automatic) serviceRun = XiangqiAutomationService.start(application, ::onStopAutoXiangqi, hintsOnly)
                 action(trace)
             } catch (error: CancellationException) {
-                trace.event("cancelled", "inputUnverified=${_xiangqiRecognition.value.inputUnverified}")
+                termination = "cancelled"
+                trace.event("cancelled", "source=${xiangqiStopSource ?: "coroutine-cancelled"} message=${error.message} inputUnverified=${_xiangqiRecognition.value.inputUnverified}")
                 throw error
             } catch (error: LinkageError) {
+                termination = "runtime-error"
                 trace.failure("runtime", error)
                 _xiangqiRecognition.update { it.copy(error = application.getString(R.string.xiangqi_recognition_error_generic)) }
             } catch (error: Exception) {
+                termination = "error:${error.javaClass.simpleName}"
                 trace.failure("stopped", error)
                 _xiangqiRecognition.update { it.copy(moveError = application.getString(
                     when {
@@ -820,7 +826,7 @@ class BackgroundTaskViewModel(
                 serviceRun?.let(XiangqiAutomationService::finish)
                 _xiangqiRecognition.update { it.copy(isRecognizing = false, isAnalyzing = false,
                     isExecutingMove = false, isAutoPlaying = false, isAutoHinting = false, isStoppingAutomation = false) }
-                trace.event("finished", "stopping=false inputUnverified=${_xiangqiRecognition.value.inputUnverified}")
+                trace.event("finished", "termination=$termination source=${xiangqiStopSource} stopping=false inputUnverified=${_xiangqiRecognition.value.inputUnverified}")
                 startXiangqiHintWatcher()
             }
         }
@@ -1124,10 +1130,11 @@ class BackgroundTaskViewModel(
         }
     }
 
-    fun onStopAutoXiangqi() {
+    fun onStopAutoXiangqi(source: String) {
         val job = xiangqiJob?.takeUnless { it.isCompleted } ?: return
+        xiangqiStopSource = source
         if (_xiangqiRecognition.value.isAutoHinting) _xiangqiRecognition.update { it.copy(analysis = null) }
-        XiangqiTrace("auto-stop").event("requested", "inputUnverified=${_xiangqiRecognition.value.inputUnverified}")
+        XiangqiTrace("auto-stop").event("requested", "source=$source inputUnverified=${_xiangqiRecognition.value.inputUnverified}")
         requestXiangqiStop(job, _xiangqiRecognition, application.getString(R.string.xiangqi_auto_stopped),
             application.getString(R.string.xiangqi_move_unverified))
     }
@@ -1159,6 +1166,7 @@ class BackgroundTaskViewModel(
     private suspend fun executeXiangqiMove(mode: RunMode, pkg: String?, trace: XiangqiTrace) {
         check(!_xiangqiRecognition.value.isAutoHinting) { "Automatic input is disabled during continuous hints" }
         val started = SystemClock.uptimeMillis()
+        val startedAtWall = System.currentTimeMillis()
         val state = _xiangqiRecognition.value
         val before = state.result?.takeIf { it.isComplete } ?: error("Incomplete board")
         val analysis = state.analysis ?: error("Missing analysis")
@@ -1252,6 +1260,17 @@ class BackgroundTaskViewModel(
                 historyError = null, analysis = null, moveVerified = true, inputUnverified = false, boardChanged = false, defaultRedTurn = false) }
             val totalMs = SystemClock.uptimeMillis() - started
             trace.event("complete", "verified=true inputMs=$inputMs totalMs=$totalMs withinTwoSeconds=${totalMs <= 2000}")
+        } catch (error: Exception) {
+            if (error !is CancellationException && _xiangqiRecognition.value.inputUnverified) withContext(Dispatchers.IO) {
+                runCatching {
+                    val source = File(application.filesDir, "diagnostics/xiangqi-input-after.jpg")
+                    if (source.isFile && source.lastModified() >= startedAtWall) {
+                        source.copyTo(File(source.parentFile, "xiangqi-input-unverified.jpg"), overwrite = true)
+                        trace.event("diagnostic.saved", "file=xiangqi-input-unverified.jpg reason=unverified-input move=${move.iccs}")
+                    }
+                }.onFailure { trace.failure("diagnostic.preserve", it) }
+            }
+            throw error
         } finally {
             _xiangqiRecognition.update { it.copy(isExecutingMove = false,
                 analysis = it.analysis.takeUnless { _ -> it.inputUnverified }) }

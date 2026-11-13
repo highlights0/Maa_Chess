@@ -1,11 +1,13 @@
 package com.aliothmoon.maameow.domain.xiangqi
 
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.*
 import org.junit.Test
 
+@OptIn(ExperimentalCoroutinesApi::class)
 class XiangqiMoveVerificationTest {
     private fun frame(board: String) = XiangqiRecognitionResult(
         XiangqiRules.expand(board), XiangqiBoardCalibration.PHONE_1080X2400, board,
@@ -71,17 +73,35 @@ class XiangqiMoveVerificationTest {
         }
     }
 
-    @Test fun slowCaptureHasATimeBudgetAndTimeoutIsAnErrorVisibleToTheUser() = runTest {
+    @Test fun slowUnconfirmedCaptureExhaustsTheRetryBudgetWithoutStartingAnotherCapture() = runTest {
         var calls = 0
         try {
             awaitXiangqiMoveConfirmation(before, move, 'b', XiangqiTrace("test"),
-                capture = { calls++; delay(11_000); expected }, stillUnchanged = { false })
+                capture = { calls++; delay(11_000); before.copy(uncertainSquares = listOf(move.from)) },
+                stillUnchanged = { false }, clockMillis = { testScheduler.currentTime })
             fail("Timeout must pause")
         } catch (error: IllegalStateException) {
             assertFalse(error is CancellationException)
             assertTrue(error.message!!.contains("10 seconds"))
         }
         assertEquals(1, calls)
+    }
+
+    @Test fun aValidResultIsNotDiscardedWhenInferenceFinishesAfterTheRetryDeadline() = runTest {
+        var calls = 0
+        val after = awaitXiangqiMoveConfirmation(before, move, 'b', XiangqiTrace("test"),
+            capture = {
+                if (++calls == 1) {
+                    delay(6_000)
+                    before.copy(uncertainSquares = listOf(move.from))
+                } else {
+                    delay(5_000)
+                    expected
+                }
+            }, stillUnchanged = { false }, clockMillis = { testScheduler.currentTime })
+        assertSame(expected, after)
+        assertEquals(2, calls)
+        assertTrue(testScheduler.currentTime > 10_000)
     }
 
     @Test fun stoppingRemainsCancellationAndAnObservedNewOpeningCanRetirePendingInput() = runTest {

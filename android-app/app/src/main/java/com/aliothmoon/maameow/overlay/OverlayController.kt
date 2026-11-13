@@ -138,7 +138,7 @@ class OverlayController(
                         "${piece?.let(::xiangqiPieceName) ?: ""} ${analysis.bestMove.take(2)}→${analysis.bestMove.drop(2)}"
                     } ?: context.getString(R.string.xiangqi_auto_observing)
                     autoStatus.show(context.getString(R.string.xiangqi_auto_overlay_info, phase,
-                        sideName(state.result?.playerSide), currentSide, move), viewModel::onStopAutoXiangqi)
+                        sideName(state.result?.playerSide), currentSide, move)) { viewModel.onStopAutoXiangqi("status-button") }
                 }
             }
         }
@@ -478,7 +478,7 @@ class OverlayController(
 
     fun onFloatBallClick() {
         if (xiangqiViewModel.value?.xiangqiRecognition?.value?.isAutoPlaying == true) {
-            xiangqiViewModel.value?.onStopAutoXiangqi()
+            xiangqiViewModel.value?.onStopAutoXiangqi("float-ball")
             hideFloatBall()
             showMainPanel()
             return
@@ -624,7 +624,7 @@ class OverlayController(
     }
 
     suspend fun hideAll() {
-        xiangqiViewModel.value?.onStopAutoXiangqi()
+        xiangqiViewModel.value?.onStopAutoXiangqi("overlay-hidden")
         hideMainPanel()
         hideFloatBall()
         borderOverlayManager.hide()
@@ -632,9 +632,9 @@ class OverlayController(
         _isActive.value = false
     }
 
-    fun toggleMainPanel() {
+    fun toggleMainPanel(stopSource: String = "panel-toggle") {
         if (xiangqiViewModel.value?.xiangqiRecognition?.value?.isAutoPlaying == true) {
-            xiangqiViewModel.value?.onStopAutoXiangqi()
+            xiangqiViewModel.value?.onStopAutoXiangqi(stopSource)
         }
         val mainPanelShowing = FloatingX.controlOrNull(MAIN_PANEL_TAG)?.isShow() == true
         if (mainPanelShowing) {
@@ -647,7 +647,7 @@ class OverlayController(
     fun registerVolumeKeyListener() {
         AccessibilityHelperService.setVolumeComboListener {
             scope.launch {
-                toggleMainPanel()
+                toggleMainPanel("volume-keys")
                 if (compositionService.state.value == MaaExecutionState.RUNNING) {
                     compositionService.stop()
                 }

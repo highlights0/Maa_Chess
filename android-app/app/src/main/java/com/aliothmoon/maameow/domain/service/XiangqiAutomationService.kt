@@ -26,10 +26,10 @@ class XiangqiAutomationService : Service() {
         private const val NOTIFICATION = 4201
         private const val STOP = "xiangqi.stop"
         private val ids = AtomicLong()
-        internal data class Run(val id: Long, val hintsOnly: Boolean = false, val stop: () -> Unit)
+        internal data class Run(val id: Long, val hintsOnly: Boolean = false, val stop: (String) -> Unit)
         internal val current = MutableStateFlow<Run?>(null)
 
-        internal fun start(context: Context, stop: () -> Unit, hintsOnly: Boolean = false): Run {
+        internal fun start(context: Context, stop: (String) -> Unit, hintsOnly: Boolean = false): Run {
             check(!SpecialUseFgsGate.isDenied(context)) { "Foreground service permission denied" }
             val run = Run(ids.incrementAndGet(), hintsOnly, stop)
             current.value = run
@@ -68,11 +68,11 @@ class XiangqiAutomationService : Service() {
             SpecialUseFgsGate.startForeground(this, NOTIFICATION, notification)
         } catch (error: RuntimeException) {
             XiangqiTrace("auto-service").failure("foreground", error)
-            bound?.stop?.invoke()
+            bound?.stop?.invoke("foreground-service-start-failed")
             stopSelf()
             return START_NOT_STICKY
         }
-        if (intent?.action == STOP && intent.getLongExtra("run", 0) == bound?.id) bound?.stop?.invoke()
+        if (intent?.action == STOP && intent.getLongExtra("run", 0) == bound?.id) bound?.stop?.invoke("notification-stop")
         if (!observing) {
             observing = true
             scope.launch {
@@ -88,7 +88,7 @@ class XiangqiAutomationService : Service() {
     }
 
     override fun onDestroy() {
-        bound?.takeIf { it == current.value }?.stop?.invoke()
+        bound?.takeIf { it == current.value }?.stop?.invoke("automation-service-destroyed")
         scope.cancel()
         super.onDestroy()
     }
