@@ -38,6 +38,8 @@ import com.aliothmoon.maameow.domain.usecase.TaskStartContext
 import com.aliothmoon.maameow.domain.usecase.TaskStartDecision
 import com.aliothmoon.maameow.domain.usecase.TaskStartMode
 import com.aliothmoon.maameow.domain.xiangqi.XiangqiBoardCalibration
+import com.aliothmoon.maameow.domain.xiangqi.XiangqiCalibrationStore
+import com.aliothmoon.maameow.domain.xiangqi.XiangqiCalibrationRequired
 import com.aliothmoon.maameow.domain.xiangqi.XiangqiMove
 import com.aliothmoon.maameow.domain.xiangqi.XiangqiGameSession
 import com.aliothmoon.maameow.domain.xiangqi.XiangqiRules
@@ -62,6 +64,8 @@ import com.aliothmoon.maameow.schedule.model.CountdownState
 import com.aliothmoon.maameow.service.AccessibilityHelperService
 import com.aliothmoon.maameow.utils.Misc
 import com.aliothmoon.maameow.utils.i18n.UiText
+import com.aliothmoon.maameow.utils.i18n.LocalizedException
+import com.aliothmoon.maameow.utils.i18n.uiTextOf
 import com.aliothmoon.maameow.utils.i18n.resolve
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
@@ -788,6 +792,7 @@ class BackgroundTaskViewModel(
     private var xiangqiJob: Job? = null
     private var xiangqiHintWatchJob: Job? = null
     private var xiangqiStopSource: String? = null
+    private val xiangqiCalibrations by lazy { XiangqiCalibrationStore(application) }
 
     private fun launchXiangqiOperation(name: String, automatic: Boolean = false, hintsOnly: Boolean = false, action: suspend (XiangqiTrace) -> Unit) {
         val trace = XiangqiTrace(name)
@@ -816,7 +821,9 @@ class BackgroundTaskViewModel(
             } catch (error: Exception) {
                 termination = "error:${error.javaClass.simpleName}"
                 trace.failure("stopped", error)
-                _xiangqiRecognition.update { it.copy(moveError = application.getString(
+                _xiangqiRecognition.update { it.copy(moveError = if (error is XiangqiCalibrationRequired) application.getString(
+                    R.string.xiangqi_calibration_required, error.width, error.height)
+                    else if (error is LocalizedException) error.uiText.resolve(application) else application.getString(
                     when {
                         error is XiangqiMoveNotApplied -> R.string.xiangqi_move_not_applied
                         it.inputUnverified -> R.string.xiangqi_move_unverified
@@ -838,6 +845,30 @@ class BackgroundTaskViewModel(
             val result = captureAndRecognizeXiangqi(mode, pkg, trace)
             acceptXiangqiObservation(result, trace)
             if (result.isComplete) _xiangqiRecognition.update { it.copy(inputUnverified = false) }
+        }
+    }
+
+    fun onCalibrateXiangqiBoard() = launchXiangqiOperation("calibrate") { trace ->
+        if (!Settings.canDrawOverlays(application)) {
+            _effects.send(UiEffect.toast(R.string.xiangqi_foreground_overlay_required))
+            return@launchXiangqiOperation
+        }
+        _xiangqiRecognition.update { it.copy(analysis = null) }
+        val (mode, bitmap) = withXiangqiGame { mode, pkg -> mode to captureXiangqiBitmap(mode, pkg) }
+        val initial = runCatching { xiangqiCalibrations.resolve(mode, bitmap.width, bitmap.height) }.getOrNull()
+        trace.event("calibration.capture", "mode=$mode frame=${bitmap.width}x${bitmap.height} storedOrMeasured=${initial != null}")
+        overlayController.showXiangqiCalibration(bitmap, initial) { confirmed ->
+            runCatching {
+                check(appSettingsManager.runMode.value == mode) { "Run mode changed during calibration" }
+                xiangqiCalibrations.save(mode, confirmed)
+                trace.event("calibration.saved", "mode=$mode calibration=$confirmed inputSent=false")
+                _xiangqiRecognition.update { it.copy(result = null, session = null, detectedSide = null, analysis = null,
+                    boardChanged = true, error = null, moveError = null,
+                    automationStatus = application.getString(R.string.xiangqi_calibration_saved)) }
+            }.onFailure { error ->
+                trace.failure("calibration.save", error)
+                _xiangqiRecognition.update { it.copy(moveError = application.getString(R.string.xiangqi_calibration_save_failed)) }
+            }
         }
     }
 
@@ -891,11 +922,11 @@ class BackgroundTaskViewModel(
     private suspend fun captureXiangqiBitmap(mode: RunMode, pkg: String?): Bitmap {
         check(mode == appSettingsManager.runMode.value) { "Run mode changed" }
         return if (mode == RunMode.FOREGROUND) {
-            overlayController.withXiangqiStatusCleared(XiangqiBoardCalibration.PHONE_1080X2400) {
+            overlayController.withXiangqiStatusCleared(_xiangqiRecognition.value.result?.calibration ?: XiangqiBoardCalibration.PHONE_1080X2400) {
                 AccessibilityHelperService.captureGameBitmap(pkg ?: error("Xiangqi package missing"))
             }
         } else {
-            check(gameOnDisplay.value) { "Game left virtual display" }
+            if (!gameOnDisplay.value) throw LocalizedException(uiTextOf(R.string.xiangqi_background_game_left_display))
             withContext(Dispatchers.Default) {
                 val jpeg = captureBackgroundXiangqiFrame()
                 BitmapFactory.decodeByteArray(jpeg, 0, jpeg.size)
@@ -903,10 +934,6 @@ class BackgroundTaskViewModel(
             }
         }
     }
-
-    private fun xiangqiCalibration(mode: RunMode) = if (mode == RunMode.FOREGROUND) {
-        XiangqiBoardCalibration.PHONE_1080X2400
-    } else XiangqiBoardCalibration.MUMU_900X1600
 
     private suspend fun captureStableXiangqiBitmap(mode: RunMode, pkg: String?, trace: XiangqiTrace): Bitmap {
         var previous: XiangqiBoardImage? = null
@@ -932,7 +959,7 @@ class BackgroundTaskViewModel(
         val pixels = IntArray(bitmap.width * bitmap.height)
         bitmap.getPixels(pixels, 0, bitmap.width, 0, 0, bitmap.width, bitmap.height)
         return XiangqiBoardImage.sample(pixels, bitmap.width, bitmap.height,
-            xiangqiCalibration(mode).scaledTo(bitmap.width, bitmap.height))
+            xiangqiCalibrations.resolve(mode, bitmap.width, bitmap.height))
     }
 
     private suspend fun captureAndRecognizeXiangqi(mode: RunMode, pkg: String?, trace: XiangqiTrace, stable: Boolean = false): XiangqiRecognitionResult {
@@ -942,7 +969,9 @@ class BackgroundTaskViewModel(
         _xiangqiRecognition.update { it.copy(automationStatus =
             if (it.isExecutingMove) application.getString(R.string.xiangqi_auto_verifying) else null) }
         try {
-            val raw = xiangqiRecognizer.recognizeBitmap(bitmap, xiangqiCalibration(mode), trace = trace)
+            val calibration = xiangqiCalibrations.resolve(mode, bitmap.width, bitmap.height)
+            trace.event("calibration.resolved", "mode=$mode calibration=$calibration")
+            val raw = xiangqiRecognizer.recognizeBitmap(bitmap, calibration, trace = trace)
             val known = _xiangqiRecognition.value
             val result = confirmEmptySquareFromObservedMove(raw, known.session, known.result)
             result.imageConfirmedEmpty?.let { square ->
@@ -1197,7 +1226,7 @@ class BackgroundTaskViewModel(
                 } else before.calibration
                 val from = move.from.screenPoint(targetCalibration, before.redAtTopOnScreen)
                 val to = move.to.screenPoint(targetCalibration, before.redAtTopOnScreen)
-                trace.event("input.coordinates", "from=$from to=$to move=${move.iccs}")
+                trace.event("input.coordinates", "mode=$mode capture=${before.calibration.sourceWidth}x${before.calibration.sourceHeight} target=${targetCalibration.sourceWidth}x${targetCalibration.sourceHeight} from=$from to=$to move=${move.iccs}")
                 currentCoroutineContext().ensureActive()
                 _xiangqiRecognition.update { it.copy(inputUnverified = true) }
                 if (mode == RunMode.FOREGROUND) {

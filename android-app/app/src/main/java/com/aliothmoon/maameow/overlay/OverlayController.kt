@@ -87,6 +87,9 @@ class OverlayController(
     private val capturingXiangqi = MutableStateFlow(false)
     private val gameHints = XiangqiHintOverlay(context)
     private val autoStatus = XiangqiStatusOverlay(context)
+    private val boardCalibration = XiangqiCalibrationOverlay(context)
+    fun showXiangqiCalibration(bitmap: android.graphics.Bitmap, initial: com.aliothmoon.maameow.domain.xiangqi.XiangqiBoardCalibration?,
+        onSave: (com.aliothmoon.maameow.domain.xiangqi.XiangqiBoardCalibration) -> Unit) = boardCalibration.show(bitmap, initial, onSave)
     private var gameHintJob: Job? = null
     private var autoStatusJob: Job? = null
     fun setXiangqiCaptureActive(active: Boolean) { capturingXiangqi.value = active }
@@ -472,6 +475,7 @@ class OverlayController(
     }
 
     fun uninstall() {
+        boardCalibration.hide()
         FloatingX.uninstallAll()
         Timber.d("OverlayController: uninstall completed")
     }
@@ -624,6 +628,7 @@ class OverlayController(
     }
 
     suspend fun hideAll() {
+        boardCalibration.hide()
         xiangqiViewModel.value?.onStopAutoXiangqi("overlay-hidden")
         hideMainPanel()
         hideFloatBall()

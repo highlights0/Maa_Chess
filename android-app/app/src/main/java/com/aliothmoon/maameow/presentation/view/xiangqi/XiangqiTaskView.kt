@@ -476,6 +476,12 @@ fun XiangqiTaskView(
                     ) { Text(stringResource(if (recognition.isAutoPlaying && recognition.isAutoHinting) R.string.xiangqi_hint_stop else R.string.xiangqi_hint_start)) }
                     recognition.automationStatus?.let { Text(it, style = MaterialTheme.typography.bodySmall) }
                     recognition.moveError?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+                    OutlinedButton(
+                        enabled = !busy && ((runMode == RunMode.BACKGROUND && gameOnDisplay) ||
+                            (runMode == RunMode.FOREGROUND && accessibilityConnected && Build.VERSION.SDK_INT >= Build.VERSION_CODES.R)),
+                        onClick = { viewModel.onCalibrateXiangqiBoard() },
+                        modifier = Modifier.fillMaxWidth(),
+                    ) { Text(stringResource(R.string.xiangqi_calibration_action)) }
                     Button(
                         enabled = modelStatus == XiangqiModelStatus.Ready &&
                             ((runMode == RunMode.BACKGROUND && gameOnDisplay) ||

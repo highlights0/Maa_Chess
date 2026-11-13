@@ -126,13 +126,14 @@ class XiangqiStatusOverlay(private val context: Context) {
         if (temporarilyHidden) return false
         val metrics = android.util.DisplayMetrics()
         windows.defaultDisplay.getRealMetrics(metrics)
-        val c = calibration.scaledTo(metrics.widthPixels, metrics.heightPixels)
-        val padding = ((c.right - c.left) / 8 * 0.65).toInt()
-        val board = Rect(c.left.toInt() - padding, c.top.toInt() - padding,
-            c.right.toInt() + padding, c.bottom.toInt() + padding)
+        // Unknown layouts still need a clean capture so the user can calibrate them.
+        val board = runCatching { calibration.scaledTo(metrics.widthPixels, metrics.heightPixels) }.getOrNull()?.let { c ->
+            val padding = ((c.right - c.left) / 8 * 0.65).toInt()
+            Rect(c.left.toInt() - padding, c.top.toInt() - padding, c.right.toInt() + padding, c.bottom.toInt() + padding)
+        }
         val origin = IntArray(2)
         attached.getLocationOnScreen(origin)
-        if (!Rect.intersects(board, Rect(origin[0], origin[1], origin[0] + attached.width, origin[1] + attached.height))) return false
+        if (board != null && !Rect.intersects(board, Rect(origin[0], origin[1], origin[0] + attached.width, origin[1] + attached.height))) return false
         params.alpha = 0f
         params.flags = params.flags or WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE
         windows.updateViewLayout(attached, params)

@@ -3166,4 +3166,14 @@ MAA will not end an in-progress exploration early because this option is uncheck
     <string name="xiangqi_default_red_short">Red (default)</string>
     <string name="xiangqi_auto_new_opening">New opening recognized</string>
     <string name="xiangqi_auto_wait_result">Waiting for results or board…</string>
+    <string name="xiangqi_calibration_action">Calibrate board</string>
+    <string name="xiangqi_calibration_required">The %1$d×%2$d capture needs board calibration. Select Calibrate board, save the actual intersections, then recognize again.</string>
+    <string name="xiangqi_calibration_first">Tap the top-left outermost board intersection, not the wooden frame. This sets coordinates without touching the game.</string>
+    <string name="xiangqi_calibration_last">Tap the bottom-right outermost board intersection.</string>
+    <string name="xiangqi_calibration_review">Drag either corner to adjust. Save when the 9-column, 10-row grid passes through every board point.</string>
+    <string name="xiangqi_calibration_invalid">Invalid grid or spacing. Drag the corners onto the outermost board intersections.</string>
+    <string name="xiangqi_calibration_save">Save calibration</string>
+    <string name="xiangqi_calibration_saved">Calibration saved. Recognize the board again.</string>
+    <string name="xiangqi_calibration_save_failed">Calibration was not saved. Check the run mode and try again.</string>
+    <string name="xiangqi_background_game_left_display">Tiantian Xiangqi left the background display. Start it again from Tasks in background mode, then recognize the board. Opening it from the launcher brings it back to the main screen.</string>
 </resources>
