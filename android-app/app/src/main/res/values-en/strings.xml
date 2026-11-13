@@ -3153,6 +3153,7 @@ MAA will not end an in-progress exploration early because this option is uncheck
     <string name="xiangqi_turn_unknown">Unknown</string>
     <string name="xiangqi_auto_stopping">Stopping…</string>
     <string name="xiangqi_auto_verifying">Verifying the move…</string>
+    <string name="xiangqi_move_not_applied">Move not applied: the board stayed unchanged. Automation paused without repeating taps. Check the selected piece, then recognize again before resuming.</string>
     <string name="xiangqi_auto_observing">Watching board</string>
     <string name="xiangqi_auto_overlay_info">%1$s\nYou: %2$s · Turn: %3$s\nNext: %4$s</string>
     <string name="xiangqi_auto_wait_stable">Waiting for a stable board…</string>

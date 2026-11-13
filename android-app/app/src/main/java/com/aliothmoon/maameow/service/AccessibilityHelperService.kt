@@ -13,6 +13,7 @@ import android.view.Display
 import android.view.KeyEvent
 import android.view.accessibility.AccessibilityEvent
 import com.aliothmoon.maameow.BuildConfig
+import com.aliothmoon.maameow.domain.xiangqi.XiangqiTrace
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -117,10 +118,13 @@ class AccessibilityHelperService : AccessibilityService() {
             fromY: Int,
             toX: Int,
             toY: Int,
+            trace: XiangqiTrace,
         ) {
             tapGamePoint(expectedPackage, fromX, fromY)
-            delay(120)
+            trace.event("input.source-completed", "holdMs=80 selectionWaitMs=220")
+            delay(220)
             tapGamePoint(expectedPackage, toX, toY)
+            trace.event("input.target-completed", "holdMs=80")
         }
 
         private suspend fun tapGamePoint(expectedPackage: String, x: Int, y: Int) {
@@ -129,7 +133,7 @@ class AccessibilityHelperService : AccessibilityService() {
             val gesture = GestureDescription.Builder().apply {
                 addStroke(GestureDescription.StrokeDescription(Path().apply {
                     moveTo(x.toFloat(), y.toFloat())
-                }, 0, 60))
+                }, 0, 80))
             }.build()
             withTimeout(3_000L) {
                 suspendCancellableCoroutine<Unit> { continuation ->
