@@ -3162,7 +3162,7 @@ MAA will not end an in-progress exploration early because this option is uncheck
     <string name="xiangqi_auto_overlay_info">%1$s\nYou: %2$s · Turn: %3$s\nNext: %4$s</string>
     <string name="xiangqi_auto_wait_stable">Waiting for a stable board…</string>
     <string name="xiangqi_foreground_overlay_required">Allow display over other apps to show the chess control panel.</string>
-    <string name="xiangqi_default_red_turn">No last-move marker: a new position defaults to Red to move.</string>
+    <string name="xiangqi_default_red_turn">Without a reliable last-move marker, the turn is inferred from Red starting. Use Red or Black below to correct the current turn.</string>
     <string name="xiangqi_default_red_short">Red (default)</string>
     <string name="xiangqi_auto_new_opening">New opening recognized</string>
     <string name="xiangqi_auto_wait_result">Waiting for results or board…</string>
@@ -3176,4 +3176,5 @@ MAA will not end an in-progress exploration early because this option is uncheck
     <string name="xiangqi_calibration_saved">Calibration saved. Recognize the board again.</string>
     <string name="xiangqi_calibration_save_failed">Calibration was not saved. Check the run mode and try again.</string>
     <string name="xiangqi_background_game_left_display">Tiantian Xiangqi left the background display. Start it again from Tasks in background mode, then recognize the board. Opening it from the launcher brings it back to the main screen.</string>
+    <string name="xiangqi_assumed_turn_short">%1$s (assumed)</string>
 </resources>

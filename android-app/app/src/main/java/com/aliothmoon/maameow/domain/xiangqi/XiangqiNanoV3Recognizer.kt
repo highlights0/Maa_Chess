@@ -190,9 +190,9 @@ class XiangqiNanoV3Recognizer(
                 val cue = if (recognized.isComplete || (recognized.problemCode == null && possibleOrigin != null &&
                         recognized.rows[possibleOrigin.row][possibleOrigin.col] == '.')) {
                     XiangqiTurnCueDetector.detect(pixels, bitmap.width, bitmap.height, scaledCalibration,
-                        recognized.rows, recognized.redAtTopOnScreen)
+                        recognized.rows, recognized.redAtTopOnScreen, trace)
                 } else null
-                trace?.event("turn.cue", "player=${recognized.playerSide} lastMove=${cue?.lastMove?.iccs} lastSide=${cue?.lastSide} nextSide=${cue?.sideToMove} originWhite=${cue?.originWhiteRatio} destinationWhite=${cue?.destinationWhiteRatio}")
+                trace?.event("turn.cue", "player=${recognized.playerSide} lastMove=${cue?.lastMove?.iccs} lastSide=${cue?.lastSide} nextSide=${cue?.sideToMove} originWhite=${cue?.originWhiteRatio} destinationWhite=${cue?.destinationWhiteRatio} destinationByGeometry=${cue?.destinationByGeometry}")
                 recognized.copy(turnCue = cue, boardImage = XiangqiBoardImage.sample(pixels, bitmap.width, bitmap.height, scaledCalibration))
         }
     }

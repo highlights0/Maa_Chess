@@ -7,13 +7,19 @@ internal fun resolveXiangqiTurn(result: XiangqiRecognitionResult, previous: Xian
     val connected = previous?.let { runCatching { it.observe(result.rows) }.getOrNull() }
     val cue = result.turnCue
     if (cue != null) {
-        if (connected != null && cue.sideToMove != connected.side && !(wasDefaultRed && connected === previous)) {
+        if (connected != null && cue.sideToMove != connected.side && !wasDefaultRed) {
             return XiangqiTurnResolution(null, conflict = true)
         }
         return XiangqiTurnResolution(cue.sideToMove)
     }
     if (XiangqiGameSession.opening(result.rows) != null) return XiangqiTurnResolution('w')
-    if (connected != null) return XiangqiTurnResolution(connected.side, defaultRed = wasDefaultRed && connected === previous)
+    if (wasDefaultRed && previous != null && result.rows != previous.rows) {
+        // A single observed move identifies its side; two commuting moves do not identify their order.
+        for (side in "wb") if (XiangqiRules.transition(previous.rows, result.rows, side) != null) {
+            return XiangqiTurnResolution(if (side == 'w') 'b' else 'w')
+        }
+    }
+    if (connected != null) return XiangqiTurnResolution(connected.side, defaultRed = wasDefaultRed)
     // User convention for puzzle/random starting boards without a last-move marker.
     return XiangqiTurnResolution('w', defaultRed = true)
 }

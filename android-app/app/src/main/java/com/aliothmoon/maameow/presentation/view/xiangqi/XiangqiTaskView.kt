@@ -616,14 +616,14 @@ fun XiangqiTaskView(
                             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                 FilterChip(
                                     selected = selectedSide == "w",
-                                    enabled = recognition.detectedSide == null && !recognition.isAutoPlaying,
-                                    onClick = { selectedSide = "w" },
+                                    enabled = !busy && !recognition.inputUnverified && (recognition.detectedSide == null || recognition.defaultRedTurn),
+                                    onClick = { viewModel.onSetXiangqiTurn('w') },
                                     label = { Text(stringResource(R.string.xiangqi_analysis_red)) },
                                 )
                                 FilterChip(
                                     selected = selectedSide == "b",
-                                    enabled = recognition.detectedSide == null && !recognition.isAutoPlaying,
-                                    onClick = { selectedSide = "b" },
+                                    enabled = !busy && !recognition.inputUnverified && (recognition.detectedSide == null || recognition.defaultRedTurn),
+                                    onClick = { viewModel.onSetXiangqiTurn('b') },
                                     label = { Text(stringResource(R.string.xiangqi_analysis_black)) },
                                 )
                             }

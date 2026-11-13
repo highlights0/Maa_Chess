@@ -3219,7 +3219,7 @@ MAA 不会因为取消勾选此选项而提前在局内结束探索</string>
     <string name="xiangqi_auto_overlay_info">%1$s\n己方：%2$s · 当前：%3$s\n操作：%4$s</string>
     <string name="xiangqi_auto_wait_stable">等待画面稳定…</string>
     <string name="xiangqi_foreground_overlay_required">请先授予悬浮窗权限，以显示象棋操作面板。</string>
-    <string name="xiangqi_default_red_turn">未见上一着标记，新棋盘默认红方先走。</string>
+    <string name="xiangqi_default_red_turn">未见可靠上一着标记，轮次按起点红先推定；可用下方红／黑选项纠正当前行棋方。</string>
     <string name="xiangqi_default_red_short">红方·默认</string>
     <string name="xiangqi_auto_new_opening">已识别新开局</string>
     <string name="xiangqi_auto_wait_result">等待结算或新棋盘…</string>
@@ -3233,4 +3233,5 @@ MAA 不会因为取消勾选此选项而提前在局内结束探索</string>
     <string name="xiangqi_calibration_saved">校准已保存，请重新识别棋盘。</string>
     <string name="xiangqi_calibration_save_failed">校准未保存，请确认运行模式并重新校准。</string>
     <string name="xiangqi_background_game_left_display">天天象棋已离开后台虚拟屏，操作已暂停。请从任务页重新启动后台游戏，再识别棋盘；从桌面打开游戏会将它带回主屏。</string>
+    <string name="xiangqi_assumed_turn_short">%1$s（推定）</string>
 </resources>

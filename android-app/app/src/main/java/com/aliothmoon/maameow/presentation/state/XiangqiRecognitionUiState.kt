@@ -20,6 +20,17 @@ internal fun requestXiangqiStop(
     job.cancel()
 }
 
+internal fun correctAssumedXiangqiTurn(state: XiangqiRecognitionUiState, side: Char): XiangqiRecognitionUiState? {
+    val result = state.result?.takeIf { it.isComplete } ?: return null
+    if (side !in "wb" || state.inputUnverified || state.isAutoPlaying || state.isStoppingAutomation ||
+        state.isRecognizing || state.isAnalyzing || state.isExecutingMove ||
+        (state.detectedSide != null && !state.defaultRedTurn) ||
+        (result.turnCue != null && result.turnCue.sideToMove != side)) return null
+    return state.copy(session = XiangqiGameSession.snapshot(result.fenBoard!!, side), detectedSide = side,
+        defaultRedTurn = false, historyError = null, analysis = null, analysisError = null,
+        moveVerified = false, moveError = null, boardChanged = false)
+}
+
 data class XiangqiRecognitionUiState(
     val isRecognizing: Boolean = false,
     val result: XiangqiRecognitionResult? = null,

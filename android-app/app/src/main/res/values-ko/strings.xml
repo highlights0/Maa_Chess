@@ -3219,7 +3219,7 @@
     <string name="xiangqi_auto_overlay_info">%1$s\n내 진영: %2$s · 차례: %3$s\n실행: %4$s</string>
     <string name="xiangqi_auto_wait_stable">화면 안정 대기 중…</string>
     <string name="xiangqi_foreground_overlay_required">장기 조작 패널을 표시하려면 다른 앱 위에 표시 권한을 허용하세요.</string>
-    <string name="xiangqi_default_red_turn">이전 수 표시가 없는 새 기보는 홍이 먼저 둡니다.</string>
+    <string name="xiangqi_default_red_turn">확실한 이전 수 표시가 없어 홍 선수를 기준으로 차례를 추정합니다. 아래 홍/흑 선택으로 현재 차례를 수정할 수 있습니다.</string>
     <string name="xiangqi_default_red_short">홍(기본)</string>
     <string name="xiangqi_auto_new_opening">새 초기 기보 확인</string>
     <string name="xiangqi_auto_wait_result">결과 또는 새 기보 대기 중…</string>
@@ -3233,4 +3233,5 @@
     <string name="xiangqi_calibration_saved">보정이 저장되었습니다. 보드를 다시 인식하세요.</string>
     <string name="xiangqi_calibration_save_failed">보정이 저장되지 않았습니다. 실행 모드를 확인하고 다시 시도하세요.</string>
     <string name="xiangqi_background_game_left_display">게임이 백그라운드 가상 화면을 벗어났습니다. 작업 화면에서 백그라운드 게임을 다시 실행하고 보드를 인식하세요. 런처에서 열면 기본 화면으로 이동합니다.</string>
+    <string name="xiangqi_assumed_turn_short">%1$s(추정)</string>
 </resources>

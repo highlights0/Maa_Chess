@@ -55,6 +55,7 @@ import com.aliothmoon.maameow.presentation.state.BackgroundTaskState
 import com.aliothmoon.maameow.presentation.state.PreviewTouchMarker
 import com.aliothmoon.maameow.presentation.state.XiangqiRecognitionUiState
 import com.aliothmoon.maameow.presentation.state.requestXiangqiStop
+import com.aliothmoon.maameow.presentation.state.correctAssumedXiangqiTurn
 import com.aliothmoon.maameow.presentation.state.UiEffect
 import com.aliothmoon.maameow.remote.AppAliveStatus
 import com.aliothmoon.maameow.presentation.view.panel.PanelDialogConfirmAction
@@ -451,7 +452,8 @@ class BackgroundTaskViewModel(
     // ==================== Touch Input ====================
 
     fun onTouchDown(x: Int, y: Int, contact: Int) {
-        if (_xiangqiRecognition.value.isAutoPlaying) onStopAutoXiangqi("preview-touch")
+        val state = _xiangqiRecognition.value
+        if (state.isAutoPlaying && !state.isAutoHinting) onStopAutoXiangqi("preview-touch")
         runCatching {
             RemoteServiceManager.getInstanceOrNull()?.touchDown(x, y, contact)
         }.onFailure {
@@ -989,6 +991,11 @@ class BackgroundTaskViewModel(
                 val name = if (result.problemCode == XiangqiNanoV3Recognizer.PROBLEM_GENERAL_COUNT) "xiangqi-failed-generals.jpg" else "xiangqi-failed-squares.jpg"
                 saveXiangqiBoardDiagnostic(bitmap, result.calibration, name, trace)
             }
+            if (result.isComplete && known.session == null) {
+                saveXiangqiBoardDiagnostic(bitmap, result.calibration, "xiangqi-initial-board.jpg", trace)
+            } else if (result.isComplete && result.turnCue == null && known.defaultRedTurn) {
+                saveXiangqiBoardDiagnostic(bitmap, result.calibration, "xiangqi-turn-unconfirmed.jpg", trace)
+            }
             if (_xiangqiRecognition.value.isExecutingMove) {
                 saveXiangqiBoardDiagnostic(bitmap, result.calibration, "xiangqi-input-after.jpg", trace)
             }
@@ -1054,6 +1061,14 @@ class BackgroundTaskViewModel(
                 historyError = null, error = null, boardChanged = !result.isComplete, defaultRedTurn = defaultRed,
                 analysis = old.analysis.takeIf { unchanged }, analysisError = null)
         }
+    }
+
+    fun onSetXiangqiTurn(side: Char) {
+        val trace = XiangqiTrace("turn-correction")
+        val corrected = if (xiangqiJob?.isCompleted == false) null else correctAssumedXiangqiTurn(_xiangqiRecognition.value, side)
+        if (corrected == null) { trace.event("blocked", "reason=busy-or-confirmed-turn side=$side"); return }
+        _xiangqiRecognition.value = corrected
+        trace.event("turn.corrected", "side=$side historyKnown=false source=user inputSent=false")
     }
 
     fun onAnalyzeXiangqiBoard(side: Char) = launchXiangqiOperation("analyze") { trace ->

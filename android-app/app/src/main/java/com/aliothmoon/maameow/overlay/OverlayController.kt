@@ -133,7 +133,7 @@ class OverlayController(
                         else -> state.automationStatus ?: context.getString(R.string.xiangqi_auto_observing)
                     }
                     val currentSide = if (state.isRecognizing || state.inputUnverified) sideName(null)
-                        else if (state.defaultRedTurn) context.getString(R.string.xiangqi_default_red_short)
+                        else if (state.defaultRedTurn) context.getString(R.string.xiangqi_assumed_turn_short, sideName(state.detectedSide))
                         else sideName(state.detectedSide)
                     val move = state.analysis?.let { analysis ->
                         val parsed = state.result?.let { XiangqiMove.parse(analysis.bestMove, it.rows, analysis.side) }
