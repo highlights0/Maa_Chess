@@ -5,6 +5,8 @@ import android.graphics.BitmapFactory
 import ai.onnxruntime.OnnxTensor
 import ai.onnxruntime.OrtEnvironment
 import ai.onnxruntime.OrtSession
+import ai.onnxruntime.OrtProvider
+import ai.onnxruntime.providers.NNAPIFlags
 import ai.onnxruntime.TensorInfo
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.sync.Mutex
@@ -14,6 +16,7 @@ import java.io.File
 import java.io.IOException
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
+import java.util.EnumSet
 import kotlin.math.abs
 
 data class XiangqiBoardCalibration(
@@ -126,6 +129,9 @@ class XiangqiNanoV3Recognizer(
     @Volatile private var sessionPath: String? = null
     private var inputName: String? = null
     private var outputName: String? = null
+    private var preferredOrientation = false
+    private var accelerationDisabled = false
+    private var acceleratedSession = false
 
     val modelStatus = modelRepository.status
 
@@ -169,19 +175,13 @@ class XiangqiNanoV3Recognizer(
                     if (redAtTopOnScreen != null) {
                         infer(bitmap, scaledCalibration, redAtTopOnScreen, modelFile, trace).publicResult
                     } else {
-                        val normal = infer(bitmap, scaledCalibration, false, modelFile, trace)
-                        if (normal.orientationIsValid) {
-                            normal.publicResult
-                        } else {
-                            val flipped = infer(bitmap, scaledCalibration, true, modelFile, trace)
-                            when {
-                                flipped.orientationIsValid -> flipped.publicResult
-                                flipped.publicResult.uncertainSquares.size < normal.publicResult.uncertainSquares.size -> flipped.publicResult
-                                else -> normal.publicResult
-                            }
-                        }
+                        selectXiangqiOrientation(preferredOrientation,
+                            { infer(bitmap, scaledCalibration, it, modelFile, trace) },
+                            { it.orientationIsValid }, { it.publicResult.uncertainSquares.size }).publicResult
                     }
                 }
+                if (recognized.isComplete) preferredOrientation = recognized.redAtTopOnScreen
+                trace?.event("inference.orientation", "selected=${recognized.redAtTopOnScreen} complete=${recognized.isComplete}")
                 val pixels = IntArray(bitmap.width * bitmap.height)
                 bitmap.getPixels(pixels, 0, bitmap.width, 0, 0, bitmap.width, bitmap.height)
                 val cue = if (recognized.isComplete) {
@@ -202,7 +202,7 @@ class XiangqiNanoV3Recognizer(
     ): InternalResult {
         val input = preprocess(bitmap, calibration, redAtTopOnScreen)
         trace?.event("inference.preprocessed", "flipped=$redAtTopOnScreen")
-        val activeSession = getSession(modelFile)
+        val activeSession = getSession(modelFile, trace)
         val directBuffer = ByteBuffer.allocateDirect(input.size * Float.SIZE_BYTES)
             .order(ByteOrder.nativeOrder())
             .asFloatBuffer()
@@ -214,7 +214,16 @@ class XiangqiNanoV3Recognizer(
             directBuffer,
             longArrayOf(1, 3, INPUT_HEIGHT.toLong(), INPUT_WIDTH.toLong()),
         ).use { inputTensor ->
-            activeSession.run(mapOf(inputName!! to inputTensor)).use { result ->
+            val output = try {
+                activeSession.run(mapOf(inputName!! to inputTensor))
+            } catch (error: ai.onnxruntime.OrtException) {
+                if (!acceleratedSession) throw error
+                trace?.failure("inference.run-fallback", error)
+                accelerationDisabled = true
+                close()
+                return infer(bitmap, calibration, redAtTopOnScreen, modelFile, trace)
+            }
+            output.use { result ->
                 trace?.event("inference.output")
                 val tensor = result.get(outputName!!).orElse(null) as? OnnxTensor
                     ?: throw IOException("nano-v3 模型输出不是 Tensor")
@@ -233,20 +242,49 @@ class XiangqiNanoV3Recognizer(
         }
     }
 
-    private fun getSession(modelFile: File): OrtSession = synchronized(sessionLock) {
+    private fun getSession(modelFile: File, trace: XiangqiTrace?): OrtSession = synchronized(sessionLock) {
         val existing = session
         if (existing != null && sessionPath == modelFile.absolutePath) return existing
 
         existing?.close()
-        val options = OrtSession.SessionOptions()
-        try {
-            options.setIntraOpNumThreads(2)
+        session = null
+        sessionPath = null
+        val providers = OrtEnvironment.getAvailableProviders()
+        val accelerated = when {
+            accelerationDisabled -> null
+            OrtProvider.XNNPACK in providers -> OrtProvider.XNNPACK
+            OrtProvider.NNAPI in providers -> OrtProvider.NNAPI
+            else -> null
+        }
+        fun create(provider: OrtProvider?): OrtSession = OrtSession.SessionOptions().use { options ->
+            val threads = Runtime.getRuntime().availableProcessors().coerceIn(1, 4)
+            options.setIntraOpNumThreads(if (provider == OrtProvider.XNNPACK) 1 else threads)
             options.setInterOpNumThreads(1)
-            val created = environment.createSession(modelFile.absolutePath, options)
+            when (provider) {
+                OrtProvider.XNNPACK -> {
+                    options.addConfigEntry("session.intra_op.allow_spinning", "0")
+                    options.addXnnpack(mapOf("intra_op_num_threads" to threads.toString()))
+                }
+                OrtProvider.NNAPI -> options.addNnapi(EnumSet.of(NNAPIFlags.CPU_DISABLED))
+                else -> Unit
+            }
+            environment.createSession(modelFile.absolutePath, options)
+        }
+        val created = try {
+            acceleratedSession = accelerated != null
+            trace?.event("inference.provider", "available=$providers selected=${accelerated ?: OrtProvider.CPU}")
+            create(accelerated)
+        } catch (error: ai.onnxruntime.OrtException) {
+            if (accelerated == null) throw error
+            trace?.failure("inference.provider-fallback", error)
+            acceleratedSession = false
+            accelerationDisabled = true
+            create(null)
+        }
+        try {
             val inputs = created.inputNames.toList()
             val outputs = created.outputNames.toList()
             if (inputs.size != 1 || outputs.size != 1) {
-                created.close()
                 throw IOException("nano-v3 模型必须只有一个输入和一个输出")
             }
             inputName = inputs.single()
@@ -254,8 +292,9 @@ class XiangqiNanoV3Recognizer(
             sessionPath = modelFile.absolutePath
             session = created
             created
-        } finally {
-            options.close()
+        } catch (error: Exception) {
+            created.close()
+            throw error
         }
     }
 

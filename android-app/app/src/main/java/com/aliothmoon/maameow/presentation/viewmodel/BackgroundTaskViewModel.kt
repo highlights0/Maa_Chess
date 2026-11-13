@@ -72,6 +72,7 @@ import android.graphics.BitmapFactory
 import android.os.SystemClock
 import com.aliothmoon.maameow.domain.service.XiangqiAutomationService
 import com.aliothmoon.maameow.domain.xiangqi.XiangqiBoardImage
+import com.aliothmoon.maameow.domain.xiangqi.XiangqiSquare
 import com.aliothmoon.maameow.domain.xiangqi.XiangqiTurnCue
 import com.aliothmoon.maameow.domain.xiangqi.XiangqiTurnCueDetector
 import kotlinx.coroutines.currentCoroutineContext
@@ -866,13 +867,54 @@ class BackgroundTaskViewModel(
         XiangqiBoardCalibration.PHONE_1080X2400
     } else XiangqiBoardCalibration.MUMU_900X1600
 
-    private suspend fun captureAndRecognizeXiangqi(mode: RunMode, pkg: String?, trace: XiangqiTrace): XiangqiRecognitionResult {
+    private suspend fun captureStableXiangqiBitmap(mode: RunMode, pkg: String?, trace: XiangqiTrace): Bitmap {
+        var previous: XiangqiBoardImage? = null
+        repeat(8) { sample ->
+            val bitmap = captureXiangqiBitmap(mode, pkg)
+            var retained = false
+            try {
+                val image = withContext(Dispatchers.Default) { sampleXiangqiBitmap(bitmap, mode) }
+                val stable = previous?.matches(image) == true
+                trace.event("capture.stability", "sample=$sample stable=$stable")
+                if (stable) {
+                    retained = true
+                    return bitmap
+                }
+                previous = image
+            } finally { if (!retained) bitmap.recycle() }
+            delay(120)
+        }
+        error("Board animation did not settle")
+    }
+
+    private fun sampleXiangqiBitmap(bitmap: Bitmap, mode: RunMode): XiangqiBoardImage {
+        val pixels = IntArray(bitmap.width * bitmap.height)
+        bitmap.getPixels(pixels, 0, bitmap.width, 0, 0, bitmap.width, bitmap.height)
+        return XiangqiBoardImage.sample(pixels, bitmap.width, bitmap.height,
+            xiangqiCalibration(mode).scaledTo(bitmap.width, bitmap.height))
+    }
+
+    private suspend fun captureAndRecognizeXiangqi(mode: RunMode, pkg: String?, trace: XiangqiTrace, stable: Boolean = false): XiangqiRecognitionResult {
         trace.event("capture.request", "mode=$mode")
-        val bitmap = captureXiangqiBitmap(mode, pkg)
+        val bitmap = if (stable) captureStableXiangqiBitmap(mode, pkg, trace) else captureXiangqiBitmap(mode, pkg)
         trace.event("capture.received", "frame=${bitmap.width}x${bitmap.height}")
         try {
             val result = xiangqiRecognizer.recognizeBitmap(bitmap, xiangqiCalibration(mode), trace = trace)
-            trace.event("recognition", "complete=${result.isComplete} uncertain=${result.uncertainSquares.size} confidence=${result.meanConfidence} board=${result.fenBoard}")
+            val uncertain = result.predictions.filter { XiangqiSquare(it.row, it.col) in result.uncertainSquares }
+                .joinToString { "${'a' + it.col}${9 - it.row}:${it.symbol}=${it.confidence}" }
+            trace.event("recognition", "complete=${result.isComplete} uncertain=${result.uncertainSquares.size} details=$uncertain confidence=${result.meanConfidence} problem=${result.problemCode} board=${result.fenBoard}")
+            if (!result.isComplete) withContext(Dispatchers.IO) {
+                runCatching {
+                    val file = java.io.File(application.filesDir, "diagnostics/xiangqi-last-failed-board.jpg")
+                    file.parentFile?.mkdirs()
+                    val c = result.calibration
+                    val left = c.left.toInt(); val top = c.top.toInt()
+                    val crop = Bitmap.createBitmap(bitmap, left, top, (c.right - left).toInt() + 1, (c.bottom - top).toInt() + 1)
+                    try { file.outputStream().use { check(crop.compress(Bitmap.CompressFormat.JPEG, 95, it)) } }
+                    finally { if (crop !== bitmap) crop.recycle() }
+                    trace.event("diagnostic.saved", "file=xiangqi-last-failed-board.jpg")
+                }.onFailure { trace.failure("diagnostic.save", it) }
+            }
             return result
         } finally { bitmap.recycle() }
     }
@@ -1006,13 +1048,10 @@ class BackgroundTaskViewModel(
     private suspend fun observeStableXiangqiBoard(mode: RunMode, pkg: String?, trace: XiangqiTrace) {
         _xiangqiRecognition.update { it.copy(isRecognizing = true, analysis = null) }
         while (true) {
-            val result = captureAndRecognizeXiangqi(mode, pkg, trace)
+            val result = captureAndRecognizeXiangqi(mode, pkg, trace, stable = true)
             if (result.isComplete) {
-                delay(120)
-                if (result.boardImage?.matches(captureXiangqiReference(mode, pkg, result).first) == true) {
-                    acceptXiangqiObservation(result, trace)
-                    return
-                }
+                acceptXiangqiObservation(result, trace)
+                return
             }
             check(_xiangqiRecognition.value.isAutoPlaying) { "Incomplete or animated board" }
             trace.event("auto.paused", "reason=unconfirmed-board noInput=true")
@@ -1031,7 +1070,8 @@ class BackgroundTaskViewModel(
         check(!state.inputUnverified && !state.boardChanged && session.side == before.playerSide &&
             session.rows == before.rows && session.positionCommand == analysis.positionCommand &&
             XiangqiRules.isLegal(before.rows, session.side, move)) { "Stale or unsafe recommendation" }
-        _xiangqiRecognition.update { it.copy(isExecutingMove = true, moveError = null, moveVerified = false) }
+        _xiangqiRecognition.update { it.copy(isExecutingMove = true, moveError = null, moveVerified = false,
+            automationStatus = application.getString(R.string.xiangqi_move_running)) }
         try {
             val (image, cue) = captureXiangqiReference(mode, pkg, before)
             check(before.boardImage?.matches(image) == true &&
@@ -1067,11 +1107,12 @@ class BackgroundTaskViewModel(
             }
             val inputMs = SystemClock.uptimeMillis() - started
             trace.event("input.sent", "inputMs=$inputMs operationMs=${trace.elapsedMs} withinTwoSeconds=${inputMs <= 2000}")
+            _xiangqiRecognition.update { it.copy(automationStatus = application.getString(R.string.xiangqi_auto_verifying)) }
             val expected = XiangqiRules.apply(before.rows, move)
             val opponent = if (session.side == 'w') 'b' else 'w'
-            delay(350)
+            delay(120)
             for (sample in 0 until 4) {
-                val after = captureAndRecognizeXiangqi(mode, pkg, trace)
+                val after = captureAndRecognizeXiangqi(mode, pkg, trace, stable = true)
                 val valid = after.isComplete && after.calibration == before.calibration &&
                     after.redAtTopOnScreen == before.redAtTopOnScreen &&
                     (after.rows == expected || XiangqiRules.transition(expected, after.rows, opponent) != null)

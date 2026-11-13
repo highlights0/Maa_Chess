@@ -1,6 +1,7 @@
 ﻿package com.aliothmoon.maameow.overlay
 
 import android.app.Application
+import com.aliothmoon.maameow.R
 import android.content.ComponentCallbacks
 import android.content.res.Configuration
 import android.graphics.Color
@@ -56,6 +57,7 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import com.aliothmoon.maameow.constant.Packages
 import com.aliothmoon.maameow.domain.xiangqi.XiangqiMove
+import com.aliothmoon.maameow.domain.xiangqi.xiangqiPieceName
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import timber.log.Timber
@@ -83,18 +85,51 @@ class OverlayController(
     private val mainPanelVisible = MutableStateFlow(false)
     private val capturingXiangqi = MutableStateFlow(false)
     private val gameHints = XiangqiHintOverlay(context)
+    private val autoStatus = XiangqiStatusOverlay(context)
     private var gameHintJob: Job? = null
+    private var autoStatusJob: Job? = null
     fun setXiangqiCaptureActive(active: Boolean) { capturingXiangqi.value = active }
     fun canObserveXiangqi(): Boolean = _isActive.value && !mainPanelVisible.value && !capturingXiangqi.value
     fun showXiangqiAutomationControl() {
-        if (!_isActive.value) show(OverlayControlMode.FLOAT_BALL)
+        if (!_isActive.value) show(OverlayControlMode.ACCESSIBILITY)
         hideMainPanel()
-        showFloatBall()
+        hideFloatBall()
     }
     fun attachXiangqiViewModel(viewModel: BackgroundTaskViewModel?) {
         xiangqiViewModel.value = viewModel
         gameHintJob?.cancel()
+        autoStatusJob?.cancel()
         gameHints.hide()
+        autoStatus.hide()
+        if (viewModel != null) autoStatusJob = scope.launch {
+            viewModel.xiangqiRecognition.collect { state ->
+                if (!state.isAutoPlaying && !state.isStoppingAutomation) {
+                    autoStatus.hide()
+                } else {
+                    fun sideName(side: Char?) = context.getString(when (side) {
+                        'w' -> R.string.xiangqi_analysis_red
+                        'b' -> R.string.xiangqi_analysis_black
+                        else -> R.string.xiangqi_turn_unknown
+                    })
+                    val phase = when {
+                        state.isStoppingAutomation -> context.getString(R.string.xiangqi_auto_stopping)
+                        state.isExecutingMove -> state.automationStatus ?: context.getString(R.string.xiangqi_move_running)
+                        state.isRecognizing -> context.getString(R.string.xiangqi_recognition_running)
+                        state.isAnalyzing -> context.getString(R.string.xiangqi_analysis_running)
+                        else -> context.getString(R.string.xiangqi_auto_observing)
+                    }
+                    val move = state.analysis?.let { analysis ->
+                        val parsed = state.result?.let { XiangqiMove.parse(analysis.bestMove, it.rows, analysis.side) }
+                        val piece = parsed?.let { state.result?.rows?.get(it.from.row)?.get(it.from.col) }
+                        "${piece?.let(::xiangqiPieceName) ?: ""} ${analysis.bestMove.take(2)}→${analysis.bestMove.drop(2)}"
+                    } ?: context.getString(R.string.xiangqi_auto_observing)
+                    autoStatus.show(context.getString(R.string.xiangqi_auto_overlay_info, phase,
+                        sideName(state.result?.playerSide), sideName(state.detectedSide.takeUnless {
+                            state.isRecognizing || state.inputUnverified
+                        }), move), viewModel::onStopAutoXiangqi)
+                }
+            }
+        }
         if (viewModel != null) gameHintJob = scope.launch {
             val visible = combine(_isActive, mainPanelVisible, capturingXiangqi) { active, panel, capture ->
                 active && !panel && !capture

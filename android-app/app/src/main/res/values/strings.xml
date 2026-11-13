@@ -3193,7 +3193,7 @@ MAA 不会因为取消勾选此选项而提前在局内结束探索</string>
     <string name="xiangqi_panel_more">展开棋盘详情</string>
     <string name="xiangqi_panel_less">收起棋盘详情</string>
     <string name="xiangqi_game_hint">建议走法</string>
-    <string name="xiangqi_game_hint_help">推荐路线持续显示；检测到棋盘变化后自动清除。点击悬浮球或音量组合键可停止自动下棋。</string>
+    <string name="xiangqi_game_hint_help">路线持续显示至棋盘变化；自动下棋时可在屏幕状态条点击“停止”。</string>
     <string name="xiangqi_player_side">下方己方：%1$s</string>
     <string name="xiangqi_visual_turn">白圈与高亮标记判断：轮到%1$s</string>
     <string name="xiangqi_wait_opponent">当前轮到对方，请等对方走完后重新识别。</string>
@@ -3206,4 +3206,10 @@ MAA 不会因为取消勾选此选项而提前在局内结束探索</string>
     <string name="xiangqi_auto_stopped">自动下棋已停止。</string>
     <string name="xiangqi_automation_paused">操作已暂停：棋盘或轮次未确认，请检查画面后重新识别；详细原因已记录日志。</string>
     <string name="xiangqi_auto_notification">自动识别并执行己方走法。可点击此通知返回应用，或点击停止。</string>
+    <string name="xiangqi_auto_stop_short">停止</string>
+    <string name="xiangqi_turn_unknown">未知</string>
+    <string name="xiangqi_auto_stopping">正在停止…</string>
+    <string name="xiangqi_auto_verifying">落子后截图复核中…</string>
+    <string name="xiangqi_auto_observing">观察棋盘变化</string>
+    <string name="xiangqi_auto_overlay_info">%1$s\n己方：%2$s · 当前：%3$s\n操作：%4$s</string>
 </resources>

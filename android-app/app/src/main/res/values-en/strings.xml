@@ -3136,7 +3136,7 @@ MAA will not end an in-progress exploration early because this option is uncheck
     <string name="xiangqi_panel_more">Show board details</string>
     <string name="xiangqi_panel_less">Hide board details</string>
     <string name="xiangqi_game_hint">Suggested move</string>
-    <string name="xiangqi_game_hint_help">The route stays visible until the board changes. Tap the floating ball or volume shortcut to stop auto play.</string>
+    <string name="xiangqi_game_hint_help">The route stays until the board changes. Use Stop on the on-screen status strip during auto play.</string>
     <string name="xiangqi_player_side">Your side at the bottom: %1$s</string>
     <string name="xiangqi_visual_turn">White move markers indicate: %1$s to move</string>
     <string name="xiangqi_wait_opponent">It is the opponent\'s turn. Recognize again after their move.</string>
@@ -3149,4 +3149,10 @@ MAA will not end an in-progress exploration early because this option is uncheck
     <string name="xiangqi_auto_stopped">Auto play stopped.</string>
     <string name="xiangqi_automation_paused">Paused: board or turn is unconfirmed. Check the game and recognize again. Details are in the logs.</string>
     <string name="xiangqi_auto_notification">Recognizes and plays your side. Tap to open the app, or use Stop.</string>
+    <string name="xiangqi_auto_stop_short">Stop</string>
+    <string name="xiangqi_turn_unknown">Unknown</string>
+    <string name="xiangqi_auto_stopping">Stopping…</string>
+    <string name="xiangqi_auto_verifying">Verifying the move…</string>
+    <string name="xiangqi_auto_observing">Watching board</string>
+    <string name="xiangqi_auto_overlay_info">%1$s\nYou: %2$s · Turn: %3$s\nNext: %4$s</string>
 </resources>
