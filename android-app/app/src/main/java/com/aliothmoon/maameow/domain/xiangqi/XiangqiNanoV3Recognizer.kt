@@ -97,6 +97,7 @@ data class XiangqiRecognitionResult(
     val problemCode: String?,
     val turnCue: XiangqiTurnCue? = null,
     val boardImage: XiangqiBoardImage? = null,
+    val markerConfirmedEmpty: XiangqiSquare? = null,
 ) {
     val playerSide: Char get() = if (redAtTopOnScreen) 'b' else 'w'
     val isComplete: Boolean
@@ -184,7 +185,9 @@ class XiangqiNanoV3Recognizer(
                 trace?.event("inference.orientation", "selected=${recognized.redAtTopOnScreen} complete=${recognized.isComplete}")
                 val pixels = IntArray(bitmap.width * bitmap.height)
                 bitmap.getPixels(pixels, 0, bitmap.width, 0, 0, bitmap.width, bitmap.height)
-                val cue = if (recognized.isComplete) {
+                val possibleOrigin = recognized.uncertainSquares.singleOrNull()
+                val cue = if (recognized.isComplete || (recognized.problemCode == null && possibleOrigin != null &&
+                        recognized.rows[possibleOrigin.row][possibleOrigin.col] == '.')) {
                     XiangqiTurnCueDetector.detect(pixels, bitmap.width, bitmap.height, scaledCalibration,
                         recognized.rows, recognized.redAtTopOnScreen)
                 } else null

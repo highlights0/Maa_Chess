@@ -32,6 +32,7 @@ data class XiangqiRecognitionUiState(
     val moveVerified: Boolean = false,
     val session: XiangqiGameSession? = null,
     val detectedSide: Char? = null,
+    val defaultRedTurn: Boolean = false,
     val historyError: String? = null,
     val isAutoPlaying: Boolean = false,
     val isStoppingAutomation: Boolean = false,

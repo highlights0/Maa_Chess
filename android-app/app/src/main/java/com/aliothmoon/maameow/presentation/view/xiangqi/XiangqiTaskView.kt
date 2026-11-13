@@ -593,6 +593,8 @@ fun XiangqiTaskView(
                                     stringResource(if (cue.sideToMove == 'w') R.string.xiangqi_analysis_red else R.string.xiangqi_analysis_black)),
                                     style = MaterialTheme.typography.bodySmall)
                             }
+                            if (recognition.defaultRedTurn) Text(stringResource(R.string.xiangqi_default_red_turn),
+                                style = MaterialTheme.typography.bodySmall)
                             Text(
                                 text = stringResource(R.string.xiangqi_analysis_side),
                                 style = MaterialTheme.typography.bodyMedium,

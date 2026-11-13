@@ -3214,4 +3214,8 @@
     <string name="xiangqi_auto_overlay_info">%1$s\n내 진영: %2$s · 차례: %3$s\n실행: %4$s</string>
     <string name="xiangqi_auto_wait_stable">화면 안정 대기 중…</string>
     <string name="xiangqi_foreground_overlay_required">장기 조작 패널을 표시하려면 다른 앱 위에 표시 권한을 허용하세요.</string>
+    <string name="xiangqi_default_red_turn">이전 수 표시가 없는 새 기보는 홍이 먼저 둡니다.</string>
+    <string name="xiangqi_default_red_short">홍(기본)</string>
+    <string name="xiangqi_auto_new_opening">새 초기 기보 확인</string>
+    <string name="xiangqi_auto_wait_result">결과 또는 새 기보 대기 중…</string>
 </resources>

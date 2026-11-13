@@ -75,6 +75,9 @@ import android.os.SystemClock
 import com.aliothmoon.maameow.domain.service.XiangqiAutomationService
 import com.aliothmoon.maameow.domain.xiangqi.XiangqiBoardImage
 import com.aliothmoon.maameow.domain.xiangqi.XiangqiSquare
+import com.aliothmoon.maameow.domain.xiangqi.confirmEmptySquareFromObservedMove
+import com.aliothmoon.maameow.domain.xiangqi.resolveXiangqiTurn
+import com.aliothmoon.maameow.domain.xiangqi.isObservedNewOpening
 import com.aliothmoon.maameow.domain.xiangqi.XiangqiFrameNotReady
 import com.aliothmoon.maameow.domain.xiangqi.canRescanXiangqiBeforeInput
 import com.aliothmoon.maameow.domain.xiangqi.XiangqiTurnCue
@@ -926,20 +929,30 @@ class BackgroundTaskViewModel(
         _xiangqiRecognition.update { it.copy(automationStatus =
             if (it.isExecutingMove) application.getString(R.string.xiangqi_auto_verifying) else null) }
         try {
-            val result = xiangqiRecognizer.recognizeBitmap(bitmap, xiangqiCalibration(mode), trace = trace)
+            val raw = xiangqiRecognizer.recognizeBitmap(bitmap, xiangqiCalibration(mode), trace = trace)
+            val result = confirmEmptySquareFromObservedMove(raw, _xiangqiRecognition.value.session)
+            result.markerConfirmedEmpty?.let { square ->
+                val probability = result.predictions.firstOrNull { it.row == square.row && it.col == square.col }?.confidence
+                trace.event("recognition.marker-confirmed-empty", "square=$square modelConfidence=$probability lastMove=${result.turnCue?.lastMove?.iccs} evidence=marker+legal-observed-transition")
+            }
             val uncertain = result.predictions.filter { XiangqiSquare(it.row, it.col) in result.uncertainSquares }
                 .joinToString { "${'a' + it.col}${9 - it.row}:${it.symbol}=${it.confidence}" }
-            trace.event("recognition", "complete=${result.isComplete} uncertain=${result.uncertainSquares.size} details=$uncertain confidence=${result.meanConfidence} problem=${result.problemCode} board=${result.fenBoard}")
+            trace.event("recognition", "complete=${result.isComplete} rawComplete=${raw.isComplete} uncertain=${result.uncertainSquares.size} details=$uncertain confidence=${result.meanConfidence} problem=${result.problemCode} board=${result.fenBoard}")
             if (!result.isComplete) withContext(Dispatchers.IO) {
                 runCatching {
-                    val file = java.io.File(application.filesDir, "diagnostics/xiangqi-last-failed-board.jpg")
+                    val name = if (result.problemCode == XiangqiNanoV3Recognizer.PROBLEM_GENERAL_COUNT) "xiangqi-failed-generals.jpg" else "xiangqi-failed-squares.jpg"
+                    val file = java.io.File(application.filesDir, "diagnostics/$name")
                     file.parentFile?.mkdirs()
                     val c = result.calibration
-                    val left = c.left.toInt(); val top = c.top.toInt()
-                    val crop = Bitmap.createBitmap(bitmap, left, top, (c.right - left).toInt() + 1, (c.bottom - top).toInt() + 1)
+                    val padding = ((c.right - c.left) / 8 * 0.65).toInt()
+                    val left = (c.left.toInt() - padding).coerceAtLeast(0)
+                    val top = (c.top.toInt() - padding).coerceAtLeast(0)
+                    val right = (c.right.toInt() + padding + 1).coerceAtMost(bitmap.width)
+                    val bottom = (c.bottom.toInt() + padding + 1).coerceAtMost(bitmap.height)
+                    val crop = Bitmap.createBitmap(bitmap, left, top, right - left, bottom - top)
                     try { file.outputStream().use { check(crop.compress(Bitmap.CompressFormat.JPEG, 95, it)) } }
                     finally { if (crop !== bitmap) crop.recycle() }
-                    trace.event("diagnostic.saved", "file=xiangqi-last-failed-board.jpg")
+                    trace.event("diagnostic.saved", "file=$name crop=$left,$top,${right-left},${bottom-top} calibration=$c")
                 }.onFailure { trace.failure("diagnostic.save", it) }
             }
             return result
@@ -967,22 +980,23 @@ class BackgroundTaskViewModel(
         _xiangqiRecognition.update { old ->
             var session = old.session
             var side: Char? = null
+            var defaultRed = false
             if (result.isComplete) {
-                val connected = session?.let { runCatching { it.observe(result.rows) }.getOrNull() }
-                side = if (connected != null && result.turnCue != null && connected.side != result.turnCue.sideToMove) {
-                    trace.event("position.conflict", "historySide=${connected.side} visualSide=${result.turnCue.sideToMove}")
-                    null
-                } else result.turnCue?.sideToMove ?: connected?.side ?: XiangqiGameSession.opening(result.rows)?.side
-                session = XiangqiGameSession.reconnect(session, result.rows, side)
+                val turn = resolveXiangqiTurn(result, session, old.defaultRedTurn)
+                side = turn.side
+                defaultRed = turn.defaultRed
+                if (turn.conflict) trace.event("position.conflict", "visualSide=${result.turnCue?.sideToMove}")
+                session = if (turn.conflict) null else XiangqiGameSession.reconnect(session, result.rows, side,
+                    newOpening = result.fenBoard == XiangqiRules.START_BOARD && result.turnCue == null)
                 if (session?.initialFen != old.session?.initialFen || session?.historyKnown != old.session?.historyKnown) {
                     trace.event("position.rebased", "historyKnown=${session?.historyKnown} side=$side")
                 }
             }
             val unchanged = result.isComplete && old.result?.isComplete == true &&
                 result.rows == old.result.rows && side == old.analysis?.side
-            trace.event("position", "side=$side player=${result.playerSide} visualTurn=${result.turnCue?.sideToMove} historyKnown=${session?.historyKnown}")
+            trace.event("position", "side=$side defaultRed=$defaultRed player=${result.playerSide} visualTurn=${result.turnCue?.sideToMove} historyKnown=${session?.historyKnown}")
             old.copy(isRecognizing = false, result = result, session = session, detectedSide = side,
-                historyError = null, error = null, boardChanged = !result.isComplete,
+                historyError = null, error = null, boardChanged = !result.isComplete, defaultRedTurn = defaultRed,
                 analysis = old.analysis.takeIf { unchanged }, analysisError = null)
         }
     }
@@ -1053,7 +1067,8 @@ class BackgroundTaskViewModel(
                         observeStableXiangqiBoard(mode, pkg, trace)
                         continue
                     }
-                    if (_xiangqiRecognition.value.detectedSide == result.playerSide) continue
+                    val current = _xiangqiRecognition.value
+                    if (current.detectedSide == current.result?.playerSide) continue
                 } else {
                     _xiangqiRecognition.update { it.copy(automationStatus = application.getString(
                         if (legal?.isEmpty() == true) R.string.xiangqi_auto_wait_new_board else R.string.xiangqi_auto_wait_turn)) }
@@ -1096,7 +1111,7 @@ class BackgroundTaskViewModel(
             }
             check(_xiangqiRecognition.value.isAutoPlaying) { "Incomplete or animated board" }
             trace.event("auto.paused", "reason=unconfirmed-board noInput=true")
-            _xiangqiRecognition.update { it.copy(automationStatus = application.getString(R.string.xiangqi_auto_wait_new_board)) }
+            _xiangqiRecognition.update { it.copy(automationStatus = application.getString(R.string.xiangqi_auto_wait_result)) }
             delay(1000)
         }
     }
@@ -1160,12 +1175,14 @@ class BackgroundTaskViewModel(
             val expected = XiangqiRules.apply(before.rows, move)
             val opponent = if (session.side == 'w') 'b' else 'w'
             delay(120)
-            for (sample in 0 until 4) {
+            var sample = 0
+            while (sample < 4) {
                 val after = try {
                     captureAndRecognizeXiangqi(mode, pkg, trace, stable = true)
                 } catch (error: XiangqiFrameNotReady) {
                     trace.event("verify.waiting", "sample=$sample reason=animation inputNotRepeated=true")
                     _xiangqiRecognition.update { it.copy(automationStatus = application.getString(R.string.xiangqi_auto_wait_stable)) }
+                    if (!_xiangqiRecognition.value.isAutoPlaying) sample++
                     delay(150)
                     continue
                 }
@@ -1177,11 +1194,27 @@ class BackgroundTaskViewModel(
                     val verified = session.observe(expected).observe(after.rows)
                     check(after.turnCue == null || after.turnCue.sideToMove == verified.side)
                     _xiangqiRecognition.update { it.copy(result = after, session = verified, detectedSide = verified.side,
-                        historyError = null, analysis = null, moveVerified = true, inputUnverified = false, boardChanged = false) }
+                        historyError = null, analysis = null, moveVerified = true, inputUnverified = false, boardChanged = false, defaultRedTurn = false) }
                     val totalMs = SystemClock.uptimeMillis() - started
                     trace.event("complete", "verified=true inputMs=$inputMs totalMs=$totalMs withinTwoSeconds=${totalMs <= 2000}")
                     return
                 }
+                if (isObservedNewOpening(before, after)) {
+                    val opening = XiangqiGameSession.opening(after.rows) ?: error("Missing opening")
+                    trace.event("pending.retired", "reason=observed-new-opening previousMove=${move.iccs} previousMoveVerified=false")
+                    _xiangqiRecognition.update { it.copy(result = after, session = opening, detectedSide = opening.side,
+                        defaultRedTurn = false, historyError = null, analysis = null, moveVerified = false,
+                        inputUnverified = false, boardChanged = false,
+                        automationStatus = application.getString(R.string.xiangqi_auto_new_opening)) }
+                    return
+                }
+                if (!after.isComplete && _xiangqiRecognition.value.isAutoPlaying) {
+                    trace.event("verify.paused", "reason=board-unavailable awaitingResultOrBoard=true inputNotRepeated=true")
+                    _xiangqiRecognition.update { it.copy(automationStatus = application.getString(R.string.xiangqi_auto_wait_result)) }
+                    delay(750)
+                    continue
+                }
+                sample++
                 delay(150)
             }
             error("Input was not visually confirmed")

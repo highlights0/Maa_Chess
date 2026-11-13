@@ -129,15 +129,16 @@ class OverlayController(
                         state.isAnalyzing -> context.getString(R.string.xiangqi_analysis_running)
                         else -> context.getString(R.string.xiangqi_auto_observing)
                     }
+                    val currentSide = if (state.isRecognizing || state.inputUnverified) sideName(null)
+                        else if (state.defaultRedTurn) context.getString(R.string.xiangqi_default_red_short)
+                        else sideName(state.detectedSide)
                     val move = state.analysis?.let { analysis ->
                         val parsed = state.result?.let { XiangqiMove.parse(analysis.bestMove, it.rows, analysis.side) }
                         val piece = parsed?.let { state.result?.rows?.get(it.from.row)?.get(it.from.col) }
                         "${piece?.let(::xiangqiPieceName) ?: ""} ${analysis.bestMove.take(2)}→${analysis.bestMove.drop(2)}"
                     } ?: context.getString(R.string.xiangqi_auto_observing)
                     autoStatus.show(context.getString(R.string.xiangqi_auto_overlay_info, phase,
-                        sideName(state.result?.playerSide), sideName(state.detectedSide.takeUnless {
-                            state.isRecognizing || state.inputUnverified
-                        }), move), viewModel::onStopAutoXiangqi)
+                        sideName(state.result?.playerSide), currentSide, move), viewModel::onStopAutoXiangqi)
                 }
             }
         }

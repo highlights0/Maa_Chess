@@ -31,12 +31,13 @@ data class XiangqiGameSession(
         fun snapshot(board: String, side: Char): XiangqiGameSession =
             fresh(board, side).copy(historyKnown = false)
 
-        fun reconnect(previous: XiangqiGameSession?, rows: List<String>, side: Char?): XiangqiGameSession? {
+        fun reconnect(previous: XiangqiGameSession?, rows: List<String>, side: Char?, newOpening: Boolean = false): XiangqiGameSession? {
             if (side == null) return opening(rows)
-            opening(rows)?.takeIf { side == 'w' }?.let { return it }
+            if (newOpening) opening(rows)?.takeIf { side == 'w' }?.let { return it }
             if (previous != null) {
                 runCatching { previous.observe(rows) }.getOrNull()?.takeIf { it.side == side }?.let { return it }
             }
+            opening(rows)?.takeIf { side == 'w' }?.let { return it }
             return snapshot(XiangqiRules.board(rows), side)
         }
 

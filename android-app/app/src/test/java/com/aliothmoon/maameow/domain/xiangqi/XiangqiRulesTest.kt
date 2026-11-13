@@ -54,7 +54,7 @@ class XiangqiRulesTest {
 
     @Test fun newOpeningAutomaticallyReplacesPreviousGame() {
         val old = XiangqiGameSession.fromFen("${XiangqiRules.START_BOARD} w - - 17 9", listOf("b2e2", "b9c7"))
-        val fresh = XiangqiGameSession.reconnect(old, opening, 'w')!!
+        val fresh = XiangqiGameSession.reconnect(old, opening, 'w', newOpening = true)!!
         assertTrue(fresh.historyKnown)
         assertTrue(fresh.moves.isEmpty())
         assertEquals("${XiangqiRules.START_BOARD} w - - 0 1", fresh.initialFen)
@@ -76,5 +76,13 @@ class XiangqiRulesTest {
         assertEquals(start.initialFen, session.initialFen)
         assertEquals(listOf("b2e2", "b9c7"), session.moves)
         assertTrue(session.historyKnown)
+    }
+
+    @Test fun legalReturnToOpeningDoesNotEraseObservedMoves() {
+        val fen = "${XiangqiRules.START_BOARD} w - - 17 9"
+        val old = XiangqiGameSession.fromFen(fen, listOf("b0c2", "b9c7"))
+        val reconnected = XiangqiGameSession.reconnect(old, opening, 'w')!!
+        assertEquals(fen, reconnected.initialFen)
+        assertEquals(listOf("b0c2", "b9c7", "c2b0", "c7b9"), reconnected.moves)
     }
 }

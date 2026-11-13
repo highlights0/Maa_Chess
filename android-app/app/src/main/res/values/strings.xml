@@ -3214,4 +3214,8 @@ MAA 不会因为取消勾选此选项而提前在局内结束探索</string>
     <string name="xiangqi_auto_overlay_info">%1$s\n己方：%2$s · 当前：%3$s\n操作：%4$s</string>
     <string name="xiangqi_auto_wait_stable">等待画面稳定…</string>
     <string name="xiangqi_foreground_overlay_required">请先授予悬浮窗权限，以显示象棋操作面板。</string>
+    <string name="xiangqi_default_red_turn">未见上一着标记，新棋盘默认红方先走。</string>
+    <string name="xiangqi_default_red_short">红方·默认</string>
+    <string name="xiangqi_auto_new_opening">已识别新开局</string>
+    <string name="xiangqi_auto_wait_result">等待结算或新棋盘…</string>
 </resources>
