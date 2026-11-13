@@ -565,6 +565,7 @@ class OverlayController(
             Timber.w("OverlayController: 非前台模式，忽略 show 请求")
             return
         }
+        install()
         currentMode = mode
 
         when (mode) {

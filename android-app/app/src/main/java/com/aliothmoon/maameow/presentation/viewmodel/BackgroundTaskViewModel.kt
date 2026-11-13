@@ -2,6 +2,7 @@ package com.aliothmoon.maameow.presentation.viewmodel
 
 import android.content.Context
 import android.content.Intent
+import android.provider.Settings
 import android.view.Surface
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -51,6 +52,7 @@ import com.aliothmoon.maameow.overlay.OverlayController
 import com.aliothmoon.maameow.presentation.state.BackgroundTaskState
 import com.aliothmoon.maameow.presentation.state.PreviewTouchMarker
 import com.aliothmoon.maameow.presentation.state.XiangqiRecognitionUiState
+import com.aliothmoon.maameow.presentation.state.requestXiangqiStop
 import com.aliothmoon.maameow.presentation.state.UiEffect
 import com.aliothmoon.maameow.remote.AppAliveStatus
 import com.aliothmoon.maameow.presentation.view.panel.PanelDialogConfirmAction
@@ -270,6 +272,11 @@ class BackgroundTaskViewModel(
         viewModelScope.launch {
             var running = false
             try {
+                if (targetClientType == "Xiangqi" && appSettingsManager.runMode.value == RunMode.FOREGROUND &&
+                    !Settings.canDrawOverlays(application)) {
+                    _effects.send(UiEffect.toast(R.string.xiangqi_foreground_overlay_required))
+                    return@launch
+                }
                 running = if (appSettingsManager.runMode.value == RunMode.FOREGROUND) {
                     val intent = application.packageManager.getLaunchIntentForPackage(pkg)
                     if (intent == null) {
@@ -285,7 +292,20 @@ class BackgroundTaskViewModel(
                 } else {
                     compositionService.launchGame(targetClientType)
                 }
-                if (running) _gameStatus.value = AppAliveStatus.ALIVE
+                if (running) {
+                    _gameStatus.value = AppAliveStatus.ALIVE
+                    if (targetClientType == "Xiangqi" && appSettingsManager.runMode.value == RunMode.FOREGROUND) {
+                        try {
+                            overlayController.show(appSettingsManager.overlayControlMode.value)
+                            overlayController.hideFloatBall()
+                            overlayController.showMainPanel()
+                            XiangqiTrace("game-launch").event("panel.requested", "mode=FOREGROUND")
+                        } catch (error: Exception) {
+                            Timber.e(error, "show Xiangqi panel after game launch failed")
+                            _effects.send(UiEffect.toast(R.string.home_toast_start_overlay_failed, error.message.orEmpty()))
+                        }
+                    }
+                }
                 else _effects.send(UiEffect.toast(R.string.bg_action_start_game_failed))
             } finally {
                 _gameSwitchBusy.value = false
@@ -790,6 +810,7 @@ class BackgroundTaskViewModel(
                 serviceRun?.let(XiangqiAutomationService::finish)
                 _xiangqiRecognition.update { it.copy(isRecognizing = false, isAnalyzing = false,
                     isExecutingMove = false, isAutoPlaying = false, isStoppingAutomation = false) }
+                trace.event("finished", "stopping=false inputUnverified=${_xiangqiRecognition.value.inputUnverified}")
                 startXiangqiHintWatcher()
             }
         }
@@ -1050,12 +1071,10 @@ class BackgroundTaskViewModel(
     }
 
     fun onStopAutoXiangqi() {
-        if (xiangqiJob?.isCompleted != false) return
+        val job = xiangqiJob?.takeUnless { it.isCompleted } ?: return
         XiangqiTrace("auto-stop").event("requested", "inputUnverified=${_xiangqiRecognition.value.inputUnverified}")
-        xiangqiJob?.cancel()
-        _xiangqiRecognition.update { it.copy(isAutoPlaying = false, isStoppingAutomation = true,
-            automationStatus = application.getString(R.string.xiangqi_auto_stopped),
-            moveError = if (it.inputUnverified) application.getString(R.string.xiangqi_move_unverified) else it.moveError) }
+        requestXiangqiStop(job, _xiangqiRecognition, application.getString(R.string.xiangqi_auto_stopped),
+            application.getString(R.string.xiangqi_move_unverified))
     }
 
     private suspend fun observeStableXiangqiBoard(mode: RunMode, pkg: String?, trace: XiangqiTrace) {

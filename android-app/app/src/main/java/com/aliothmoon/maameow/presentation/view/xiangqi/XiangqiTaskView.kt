@@ -1,6 +1,7 @@
 package com.aliothmoon.maameow.presentation.view.xiangqi
 
 import android.content.Intent
+import android.net.Uri
 import android.graphics.Paint as AndroidPaint
 import android.graphics.PixelFormat
 import android.graphics.Typeface
@@ -11,6 +12,8 @@ import android.view.SurfaceHolder
 import android.view.SurfaceView
 import android.view.View
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -113,6 +116,11 @@ fun XiangqiTaskView(
     val recognition by viewModel.xiangqiRecognition.collectAsStateWithLifecycle()
     val accessibilityConnected by AccessibilityHelperService.isConnected.collectAsStateWithLifecycle()
     val context = LocalContext.current
+    val overlayPermissionLauncher = if (!floatingPanel) {
+        rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) {
+            viewModel.startGame(XIANGQI_CLIENT_TYPE)
+        }
+    } else null
 
     var selectedScene by rememberSaveable { mutableStateOf("standard") }
     var selectedSide by rememberSaveable { mutableStateOf<String?>(null) }
@@ -299,7 +307,12 @@ fun XiangqiTaskView(
                         Button(
                             modifier = Modifier.weight(1f),
                             enabled = !isSwitching,
-                            onClick = { viewModel.startGame(XIANGQI_CLIENT_TYPE) },
+                            onClick = {
+                                if (runMode == RunMode.FOREGROUND && !Settings.canDrawOverlays(context)) {
+                                    overlayPermissionLauncher?.launch(Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                                        Uri.parse("package:${context.packageName}")))
+                                } else viewModel.startGame(XIANGQI_CLIENT_TYPE)
+                            },
                         ) {
                             if (isSwitching) {
                                 CircularProgressIndicator(
