@@ -73,6 +73,8 @@ import android.os.SystemClock
 import com.aliothmoon.maameow.domain.service.XiangqiAutomationService
 import com.aliothmoon.maameow.domain.xiangqi.XiangqiBoardImage
 import com.aliothmoon.maameow.domain.xiangqi.XiangqiSquare
+import com.aliothmoon.maameow.domain.xiangqi.XiangqiFrameNotReady
+import com.aliothmoon.maameow.domain.xiangqi.canRescanXiangqiBeforeInput
 import com.aliothmoon.maameow.domain.xiangqi.XiangqiTurnCue
 import com.aliothmoon.maameow.domain.xiangqi.XiangqiTurnCueDetector
 import kotlinx.coroutines.currentCoroutineContext
@@ -852,7 +854,9 @@ class BackgroundTaskViewModel(
     private suspend fun captureXiangqiBitmap(mode: RunMode, pkg: String?): Bitmap {
         check(mode == appSettingsManager.runMode.value) { "Run mode changed" }
         return if (mode == RunMode.FOREGROUND) {
-            AccessibilityHelperService.captureGameBitmap(pkg ?: error("Xiangqi package missing"))
+            overlayController.withXiangqiStatusCleared(XiangqiBoardCalibration.PHONE_1080X2400) {
+                AccessibilityHelperService.captureGameBitmap(pkg ?: error("Xiangqi package missing"))
+            }
         } else {
             check(gameOnDisplay.value) { "Game left virtual display" }
             withContext(Dispatchers.Default) {
@@ -884,7 +888,7 @@ class BackgroundTaskViewModel(
             } finally { if (!retained) bitmap.recycle() }
             delay(120)
         }
-        error("Board animation did not settle")
+        throw XiangqiFrameNotReady("Board animation did not settle")
     }
 
     private fun sampleXiangqiBitmap(bitmap: Bitmap, mode: RunMode): XiangqiBoardImage {
@@ -898,6 +902,8 @@ class BackgroundTaskViewModel(
         trace.event("capture.request", "mode=$mode")
         val bitmap = if (stable) captureStableXiangqiBitmap(mode, pkg, trace) else captureXiangqiBitmap(mode, pkg)
         trace.event("capture.received", "frame=${bitmap.width}x${bitmap.height}")
+        _xiangqiRecognition.update { it.copy(automationStatus =
+            if (it.isExecutingMove) application.getString(R.string.xiangqi_auto_verifying) else null) }
         try {
             val result = xiangqiRecognizer.recognizeBitmap(bitmap, xiangqiCalibration(mode), trace = trace)
             val uncertain = result.predictions.filter { XiangqiSquare(it.row, it.col) in result.uncertainSquares }
@@ -1018,7 +1024,14 @@ class BackgroundTaskViewModel(
                 if (currentSide == result.playerSide && !legal.isNullOrEmpty()) {
                     _xiangqiRecognition.update { it.copy(automationStatus = application.getString(R.string.xiangqi_auto_thinking)) }
                     analyzeXiangqiBoard(currentSide, trace)
-                    executeXiangqiMove(mode, pkg, trace)
+                    try {
+                        executeXiangqiMove(mode, pkg, trace)
+                    } catch (error: Exception) {
+                        if (!canRescanXiangqiBeforeInput(error, _xiangqiRecognition.value.inputUnverified)) throw error
+                        trace.event("auto.rescan", "reason=${error.message} inputSent=false")
+                        observeStableXiangqiBoard(mode, pkg, trace)
+                        continue
+                    }
                     if (_xiangqiRecognition.value.detectedSide == result.playerSide) continue
                 } else {
                     _xiangqiRecognition.update { it.copy(automationStatus = application.getString(
@@ -1046,9 +1059,18 @@ class BackgroundTaskViewModel(
     }
 
     private suspend fun observeStableXiangqiBoard(mode: RunMode, pkg: String?, trace: XiangqiTrace) {
-        _xiangqiRecognition.update { it.copy(isRecognizing = true, analysis = null) }
+        _xiangqiRecognition.update { it.copy(isRecognizing = true, analysis = null, automationStatus = null) }
         while (true) {
-            val result = captureAndRecognizeXiangqi(mode, pkg, trace, stable = true)
+            val result = try {
+                captureAndRecognizeXiangqi(mode, pkg, trace, stable = true)
+            } catch (error: Exception) {
+                if (!_xiangqiRecognition.value.isAutoPlaying ||
+                    !canRescanXiangqiBeforeInput(error, _xiangqiRecognition.value.inputUnverified)) throw error
+                trace.event("auto.paused", "reason=animation noInput=true")
+                _xiangqiRecognition.update { it.copy(automationStatus = application.getString(R.string.xiangqi_auto_wait_stable)) }
+                delay(250)
+                continue
+            }
             if (result.isComplete) {
                 acceptXiangqiObservation(result, trace)
                 return
@@ -1073,38 +1095,46 @@ class BackgroundTaskViewModel(
         _xiangqiRecognition.update { it.copy(isExecutingMove = true, moveError = null, moveVerified = false,
             automationStatus = application.getString(R.string.xiangqi_move_running)) }
         try {
-            val (image, cue) = captureXiangqiReference(mode, pkg, before)
-            check(before.boardImage?.matches(image) == true &&
-                (cue == null || cue.sideToMove == session.side)) { "Board or turn changed before input" }
-            trace.event("verify.before", "visualMatch=true elapsedMs=${SystemClock.uptimeMillis() - started}")
-            check(appSettingsManager.runMode.value == mode)
-            val targetCalibration = if (mode == RunMode.BACKGROUND) {
-                check(gameOnDisplay.value)
-                val resolution = compositionService.displayResolution.value
-                val target = if (resolution.width == DefaultDisplayConfig.WIDTH && resolution.height == DefaultDisplayConfig.HEIGHT) {
-                    DefaultDisplayConfig.RES_XIANGQI
-                } else resolution
-                before.calibration.scaledTo(target.width, target.height)
-            } else before.calibration
-            val from = move.from.screenPoint(targetCalibration, before.redAtTopOnScreen)
-            val to = move.to.screenPoint(targetCalibration, before.redAtTopOnScreen)
-            trace.event("input.coordinates", "from=$from to=$to move=${move.iccs}")
-            currentCoroutineContext().ensureActive()
-            _xiangqiRecognition.update { it.copy(inputUnverified = true) }
-            if (mode == RunMode.FOREGROUND) {
-                AccessibilityHelperService.tapGameMove(pkg ?: error("Xiangqi package missing"), from.x, from.y, to.x, to.y)
-            } else {
-                val remote = RemoteServiceManager.getInstanceOrNull() ?: error("Input service unavailable")
-                try {
-                    remote.touchDown(from.x, from.y, 0)
-                    delay(60)
-                    remote.touchUp(from.x, from.y, 0)
-                    delay(120)
-                    remote.touchDown(to.x, to.y, 0)
-                    delay(60)
-                    remote.touchUp(to.x, to.y, 0)
-                } finally { remote.touchCancel() }
+            suspend fun verifyAndSend() {
+                val (image, cue) = captureXiangqiReference(mode, pkg, before)
+                if (before.boardImage?.matches(image) != true ||
+                    (cue != null && cue.sideToMove != session.side)) {
+                    _xiangqiRecognition.update { it.copy(analysis = null, boardChanged = true) }
+                    throw XiangqiFrameNotReady("Board or turn changed before input")
+                }
+                trace.event("verify.before", "visualMatch=true elapsedMs=${SystemClock.uptimeMillis() - started}")
+                check(appSettingsManager.runMode.value == mode)
+                val targetCalibration = if (mode == RunMode.BACKGROUND) {
+                    check(gameOnDisplay.value)
+                    val resolution = compositionService.displayResolution.value
+                    val target = if (resolution.width == DefaultDisplayConfig.WIDTH && resolution.height == DefaultDisplayConfig.HEIGHT) {
+                        DefaultDisplayConfig.RES_XIANGQI
+                    } else resolution
+                    before.calibration.scaledTo(target.width, target.height)
+                } else before.calibration
+                val from = move.from.screenPoint(targetCalibration, before.redAtTopOnScreen)
+                val to = move.to.screenPoint(targetCalibration, before.redAtTopOnScreen)
+                trace.event("input.coordinates", "from=$from to=$to move=${move.iccs}")
+                currentCoroutineContext().ensureActive()
+                _xiangqiRecognition.update { it.copy(inputUnverified = true) }
+                if (mode == RunMode.FOREGROUND) {
+                    AccessibilityHelperService.tapGameMove(pkg ?: error("Xiangqi package missing"), from.x, from.y, to.x, to.y)
+                } else {
+                    val remote = RemoteServiceManager.getInstanceOrNull() ?: error("Input service unavailable")
+                    try {
+                        remote.touchDown(from.x, from.y, 0)
+                        delay(60)
+                        remote.touchUp(from.x, from.y, 0)
+                        delay(120)
+                        remote.touchDown(to.x, to.y, 0)
+                        delay(60)
+                        remote.touchUp(to.x, to.y, 0)
+                    } finally { remote.touchCancel() }
+                }
             }
+            if (mode == RunMode.FOREGROUND) {
+                overlayController.withXiangqiStatusCleared(before.calibration) { verifyAndSend() }
+            } else verifyAndSend()
             val inputMs = SystemClock.uptimeMillis() - started
             trace.event("input.sent", "inputMs=$inputMs operationMs=${trace.elapsedMs} withinTwoSeconds=${inputMs <= 2000}")
             _xiangqiRecognition.update { it.copy(automationStatus = application.getString(R.string.xiangqi_auto_verifying)) }
@@ -1112,7 +1142,14 @@ class BackgroundTaskViewModel(
             val opponent = if (session.side == 'w') 'b' else 'w'
             delay(120)
             for (sample in 0 until 4) {
-                val after = captureAndRecognizeXiangqi(mode, pkg, trace, stable = true)
+                val after = try {
+                    captureAndRecognizeXiangqi(mode, pkg, trace, stable = true)
+                } catch (error: XiangqiFrameNotReady) {
+                    trace.event("verify.waiting", "sample=$sample reason=animation inputNotRepeated=true")
+                    _xiangqiRecognition.update { it.copy(automationStatus = application.getString(R.string.xiangqi_auto_wait_stable)) }
+                    delay(150)
+                    continue
+                }
                 val valid = after.isComplete && after.calibration == before.calibration &&
                     after.redAtTopOnScreen == before.redAtTopOnScreen &&
                     (after.rows == expected || XiangqiRules.transition(expected, after.rows, opponent) != null)

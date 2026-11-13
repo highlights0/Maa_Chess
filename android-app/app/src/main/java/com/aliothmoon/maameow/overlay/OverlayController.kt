@@ -45,6 +45,7 @@ import com.petterp.floatingx.listener.IKeyBackListener
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -90,6 +91,16 @@ class OverlayController(
     private var autoStatusJob: Job? = null
     fun setXiangqiCaptureActive(active: Boolean) { capturingXiangqi.value = active }
     fun canObserveXiangqi(): Boolean = _isActive.value && !mainPanelVisible.value && !capturingXiangqi.value
+    suspend fun <T> withXiangqiStatusCleared(calibration: com.aliothmoon.maameow.domain.xiangqi.XiangqiBoardCalibration, action: suspend () -> T): T {
+        while (withContext(Dispatchers.Main) { autoStatus.isDragging }) delay(50)
+        val cleared = withContext(Dispatchers.Main) { autoStatus.clearIfOverlapping(calibration) }
+        return try {
+            if (cleared) delay(150)
+            action()
+        } finally {
+            if (cleared) withContext(NonCancellable + Dispatchers.Main) { autoStatus.restoreAfterCapture() }
+        }
+    }
     fun showXiangqiAutomationControl() {
         if (!_isActive.value) show(OverlayControlMode.ACCESSIBILITY)
         hideMainPanel()
@@ -114,7 +125,7 @@ class OverlayController(
                     val phase = when {
                         state.isStoppingAutomation -> context.getString(R.string.xiangqi_auto_stopping)
                         state.isExecutingMove -> state.automationStatus ?: context.getString(R.string.xiangqi_move_running)
-                        state.isRecognizing -> context.getString(R.string.xiangqi_recognition_running)
+                        state.isRecognizing -> state.automationStatus ?: context.getString(R.string.xiangqi_recognition_running)
                         state.isAnalyzing -> context.getString(R.string.xiangqi_analysis_running)
                         else -> context.getString(R.string.xiangqi_auto_observing)
                     }

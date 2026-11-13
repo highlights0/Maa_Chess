@@ -3212,4 +3212,5 @@
     <string name="xiangqi_auto_verifying">실행 결과 확인 중…</string>
     <string name="xiangqi_auto_observing">기보 관찰 중</string>
     <string name="xiangqi_auto_overlay_info">%1$s\n내 진영: %2$s · 차례: %3$s\n실행: %4$s</string>
+    <string name="xiangqi_auto_wait_stable">화면 안정 대기 중…</string>
 </resources>

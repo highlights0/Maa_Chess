@@ -3155,4 +3155,5 @@ MAA will not end an in-progress exploration early because this option is uncheck
     <string name="xiangqi_auto_verifying">Verifying the move…</string>
     <string name="xiangqi_auto_observing">Watching board</string>
     <string name="xiangqi_auto_overlay_info">%1$s\nYou: %2$s · Turn: %3$s\nNext: %4$s</string>
+    <string name="xiangqi_auto_wait_stable">Waiting for a stable board…</string>
 </resources>
