@@ -3140,4 +3140,7 @@ MAA will not end an in-progress exploration early because this option is uncheck
     <string name="xiangqi_panel_less">Hide board details</string>
     <string name="xiangqi_game_hint">Suggested move</string>
     <string name="xiangqi_game_hint_help">Collapse the panel to see the suggested arrow on the game board.</string>
+    <string name="xiangqi_player_side">Your side at the bottom: %1$s</string>
+    <string name="xiangqi_visual_turn">White move markers indicate: %1$s to move</string>
+    <string name="xiangqi_wait_opponent">It is the opponent\'s turn. Recognize again after their move.</string>
 </resources>

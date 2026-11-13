@@ -3197,4 +3197,7 @@
     <string name="xiangqi_panel_less">보드 세부 정보 숨기기</string>
     <string name="xiangqi_game_hint">추천 수</string>
     <string name="xiangqi_game_hint_help">패널을 접으면 게임 보드에서 추천 화살표를 볼 수 있습니다.</string>
+    <string name="xiangqi_player_side">아래쪽 내 편: %1$s</string>
+    <string name="xiangqi_visual_turn">흰색 이동 표시에 따른 차례: %1$s</string>
+    <string name="xiangqi_wait_opponent">상대 차례입니다. 상대가 둔 후 다시 인식하세요.</string>
 </resources>

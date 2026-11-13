@@ -852,15 +852,19 @@ class BackgroundTaskViewModel(
             var side = old.detectedSide
             if (result.isComplete) {
                 if (session == null) {
-                    session = XiangqiGameSession.opening(result.rows)
-                    side = session?.side ?: old.result?.takeIf { it.isComplete && it.rows != result.rows }?.let { previous ->
+                    session = if (result.turnCue == null) XiangqiGameSession.opening(result.rows) else null
+                    side = session?.side ?: result.turnCue?.sideToMove ?: old.result?.takeIf { it.isComplete && it.rows != result.rows }?.let { previous ->
                         listOf('w', 'b').singleOrNull { XiangqiRules.transition(previous.rows, result.rows, it) != null }
                             ?.let { if (it == 'w') 'b' else 'w' }
                     }
                 } else {
                     try {
-                        session = session.observe(result.rows)
-                        side = session.side
+                        val candidate = session.observe(result.rows)
+                        check(result.turnCue == null || result.turnCue.sideToMove == candidate.side) {
+                            "Visual turn marker disagrees with the legal board transition"
+                        }
+                        session = candidate
+                        side = candidate.side
                         historyError = null
                         trace.event("position.connected", "addedMoves=${session.moves.drop(old.session?.moves?.size ?: 0)} side=$side")
                     } catch (error: IllegalStateException) {
@@ -871,7 +875,7 @@ class BackgroundTaskViewModel(
                     }
                 }
             }
-            trace.event("position", "side=$side knownStart=${session != null} blocked=${historyError != null}")
+            trace.event("position", "side=$side player=${result.playerSide} visualTurn=${result.turnCue?.sideToMove} knownStart=${session != null} blocked=${historyError != null}")
             old.copy(isRecognizing = false, result = result, session = session, detectedSide = side,
                 historyError = historyError, error = null, analysis = null, analysisError = null)
         }
@@ -926,7 +930,7 @@ class BackgroundTaskViewModel(
         val analysis = state.analysis ?: run { trace.event("blocked", "reason=no-analysis"); return }
         val session = state.session ?: run { trace.event("blocked", "reason=unknown-position"); return }
         val move = XiangqiMove.parse(analysis.bestMove, before.rows, analysis.side) ?: run { trace.event("blocked", "reason=invalid-move"); return }
-        if (!offlineSceneConfirmed || state.historyError != null || session.rows != before.rows ||
+        if (!offlineSceneConfirmed || session.side != before.playerSide || state.historyError != null || session.rows != before.rows ||
             session.positionCommand != analysis.positionCommand || !XiangqiRules.isLegal(before.rows, session.side, move) || state.isRecognizing ||
             state.isAnalyzing || state.isExecutingMove) {
             trace.event("blocked", "offline=$offlineSceneConfirmed historyError=${state.historyError} positionMatches=${session.rows == before.rows} analysisMatches=${session.positionCommand == analysis.positionCommand} busy=${state.isRecognizing || state.isAnalyzing || state.isExecutingMove}")
@@ -954,6 +958,7 @@ class BackgroundTaskViewModel(
                         val current = capture(pkg)
                         trace.event("verify.before", "sample=$checkIndex boardMatches=${current.rows == before.rows}")
                         check(current.isComplete && current.rows == before.rows &&
+                            (current.turnCue == null || current.turnCue.sideToMove == session.side) &&
                             current.redAtTopOnScreen == before.redAtTopOnScreen &&
                             current.calibration == before.calibration) {
                             "棋盘已变化或识别不稳定，已停止落子"

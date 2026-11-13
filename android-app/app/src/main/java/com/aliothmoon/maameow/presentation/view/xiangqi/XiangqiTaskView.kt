@@ -555,6 +555,14 @@ fun XiangqiTaskView(
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                         if (result.isComplete) {
+                            Text(stringResource(R.string.xiangqi_player_side,
+                                stringResource(if (result.playerSide == 'w') R.string.xiangqi_analysis_red else R.string.xiangqi_analysis_black)),
+                                style = MaterialTheme.typography.bodySmall)
+                            result.turnCue?.let { cue ->
+                                Text(stringResource(R.string.xiangqi_visual_turn,
+                                    stringResource(if (cue.sideToMove == 'w') R.string.xiangqi_analysis_red else R.string.xiangqi_analysis_black)),
+                                    style = MaterialTheme.typography.bodySmall)
+                            }
                             Text(
                                 text = stringResource(R.string.xiangqi_analysis_side),
                                 style = MaterialTheme.typography.bodyMedium,
@@ -572,6 +580,9 @@ fun XiangqiTaskView(
                                     onClick = { selectedSide = "b" },
                                     label = { Text(stringResource(R.string.xiangqi_analysis_black)) },
                                 )
+                            }
+                            if (selectedSide != null && selectedSide != result.playerSide.toString()) {
+                                Text(stringResource(R.string.xiangqi_wait_opponent), style = MaterialTheme.typography.bodySmall)
                             }
                             if (recognition.session == null) Row(verticalAlignment = Alignment.CenterVertically) {
                                 Checkbox(
@@ -597,7 +608,7 @@ fun XiangqiTaskView(
                                 )
                             }
                             Button(
-                                enabled = selectedSide != null && (freshPositionConfirmed || recognition.session != null) &&
+                                enabled = selectedSide == result.playerSide.toString() && (freshPositionConfirmed || recognition.session != null) &&
                                     recognition.historyError == null &&
                                     viewModel.xiangqiEngineSupported && !recognition.isAnalyzing &&
                                     !recognition.isExecutingMove,
@@ -647,7 +658,7 @@ fun XiangqiTaskView(
                                         )
                                     }
                                     Button(
-                                        enabled = offlineMoveConfirmed && !recognition.isExecutingMove,
+                                        enabled = offlineMoveConfirmed && analysis.side == result.playerSide && !recognition.isExecutingMove,
                                         onClick = {
                                             viewModel.onExecuteXiangqiMove(
                                                 offlineMoveConfirmed,
@@ -659,6 +670,9 @@ fun XiangqiTaskView(
                                             if (recognition.isExecutingMove) R.string.xiangqi_move_running
                                             else R.string.xiangqi_move_action,
                                         ))
+                                    }
+                                    if (analysis.side != result.playerSide) {
+                                        Text(stringResource(R.string.xiangqi_wait_opponent), style = MaterialTheme.typography.bodySmall)
                                     }
                                 }
                             }

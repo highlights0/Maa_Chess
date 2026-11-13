@@ -92,7 +92,9 @@ data class XiangqiRecognitionResult(
     val meanConfidence: Float,
     val redAtTopOnScreen: Boolean,
     val problemCode: String?,
+    val turnCue: XiangqiTurnCue? = null,
 ) {
+    val playerSide: Char get() = if (redAtTopOnScreen) 'b' else 'w'
     val isComplete: Boolean
         get() = fenBoard != null && uncertainSquares.isEmpty() && problemCode == null
 }
@@ -146,7 +148,7 @@ class XiangqiNanoV3Recognizer(
                 val scaledCalibration = calibration.scaledTo(bitmap.width, bitmap.height)
                 scaledCalibration.validate(bitmap.width, bitmap.height)
                 trace?.event("inference.start", "calibration=$scaledCalibration")
-                inferenceMutex.withLock {
+                val recognized = inferenceMutex.withLock {
                     if (redAtTopOnScreen != null) {
                         infer(bitmap, scaledCalibration, redAtTopOnScreen, modelFile).publicResult
                     } else {
@@ -163,6 +165,14 @@ class XiangqiNanoV3Recognizer(
                         }
                     }
                 }
+                val cue = if (recognized.isComplete) {
+                    val pixels = IntArray(bitmap.width * bitmap.height)
+                    bitmap.getPixels(pixels, 0, bitmap.width, 0, 0, bitmap.width, bitmap.height)
+                    XiangqiTurnCueDetector.detect(pixels, bitmap.width, bitmap.height, scaledCalibration,
+                        recognized.rows, recognized.redAtTopOnScreen)
+                } else null
+                trace?.event("turn.cue", "player=${recognized.playerSide} lastMove=${cue?.lastMove?.iccs} lastSide=${cue?.lastSide} nextSide=${cue?.sideToMove} originWhite=${cue?.originWhiteRatio} destinationWhite=${cue?.destinationWhiteRatio}")
+                recognized.copy(turnCue = cue)
             } finally {
                 bitmap.recycle()
             }
