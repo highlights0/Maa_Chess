@@ -91,6 +91,6 @@ class AnnouncementManager(
     }
 
     private companion object {
-        const val CACHE_DIR = "announcement"
+        const val CACHE_DIR = "maachess-announcement-v2"
     }
 }

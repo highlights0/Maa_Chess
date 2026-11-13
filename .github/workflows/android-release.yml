@@ -24,12 +24,13 @@ jobs:
           test -n "$run_id"
           gh run download "$run_id" --repo "${{ github.repository }}" --name Maa_Chess-debug --dir release
           test -s release/app-debug.apk
+          test -s release/output-metadata.json
 
       - name: 发布预览版
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create "$GITHUB_REF_NAME" release/app-debug.apk \
+          gh release create "$GITHUB_REF_NAME" release/app-debug.apk release/output-metadata.json \
             --repo "${{ github.repository }}" \
             --title "Maa_Chess Android 预览版" \
             --notes-file .github/release-notes/android-preview.md \

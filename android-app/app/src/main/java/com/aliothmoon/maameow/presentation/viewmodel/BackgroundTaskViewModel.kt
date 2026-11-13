@@ -81,6 +81,7 @@ import com.aliothmoon.maameow.domain.xiangqi.isObservedNewOpening
 import com.aliothmoon.maameow.domain.xiangqi.XiangqiFrameNotReady
 import com.aliothmoon.maameow.domain.xiangqi.XiangqiMoveNotApplied
 import com.aliothmoon.maameow.domain.xiangqi.awaitXiangqiMoveConfirmation
+import com.aliothmoon.maameow.domain.xiangqi.runXiangqiAutomaticTurn
 import com.aliothmoon.maameow.domain.xiangqi.canRescanXiangqiBeforeInput
 import com.aliothmoon.maameow.domain.xiangqi.XiangqiTurnCue
 import com.aliothmoon.maameow.domain.xiangqi.XiangqiTurnCueDetector
@@ -787,19 +788,19 @@ class BackgroundTaskViewModel(
     private var xiangqiJob: Job? = null
     private var xiangqiHintWatchJob: Job? = null
 
-    private fun launchXiangqiOperation(name: String, automatic: Boolean = false, action: suspend (XiangqiTrace) -> Unit) {
+    private fun launchXiangqiOperation(name: String, automatic: Boolean = false, hintsOnly: Boolean = false, action: suspend (XiangqiTrace) -> Unit) {
         val trace = XiangqiTrace(name)
         if (xiangqiJob?.isCompleted == false) {
             trace.event("blocked", "reason=busy")
             return
         }
         xiangqiHintWatchJob?.cancel()
-        _xiangqiRecognition.update { it.copy(isAutoPlaying = automatic, isStoppingAutomation = false, error = null, moveError = null,
+        _xiangqiRecognition.update { it.copy(isAutoPlaying = automatic, isAutoHinting = hintsOnly, isStoppingAutomation = false, error = null, moveError = null,
             analysisError = null, moveVerified = false, automationStatus = null) }
         xiangqiJob = viewModelScope.launch {
             var serviceRun: XiangqiAutomationService.Companion.Run? = null
             try {
-                if (automatic) serviceRun = XiangqiAutomationService.start(application, ::onStopAutoXiangqi)
+                if (automatic) serviceRun = XiangqiAutomationService.start(application, ::onStopAutoXiangqi, hintsOnly)
                 action(trace)
             } catch (error: CancellationException) {
                 trace.event("cancelled", "inputUnverified=${_xiangqiRecognition.value.inputUnverified}")
@@ -818,7 +819,7 @@ class BackgroundTaskViewModel(
             } finally {
                 serviceRun?.let(XiangqiAutomationService::finish)
                 _xiangqiRecognition.update { it.copy(isRecognizing = false, isAnalyzing = false,
-                    isExecutingMove = false, isAutoPlaying = false, isStoppingAutomation = false) }
+                    isExecutingMove = false, isAutoPlaying = false, isAutoHinting = false, isStoppingAutomation = false) }
                 trace.event("finished", "stopping=false inputUnverified=${_xiangqiRecognition.value.inputUnverified}")
                 startXiangqiHintWatcher()
             }
@@ -936,7 +937,12 @@ class BackgroundTaskViewModel(
             if (it.isExecutingMove) application.getString(R.string.xiangqi_auto_verifying) else null) }
         try {
             val raw = xiangqiRecognizer.recognizeBitmap(bitmap, xiangqiCalibration(mode), trace = trace)
-            val result = confirmEmptySquareFromObservedMove(raw, _xiangqiRecognition.value.session)
+            val known = _xiangqiRecognition.value
+            val result = confirmEmptySquareFromObservedMove(raw, known.session, known.result)
+            result.imageConfirmedEmpty?.let { square ->
+                val probability = result.predictions.firstOrNull { it.row == square.row && it.col == square.col }?.confidence
+                trace.event("recognition.image-confirmed-empty", "square=$square modelConfidence=$probability evidence=previous-observed-empty+unchanged-cell-pixels+legal-observed-transition")
+            }
             result.markerConfirmedEmpty?.let { square ->
                 val probability = result.predictions.firstOrNull { it.row == square.row && it.col == square.col }?.confidence
                 trace.event("recognition.marker-confirmed-empty", "square=$square modelConfidence=$probability lastMove=${result.turnCue?.lastMove?.iccs} evidence=marker+legal-observed-transition")
@@ -1056,7 +1062,13 @@ class BackgroundTaskViewModel(
         }
     }
 
-    fun onStartAutoXiangqi(side: Char? = null) = launchXiangqiOperation("auto-play", automatic = true) { trace ->
+    fun onStartAutoXiangqi(side: Char? = null) = startContinuousXiangqi(side, hintsOnly = false)
+
+    fun onStartXiangqiHints(side: Char? = null) = startContinuousXiangqi(side, hintsOnly = true)
+
+    private fun startContinuousXiangqi(side: Char?, hintsOnly: Boolean) = launchXiangqiOperation(
+        if (hintsOnly) "auto-hints" else "auto-play", automatic = true, hintsOnly = hintsOnly,
+    ) { trace ->
         check(!_xiangqiRecognition.value.inputUnverified) { "Previous input is unverified" }
         withXiangqiGame { mode, pkg ->
             if (mode == RunMode.FOREGROUND) overlayController.showXiangqiAutomationControl()
@@ -1069,20 +1081,27 @@ class BackgroundTaskViewModel(
                 val currentSide = state.detectedSide ?: side.takeIf { first }
                 first = false
                 val legal = currentSide?.let { XiangqiRules.legalMoves(result.rows, it) }
-                trace.event("auto.decision", "side=$currentSide player=${result.playerSide} legalMoves=${legal?.size} historyKnown=${state.session?.historyKnown}")
+                trace.event("auto.decision", "side=$currentSide player=${result.playerSide} legalMoves=${legal?.size} historyKnown=${state.session?.historyKnown} hintsOnly=$hintsOnly")
                 if (currentSide == result.playerSide && !legal.isNullOrEmpty()) {
                     _xiangqiRecognition.update { it.copy(automationStatus = application.getString(R.string.xiangqi_auto_thinking)) }
-                    analyzeXiangqiBoard(currentSide, trace)
                     try {
-                        executeXiangqiMove(mode, pkg, trace)
+                        runXiangqiAutomaticTurn(hintsOnly,
+                            analyze = { analyzeXiangqiBoard(currentSide, trace) },
+                            execute = { executeXiangqiMove(mode, pkg, trace) })
                     } catch (error: Exception) {
                         if (!canRescanXiangqiBeforeInput(error, _xiangqiRecognition.value.inputUnverified)) throw error
                         trace.event("auto.rescan", "reason=${error.message} inputSent=false")
                         observeStableXiangqiBoard(mode, pkg, trace)
                         continue
                     }
-                    val current = _xiangqiRecognition.value
-                    if (current.detectedSide == current.result?.playerSide) continue
+                    if (hintsOnly) {
+                        overlayController.setXiangqiCaptureActive(false)
+                        _xiangqiRecognition.update { it.copy(automationStatus = application.getString(R.string.xiangqi_hint_wait_manual)) }
+                        trace.event("hint.ready", "move=${_xiangqiRecognition.value.analysis?.bestMove} inputEnabled=false awaitingManualMove=true")
+                    } else {
+                        val current = _xiangqiRecognition.value
+                        if (current.detectedSide == current.result?.playerSide) continue
+                    }
                 } else {
                     _xiangqiRecognition.update { it.copy(automationStatus = application.getString(
                         if (legal?.isEmpty() == true) R.string.xiangqi_auto_wait_new_board else R.string.xiangqi_auto_wait_turn)) }
@@ -1094,6 +1113,12 @@ class BackgroundTaskViewModel(
                     val changed = observed.boardImage?.matches(reference.first) != true
                     val turnChanged = reference.second?.sideToMove?.let { it != _xiangqiRecognition.value.detectedSide } == true
                 } while (!changed && !turnChanged)
+                if (hintsOnly) {
+                    trace.event("hint.board-changed", "oldRecommendationHidden=true inputEnabled=false")
+                    _xiangqiRecognition.update { it.copy(analysis = null, boardChanged = true) }
+                    overlayController.setXiangqiCaptureActive(true)
+                    delay(150)
+                }
                 observeStableXiangqiBoard(mode, pkg, trace)
             }
         }
@@ -1101,6 +1126,7 @@ class BackgroundTaskViewModel(
 
     fun onStopAutoXiangqi() {
         val job = xiangqiJob?.takeUnless { it.isCompleted } ?: return
+        if (_xiangqiRecognition.value.isAutoHinting) _xiangqiRecognition.update { it.copy(analysis = null) }
         XiangqiTrace("auto-stop").event("requested", "inputUnverified=${_xiangqiRecognition.value.inputUnverified}")
         requestXiangqiStop(job, _xiangqiRecognition, application.getString(R.string.xiangqi_auto_stopped),
             application.getString(R.string.xiangqi_move_unverified))
@@ -1131,6 +1157,7 @@ class BackgroundTaskViewModel(
     }
 
     private suspend fun executeXiangqiMove(mode: RunMode, pkg: String?, trace: XiangqiTrace) {
+        check(!_xiangqiRecognition.value.isAutoHinting) { "Automatic input is disabled during continuous hints" }
         val started = SystemClock.uptimeMillis()
         val state = _xiangqiRecognition.value
         val before = state.result?.takeIf { it.isComplete } ?: error("Incomplete board")

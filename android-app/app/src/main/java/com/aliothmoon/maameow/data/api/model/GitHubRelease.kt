@@ -11,7 +11,11 @@ data class GitHubRelease(
     val body: String? = null,
     val prerelease: Boolean = false,
     val assets: List<GitHubAsset> = emptyList(),
-)
+    val draft: Boolean = false,
+) {
+    val apkAsset: GitHubAsset? get() = assets.firstOrNull { it.name.endsWith("universal.apk") }
+        ?: assets.firstOrNull { it.name == "app-debug.apk" }
+}
 
 @Serializable
 data class GitHubAsset(

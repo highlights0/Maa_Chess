@@ -23,6 +23,8 @@ Maa_Chess 是面向腾讯《天天象棋》的 Android 自动化项目。
 
 ## 反馈与开发
 
+- QQ 交流群：**MAA自动下象棋**，群号 **1130135731**。
+- [点击链接加入群聊【MAA自动下象棋】](https://qm.qq.com/q/gBBORVpNMk)
 - 项目仓库：[highlights0/Maa_Chess](https://github.com/highlights0/Maa_Chess)
 - 问题反馈：[GitHub Issues](https://github.com/highlights0/Maa_Chess/issues)
 

@@ -128,7 +128,8 @@ class UpdateService(
                 0L
             )
 
-            val resolver = appDownloadResolvers[source]
+            // APK releases belong to Maa_Chess on GitHub, independently of the resource-source setting.
+            val resolver = appDownloadResolvers[UpdateSource.GITHUB]
                 ?: return failApp(
                     UpdateError.UnknownError(
                         uiTextOf(

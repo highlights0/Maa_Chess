@@ -26,12 +26,12 @@ class XiangqiAutomationService : Service() {
         private const val NOTIFICATION = 4201
         private const val STOP = "xiangqi.stop"
         private val ids = AtomicLong()
-        internal data class Run(val id: Long, val stop: () -> Unit)
+        internal data class Run(val id: Long, val hintsOnly: Boolean = false, val stop: () -> Unit)
         internal val current = MutableStateFlow<Run?>(null)
 
-        internal fun start(context: Context, stop: () -> Unit): Run {
+        internal fun start(context: Context, stop: () -> Unit, hintsOnly: Boolean = false): Run {
             check(!SpecialUseFgsGate.isDenied(context)) { "Foreground service permission denied" }
-            val run = Run(ids.incrementAndGet(), stop)
+            val run = Run(ids.incrementAndGet(), hintsOnly, stop)
             current.value = run
             try {
                 context.startForegroundService(Intent(context, XiangqiAutomationService::class.java))
@@ -59,8 +59,9 @@ class XiangqiAutomationService : Service() {
         val stop = PendingIntent.getService(this, 0, Intent(this, javaClass).setAction(STOP)
             .putExtra("run", bound?.id ?: 0), immutable)
         val notification = NotificationCompat.Builder(this, CHANNEL)
-            .setSmallIcon(R.drawable.ic_maa_logo).setContentTitle(getString(R.string.xiangqi_auto_start))
-            .setContentText(getString(R.string.xiangqi_auto_notification)).setContentIntent(open)
+            .setSmallIcon(R.drawable.ic_maa_logo).setContentTitle(getString(
+                if (bound?.hintsOnly == true) R.string.xiangqi_hint_start else R.string.xiangqi_auto_start))
+            .setContentText(getString(if (bound?.hintsOnly == true) R.string.xiangqi_hint_notification else R.string.xiangqi_auto_notification)).setContentIntent(open)
             .setOngoing(true).addAction(0, getString(R.string.xiangqi_auto_stop), stop).build()
         try {
             // Promote even if the loop already finished before this callback arrived.

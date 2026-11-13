@@ -588,7 +588,7 @@
     <string name="settings_about_feedback_title">Report an Issue</string>
     <string name="settings_about_feedback_desc">Please make sure your issue is not covered by the FAQ before reporting it</string>
     <string name="settings_about_qq_group_title">QQ Group</string>
-    <string name="settings_about_qq_group_desc">Join the QQ group to chat with other users</string>
+    <string name="settings_about_qq_group_desc">Maa_Chess · QQ group 1130135731</string>
     <string name="settings_about_changelog">Changelog</string>
     <string name="settings_about_changelog_empty">No changelog yet. Once an update check finds a new version, its release notes are kept here.</string>
     <string name="settings_about_announcement">View Announcement</string>
@@ -3153,6 +3153,10 @@ MAA will not end an in-progress exploration early because this option is uncheck
     <string name="xiangqi_turn_unknown">Unknown</string>
     <string name="xiangqi_auto_stopping">Stopping…</string>
     <string name="xiangqi_auto_verifying">Verifying the move…</string>
+    <string name="xiangqi_hint_start">Continuous hints</string>
+    <string name="xiangqi_hint_stop">Stop hints</string>
+    <string name="xiangqi_hint_wait_manual">Your move · Follow the board arrow</string>
+    <string name="xiangqi_hint_notification">Continuously shows suggestions for you to play manually. Stop from this notification or the status bar.</string>
     <string name="xiangqi_move_not_applied">Move not applied: the board stayed unchanged. Automation paused without repeating taps. Check the selected piece, then recognize again before resuming.</string>
     <string name="xiangqi_auto_observing">Watching board</string>
     <string name="xiangqi_auto_overlay_info">%1$s\nYou: %2$s · Turn: %3$s\nNext: %4$s</string>

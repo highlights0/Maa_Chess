@@ -28,13 +28,14 @@ object MaaApi {
     // 常见问题文档 / 问题反馈
     const val FAQ_URL = "https://github.com/highlights0/Maa_Chess#readme"
     const val FEEDBACK_URL = "https://github.com/highlights0/Maa_Chess/issues"
+    const val QQ_GROUP_URL = "https://qm.qq.com/q/gBBORVpNMk"
 
     // 上游用户协议，与 WPF MaaUrls.UserAgreement 一致
     const val USER_AGREEMENT_URL =
         "https://github.com/MaaAssistantArknights/MaaAssistantArknights/blob/dev-v2/terms-of-service.md"
 
     // MaaMeow 静态 API 基础地址
-    const val MAA_CHESS_ANNOUNCEMENT_BASE = "https://raw.githubusercontent.com/highlights0/Maa_Chess/main/android-app/app/src/main/assets/announcement/"
+    const val MAA_CHESS_ANNOUNCEMENT_BASE = "https://raw.githubusercontent.com/highlights0/Maa_Chess/android/maameow-foundation/android-app/app/src/main/assets/announcement/"
 
     // MaaMeow 公告
     const val ANNOUNCEMENT_ZH = "${MAA_CHESS_ANNOUNCEMENT_BASE}announcement_zh.md"
@@ -55,13 +56,14 @@ object MaaApi {
     // GitHub 仓库
     const val APP_GITHUB_OWNER = "highlights0"
     const val APP_GITHUB_REPO = "Maa_Chess"
+    const val APP_GITHUB_URL = "https://github.com/$APP_GITHUB_OWNER/$APP_GITHUB_REPO"
 
     // GitHub Release API (包含 prerelease)
     const val APP_GITHUB_RELEASES =
         "https://api.github.com/repos/$APP_GITHUB_OWNER/$APP_GITHUB_REPO/releases?per_page=1"
 
     const val APP_GITHUB_RELEASES_BETA =
-        "https://api.github.com/repos/$APP_GITHUB_OWNER/$APP_GITHUB_REPO/releases?per_page=5"
+        "https://api.github.com/repos/$APP_GITHUB_OWNER/$APP_GITHUB_REPO/releases?per_page=20"
 
     fun appGitHubReleaseByTag(tag: String): String =
         "https://api.github.com/repos/$APP_GITHUB_OWNER/$APP_GITHUB_REPO/releases/tags/$tag"

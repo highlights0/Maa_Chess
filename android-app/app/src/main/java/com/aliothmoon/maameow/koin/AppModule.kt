@@ -21,7 +21,7 @@ import com.aliothmoon.maameow.data.datasource.AppDownloader
 import com.aliothmoon.maameow.data.datasource.AssetExtractor
 import com.aliothmoon.maameow.data.datasource.ResourceDownloader
 import com.aliothmoon.maameow.data.datasource.ZipExtractor
-import com.aliothmoon.maameow.data.datasource.update.MirrorChyanAppVersionChecker
+import com.aliothmoon.maameow.data.datasource.update.GitHubAppVersionChecker
 import com.aliothmoon.maameow.data.datasource.update.MirrorChyanResourceVersionChecker
 import com.aliothmoon.maameow.data.log.ApplicationLogWriter
 import com.aliothmoon.maameow.data.notification.NotificationSettingsManager
@@ -316,7 +316,7 @@ val appModule = module {
     singleOf(::MirrorChyanApiClient)
 
     // Version Checkers
-    single<AppVersionChecker> { MirrorChyanAppVersionChecker(get(), get()) }
+    single<AppVersionChecker> { GitHubAppVersionChecker(get()) }
     single<ResourceVersionChecker> { MirrorChyanResourceVersionChecker(get()) }
 
     singleOf(::UpdateService)

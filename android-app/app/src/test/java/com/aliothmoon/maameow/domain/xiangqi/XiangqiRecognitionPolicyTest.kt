@@ -103,4 +103,39 @@ class XiangqiRecognitionPolicyTest {
         assertEquals('w', standardTurn.side)
         assertFalse(standardTurn.defaultRed)
     }
+
+    @Test fun aPreviouslyObservedEmptyCellCanBeConfirmedByItsPixelsWithoutAMoveMarker() {
+        val calibration = XiangqiBoardCalibration(50.0, 50.0, 450.0, 500.0, 500, 560)
+        val square = XiangqiSquare(2, 2)
+        val pixels = IntArray(500 * 560) { 0xffc89664.toInt() }
+        val image = XiangqiBoardImage.sample(pixels, 500, 560, calibration)
+        for (flipped in listOf(false, true)) {
+            val observed = frame(beforeBoard).copy(calibration = calibration, boardImage = image, redAtTopOnScreen = flipped)
+            val raw = frame(afterBoard).copy(calibration = calibration, boardImage = image, redAtTopOnScreen = flipped,
+                fenBoard = null, uncertainSquares = listOf(square), predictions = frame(afterBoard).predictions.map {
+                    if (it.row == square.row && it.col == square.col) it.copy(confidence = .79897624f) else it
+                })
+            val confirmed = confirmEmptySquareFromObservedMove(raw, previous, observed)
+            assertTrue(confirmed.isComplete)
+            assertEquals(square, confirmed.imageConfirmedEmpty)
+            assertNull(confirmed.markerConfirmedEmpty)
+            assertSame(raw.predictions, confirmed.predictions)
+            assertSame(raw, confirmEmptySquareFromObservedMove(raw, previous))
+            assertSame(raw, confirmEmptySquareFromObservedMove(raw, previous, observed.copy(redAtTopOnScreen = !flipped)))
+            assertSame(raw, confirmEmptySquareFromObservedMove(raw, previous, observed.copy(fenBoard = null)))
+
+            val physical = if (flipped) XiangqiSquare(9 - square.row, 8 - square.col) else square
+            val changed = pixels.clone()
+            val x = 50 + physical.col * 50
+            val y = 50 + physical.row * 50
+            for (dy in -12..12) for (dx in -12..12) changed[(y + dy) * 500 + x + dx] = 0xff302010.toInt()
+            val covered = raw.copy(boardImage = XiangqiBoardImage.sample(changed, 500, 560, calibration))
+            assertSame(covered, confirmEmptySquareFromObservedMove(covered, previous, observed))
+            val green = changed.map { if (it == 0xff302010.toInt()) 0xff00b446.toInt() else it }.toIntArray()
+            val overlay = raw.copy(boardImage = XiangqiBoardImage.sample(green, 500, 560, calibration))
+            assertSame(overlay, confirmEmptySquareFromObservedMove(overlay, previous, observed))
+            val disconnected = raw.copy(rows = raw.rows.toMutableList().apply { set(5, "R........") })
+            assertSame(disconnected, confirmEmptySquareFromObservedMove(disconnected, previous, observed))
+        }
+    }
 }

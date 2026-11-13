@@ -4,6 +4,22 @@ import kotlin.math.abs
 
 /** Small visual reference for unchanged-board checks; never predicts piece identities. */
 class XiangqiBoardImage private constructor(private val samples: IntArray) {
+    /** Stricter cell evidence for recognition recovery; overlay pixels are never ignored. */
+    internal fun sameSquarePixels(other: XiangqiBoardImage, square: XiangqiSquare): Boolean {
+        require(square.row in 0..9 && square.col in 0..8)
+        val offset = (square.row * 9 + square.col) * 256
+        var changed = 0
+        for (pixel in 0 until 256) {
+            val a = samples[offset + pixel]
+            val b = other.samples[offset + pixel]
+            val difference = abs((a and 255) - (b and 255)) +
+                abs(((a ushr 8) and 255) - ((b ushr 8) and 255)) +
+                abs(((a ushr 16) and 255) - ((b ushr 16) and 255))
+            if (difference > 30 && ++changed > 8) return false
+        }
+        return true
+    }
+
     // shortcut: thresholds cover the default wooden skin; recalibrate when adding other skins.
     fun matches(other: XiangqiBoardImage): Boolean {
         for (square in 0 until 90) {

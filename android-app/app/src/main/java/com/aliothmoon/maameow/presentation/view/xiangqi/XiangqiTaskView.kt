@@ -458,14 +458,22 @@ fun XiangqiTaskView(
                             modifier = Modifier.weight(1f),
                         ) { Text(stringResource(R.string.xiangqi_auto_one_move)) }
                         OutlinedButton(
-                            enabled = recognition.isAutoPlaying || (ready && !busy && !recognition.inputUnverified),
+                            enabled = (recognition.isAutoPlaying && !recognition.isAutoHinting) || (ready && !busy && !recognition.inputUnverified),
                             onClick = {
                                 if (recognition.isAutoPlaying) viewModel.onStopAutoXiangqi()
                                 else viewModel.onStartAutoXiangqi(selectedSide?.singleOrNull())
                             },
                             modifier = Modifier.weight(1f),
-                        ) { Text(stringResource(if (recognition.isAutoPlaying) R.string.xiangqi_auto_stop else R.string.xiangqi_auto_start)) }
+                        ) { Text(stringResource(if (recognition.isAutoPlaying && !recognition.isAutoHinting) R.string.xiangqi_auto_stop else R.string.xiangqi_auto_start)) }
                     }
+                    OutlinedButton(
+                        enabled = (recognition.isAutoPlaying && recognition.isAutoHinting) || (ready && !busy && !recognition.inputUnverified),
+                        onClick = {
+                            if (recognition.isAutoPlaying) viewModel.onStopAutoXiangqi()
+                            else viewModel.onStartXiangqiHints(selectedSide?.singleOrNull())
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                    ) { Text(stringResource(if (recognition.isAutoPlaying && recognition.isAutoHinting) R.string.xiangqi_hint_stop else R.string.xiangqi_hint_start)) }
                     recognition.automationStatus?.let { Text(it, style = MaterialTheme.typography.bodySmall) }
                     recognition.moveError?.let { Text(it, color = MaterialTheme.colorScheme.error) }
                     Button(

@@ -1147,11 +1147,12 @@ fun SettingsView(
                         SettingsSegment {
                             SettingClickItem(
                                 title = stringResource(R.string.settings_about_qq_group_title),
+                                description = stringResource(R.string.settings_about_qq_group_desc),
                                 icon = Icons.Rounded.Forum,
                                 trailing = RowTrailing.EXTERNAL,
                             ) {
                                 achievementReporter.reportFeedbackGroupOpened()
-                                Misc.openUriSafely(context, "https://join.maameow.com/")
+                                Misc.openUriSafely(context, MaaApi.QQ_GROUP_URL)
                             }
                         }
                         SettingsSegment {
@@ -1190,7 +1191,7 @@ fun SettingsView(
                                     .clickable {
                                         Misc.openUriSafely(
                                             context,
-                                            "https://github.com/Aliothmoon/MAA-Meow"
+                                            MaaApi.APP_GITHUB_URL
                                         )
                                     }
                                     .padding(vertical = MaaDesignTokens.Spacing.listItemVertical),

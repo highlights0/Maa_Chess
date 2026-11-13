@@ -20,7 +20,6 @@ import com.aliothmoon.maameow.data.preferences.AppSettingsManager
 import com.aliothmoon.maameow.domain.service.update.UpdateService
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.FlowPreview
-import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -178,35 +177,21 @@ class UpdateViewModel(
         viewModelScope.launch {
             if (!appSettingsManager.autoCheckUpdate.value) return@launch
 
-            val currentVersion = loadResourceVersion()
-
-            // 并行检查
-            val appDeferred = async {
-                updateService.checkAppUpdate(channel = updateChannel.value)
-            }
-            val resDeferred = async {
-                updateService.checkResourceUpdate(currentVersion)
-            }
-
-            val appResult = appDeferred.await()
-            val resResult = resDeferred.await()
-
-            // 聚合结果
+            // Xiangqi resources ship in the APK; upstream Arknights resources are not app updates.
+            val appResult = updateService.checkAppUpdate(channel = updateChannel.value)
             val appAvailable = (appResult as? UpdateCheckResult.Available)?.info
-            val resAvailable = (resResult as? UpdateCheckResult.Available)?.info
-
-            if (appAvailable == null && resAvailable == null) return@launch
+                ?: return@launch
 
             saveAppChangelog(appAvailable)
 
             if (appSettingsManager.autoDownloadUpdate.value) {
                 // 自动下载模式
-                autoDownload(appAvailable, resAvailable)
+                autoDownload(appAvailable, null)
             } else {
                 // 手动确认模式（现有行为）
                 _startupUpdateDialog.value = StartupUpdateResult(
                     appUpdate = appAvailable,
-                    resourceUpdate = resAvailable
+                    resourceUpdate = null
                 )
             }
         }

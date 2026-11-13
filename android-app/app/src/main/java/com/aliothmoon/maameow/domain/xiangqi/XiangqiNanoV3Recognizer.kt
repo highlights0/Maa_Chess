@@ -98,6 +98,7 @@ data class XiangqiRecognitionResult(
     val turnCue: XiangqiTurnCue? = null,
     val boardImage: XiangqiBoardImage? = null,
     val markerConfirmedEmpty: XiangqiSquare? = null,
+    val imageConfirmedEmpty: XiangqiSquare? = null,
 ) {
     val playerSide: Char get() = if (redAtTopOnScreen) 'b' else 'w'
     val isComplete: Boolean

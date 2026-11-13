@@ -851,7 +851,7 @@
     <string name="settings_about_feedback_title">问题反馈</string>
     <string name="settings_about_feedback_desc">请在确认您的问题不属于「常见问题」后，再进行「问题反馈」</string>
     <string name="settings_about_qq_group_title">QQ 群</string>
-    <string name="settings_about_qq_group_desc">欢迎加群交流</string>
+    <string name="settings_about_qq_group_desc">MAA自动下象棋 · 群号 1130135731</string>
     <string name="settings_about_changelog">更新日志</string>
     <string name="settings_about_changelog_empty">暂无更新日志。检查到新版本后，这里会留档它的更新说明</string>
     <string name="settings_about_announcement">查看公告</string>
@@ -3210,6 +3210,10 @@ MAA 不会因为取消勾选此选项而提前在局内结束探索</string>
     <string name="xiangqi_turn_unknown">未知</string>
     <string name="xiangqi_auto_stopping">正在停止…</string>
     <string name="xiangqi_auto_verifying">落子后截图复核中…</string>
+    <string name="xiangqi_hint_start">全程提示</string>
+    <string name="xiangqi_hint_stop">停止提示</string>
+    <string name="xiangqi_hint_wait_manual">等待手动落子 · 按棋盘箭头走棋</string>
+    <string name="xiangqi_hint_notification">持续识别与显示建议，由你手动落子。可从通知或状态条停止。</string>
     <string name="xiangqi_move_not_applied">落子未生效：复核后棋盘仍未变化，自动操作已暂停。请检查棋子选中状态，重新识别后续跑；未重复发送触摸。</string>
     <string name="xiangqi_auto_observing">观察棋盘变化</string>
     <string name="xiangqi_auto_overlay_info">%1$s\n己方：%2$s · 当前：%3$s\n操作：%4$s</string>

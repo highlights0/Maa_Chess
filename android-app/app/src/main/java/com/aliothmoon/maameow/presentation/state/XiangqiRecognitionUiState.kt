@@ -35,6 +35,7 @@ data class XiangqiRecognitionUiState(
     val defaultRedTurn: Boolean = false,
     val historyError: String? = null,
     val isAutoPlaying: Boolean = false,
+    val isAutoHinting: Boolean = false,
     val isStoppingAutomation: Boolean = false,
     val automationStatus: String? = null,
     val inputUnverified: Boolean = false,

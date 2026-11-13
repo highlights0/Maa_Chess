@@ -81,7 +81,9 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: Maa_Chess-debug
-          path: android-app/app/build/outputs/apk/debug/*.apk
+          path: |
+            android-app/app/build/outputs/apk/debug/*.apk
+            android-app/app/build/outputs/apk/debug/output-metadata.json
           if-no-files-found: error
           retention-days: 14
 

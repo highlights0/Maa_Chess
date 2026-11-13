@@ -9,6 +9,8 @@ import okhttp3.Headers
 import timber.log.Timber
 import java.io.File
 import java.io.IOException
+import java.nio.file.Files
+import java.nio.file.StandardCopyOption
 
 class MaaApiService(
     private val context: Context,
@@ -53,7 +55,7 @@ class MaaApiService(
                 file.parentFile?.mkdirs()
                 val tmp = File(file.path + ".tmp")
                 tmp.writeText(value)
-                check(tmp.renameTo(file)) { "rename failed: $tmp" }
+                Files.move(tmp.toPath(), file.toPath(), StandardCopyOption.REPLACE_EXISTING)
                 Timber.d("$TAG: cache saved: ${file.name}")
                 true
             } catch (e: Exception) {

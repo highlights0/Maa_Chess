@@ -23,7 +23,7 @@ class GitHubAppDownloadUrlResolver(
     override suspend fun resolve(version: String, channel: UpdateChannel): Result<String> =
         withContext(Dispatchers.IO) {
             runCatching {
-                val tag = if (version.startsWith("v", ignoreCase = true)) version else "v$version"
+                val tag = if (version.firstOrNull()?.isDigit() == true) "v$version" else version
                 httpClient.get(MaaApi.appGitHubReleaseByTag(tag)).use { response ->
                     if (!response.isSuccessful) {
                         throw LocalizedException(
@@ -33,7 +33,7 @@ class GitHubAppDownloadUrlResolver(
 
                     val release = json.decodeFromString<GitHubRelease>(response.body.string())
 
-                    val apkAsset = release.assets.firstOrNull { it.name.endsWith("universal.apk") }
+                    val apkAsset = release.apkAsset
                         ?: throw LocalizedException(uiTextOf(R.string.update_error_github_no_apk))
 
                     apkAsset.browserDownloadUrl

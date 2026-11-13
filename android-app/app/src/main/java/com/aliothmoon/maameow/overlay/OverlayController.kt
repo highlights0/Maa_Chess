@@ -127,7 +127,7 @@ class OverlayController(
                         state.isExecutingMove -> state.automationStatus ?: context.getString(R.string.xiangqi_move_running)
                         state.isRecognizing -> state.automationStatus ?: context.getString(R.string.xiangqi_recognition_running)
                         state.isAnalyzing -> context.getString(R.string.xiangqi_analysis_running)
-                        else -> context.getString(R.string.xiangqi_auto_observing)
+                        else -> state.automationStatus ?: context.getString(R.string.xiangqi_auto_observing)
                     }
                     val currentSide = if (state.isRecognizing || state.inputUnverified) sideName(null)
                         else if (state.defaultRedTurn) context.getString(R.string.xiangqi_default_red_short)

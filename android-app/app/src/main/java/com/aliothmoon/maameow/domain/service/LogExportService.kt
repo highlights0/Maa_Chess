@@ -164,6 +164,11 @@ class LogExportService(
 
             // 截图压不动，留到最后按剩余预算装；日志不裁，asst.log 刚轮转完时现场全在 asst.bak.log 里
             val screenshots = mutableListOf<Screenshot>()
+            for (file in LogExportCollector.collect(File(context.filesDir, "diagnostics"))) {
+                if (file.name.startsWith("xiangqi-") && LogExportCollector.isScreenshot(file.name)) {
+                    screenshots += Screenshot("diagnostics/${file.name}", file.length(), file.lastModified()) { FileInputStream(file) }
+                }
+            }
             appendRemoteDebugFiles(zos, screenshots)
 
             // 提权进程写的文件可能对 App 不可读，逐个跳过，不拖垮整包

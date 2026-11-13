@@ -23,6 +23,7 @@ Background virtual-display compatibility depends on Android, Shizuku / Root perm
 
 ## Feedback and development
 
+- QQ group: **1130135731**. [Join the Maa_Chess group](https://qm.qq.com/q/gBBORVpNMk)
 - Repository: [highlights0/Maa_Chess](https://github.com/highlights0/Maa_Chess)
 - Issues: [GitHub Issues](https://github.com/highlights0/Maa_Chess/issues)
 
