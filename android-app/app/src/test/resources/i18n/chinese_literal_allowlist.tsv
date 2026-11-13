@@ -236,14 +236,6 @@ domain/xiangqi/XiangqiMove.kt	象
 domain/xiangqi/XiangqiMove.kt	車
 domain/xiangqi/XiangqiMove.kt	馬
 # 自动输入与前台截图的内部诊断；界面使用字符串资源
-presentation/viewmodel/BackgroundTaskViewModel.kt	后台输入服务不可用
-presentation/viewmodel/BackgroundTaskViewModel.kt	未安装天天象棋
-presentation/viewmodel/BackgroundTaskViewModel.kt	未配置天天象棋包名
-presentation/viewmodel/BackgroundTaskViewModel.kt	棋盘已变化或识别不稳定，已停止落子
-presentation/viewmodel/BackgroundTaskViewModel.kt	游戏包名缺失
-presentation/viewmodel/BackgroundTaskViewModel.kt	游戏已离开后台显示器
-presentation/viewmodel/BackgroundTaskViewModel.kt	落子后截图未确认目标棋位
-presentation/viewmodel/BackgroundTaskViewModel.kt	运行模式已变化
 service/AccessibilityHelperService.kt	前台截图失败：$errorCode
 service/AccessibilityHelperService.kt	前台截图需要 Android 11 或更高版本
 service/AccessibilityHelperService.kt	前台触摸被取消

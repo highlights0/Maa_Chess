@@ -1,11 +1,12 @@
 package com.aliothmoon.maameow.domain.xiangqi
 
-/** Immutable observed history: append only a legal move confirmed by the whole board. */
+/** Observed moves from a known start or an explicitly marked search baseline. */
 data class XiangqiGameSession(
     val initialFen: String,
     val moves: List<String>,
     val rows: List<String>,
     val side: Char,
+    val historyKnown: Boolean = true,
 ) {
     val positionCommand: String
         get() = "position fen $initialFen" + if (moves.isEmpty()) "" else " moves ${moves.joinToString(" ")}"
@@ -26,6 +27,19 @@ data class XiangqiGameSession(
     }
 
     companion object {
+        /** Search-only baseline. Zero counters here are not an observed rule60 or game number. */
+        fun snapshot(board: String, side: Char): XiangqiGameSession =
+            fresh(board, side).copy(historyKnown = false)
+
+        fun reconnect(previous: XiangqiGameSession?, rows: List<String>, side: Char?): XiangqiGameSession? {
+            if (side == null) return opening(rows)
+            opening(rows)?.takeIf { side == 'w' }?.let { return it }
+            if (previous != null) {
+                runCatching { previous.observe(rows) }.getOrNull()?.takeIf { it.side == side }?.let { return it }
+            }
+            return snapshot(XiangqiRules.board(rows), side)
+        }
+
         fun fresh(board: String, side: Char): XiangqiGameSession =
             fromFen(XiangqiEnginePosition.freshFen(board, side))
 

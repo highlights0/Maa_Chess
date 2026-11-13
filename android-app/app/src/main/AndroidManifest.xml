@@ -152,6 +152,13 @@
                 android:value="Scheduled MAA task execution via Shizuku privileged service" />
         </service>
 
+        <service
+            android:name=".domain.service.XiangqiAutomationService"
+            android:exported="false"
+            android:foregroundServiceType="specialUse">
+            <property android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="Offline Xiangqi screen recognition and automatic move verification" />
+        </service>
         <!-- 后台任务执行进度通知服务 -->
         <service
             android:name=".domain.service.TaskExecutionService"

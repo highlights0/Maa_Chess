@@ -3123,7 +3123,7 @@ MAA 不会因为取消勾选此选项而提前在局内结束探索</string>
     <string name="bottom_nav_records">棋谱</string>
     <string name="settings_game_package_xiangqi">天天象棋</string>
     <string name="xiangqi_task_title">象棋任务</string>
-    <string name="xiangqi_task_subtitle">选择标准对局或残局闯关，启动游戏并识别棋盘；确认行棋方后查看建议路线。离线场景可执行单步落子并截图复核。</string>
+    <string name="xiangqi_task_subtitle">识别棋盘、查看持续路线提示，或一键落子、持续自动下棋。适用于离线练习和残局。</string>
     <string name="xiangqi_scene_standard">标准对局</string>
     <string name="xiangqi_scene_puzzle">残局闯关</string>
     <string name="xiangqi_status_busy">正在处理游戏请求…</string>
@@ -3137,7 +3137,7 @@ MAA 不会因为取消勾选此选项而提前在局内结束探索</string>
     <string name="xiangqi_preview_hint">点击画面可全屏查看并触摸操作。后台模式需要 Shizuku 或 Root 权限。</string>
     <string name="xiangqi_foreground_hint">前台模式：进入游戏棋盘后返回此页点击识别，应用会切回游戏截图并尝试返回。截图需要无障碍服务，不会修改手机分辨率。</string>
     <string name="xiangqi_task_note_title">当前功能范围</string>
-    <string name="xiangqi_task_note_message">已在真机标准开局验证后台识别与 ARM64 Pikafish 建议。前台截图和单步自动落子尚待真机验证；行棋方仍需人工确认。</string>
+    <string name="xiangqi_task_note_message">新棋盘自动切换分析状态；中途接入不会还原未观测历史，推荐不涵盖未知历史的重复局面裁定。</string>
     <string name="xiangqi_record_title">棋谱记录</string>
     <string name="xiangqi_record_empty_title">暂无棋谱</string>
     <string name="xiangqi_record_empty_message">棋局识别和走法记录接入后，历史局面、走法与 AI 分析会显示在这里。</string>
@@ -3162,7 +3162,7 @@ MAA 不会因为取消勾选此选项而提前在局内结束探索</string>
     <string name="xiangqi_recognition_incomplete">识别不完整：%1$d 个棋位需要复核</string>
     <string name="xiangqi_recognition_fen">棋盘 FEN：%1$s</string>
     <string name="xiangqi_recognition_confidence">平均置信度：%1$.1f%%</string>
-    <string name="xiangqi_recognition_move_guard">不确定棋位不会交给引擎；仅在确认离线场景并经新截图核对后执行单步落子。</string>
+    <string name="xiangqi_recognition_move_guard">自动操作适用于离线练习和残局。落子前核对画面，落子后截图复核；轮次不明时暂停。</string>
 
     <string name="xiangqi_recognition_error_generic">详细原因已记录到应用日志。请检查截图、棋盘校准和模型文件后重试。</string>
     <string name="xiangqi_recognition_generals_missing">红帅或黑将识别不可靠，当前局面不能交给引擎。</string>
@@ -3170,13 +3170,11 @@ MAA 不会因为取消勾选此选项而提前在局内结束探索</string>
     <string name="xiangqi_analysis_side">当前轮到哪方行棋？</string>
     <string name="xiangqi_analysis_red">红方</string>
     <string name="xiangqi_analysis_black">黑方</string>
-    <string name="xiangqi_analysis_fresh_position">我确认这是全新对局或残局关卡的起点。</string>
     <string name="xiangqi_history_status">已建立棋局记录，已确认 %1$d 着；行棋方随合法棋盘变化自动更新。</string>
-    <string name="xiangqi_history_discontinuity">暂时无法确认棋盘变化，请再次识别；如果已经切换新对局或关卡，请选择“这是新棋盘”。</string>
+    <string name="xiangqi_history_discontinuity">棋盘已变化，请重新识别；应用会自动切换到当前棋盘。</string>
     <string name="xiangqi_history_import_error">导入失败：请检查完整 FEN、可选的 moves 走法列表，并确认它们与当前棋盘一致。</string>
     <string name="xiangqi_history_import_label">完整 FEN（可追加 moves 和 ICCS 走法）</string>
     <string name="xiangqi_history_import_action">导入棋局记录</string>
-    <string name="xiangqi_history_reset">这是新棋盘</string>
     <string name="xiangqi_analysis_arm64_only">当前仅支持 ARM64 设备上的 Pikafish 分析。</string>
     <string name="xiangqi_analysis_action">获取推荐走法</string>
     <string name="xiangqi_analysis_running">正在分析…</string>
@@ -3184,9 +3182,8 @@ MAA 不会因为取消勾选此选项而提前在局内结束探索</string>
     <string name="xiangqi_analysis_details">深度：%1$s；评分：%2$s（行棋方视角）</string>
     <string name="xiangqi_analysis_variation">参考变化：%1$s</string>
     <string name="xiangqi_analysis_error">引擎分析失败；请检查棋盘、行棋方和引擎文件，并查看应用日志。</string>
-    <string name="xiangqi_move_offline_confirm">我确认当前是离线练习或残局，允许应用自动执行这一着。</string>
-    <string name="xiangqi_move_action">执行推荐走法并截图复核</string>
-    <string name="xiangqi_move_running">正在核对并落子…</string>
+    <string name="xiangqi_move_action">自动执行推荐走法</string>
+    <string name="xiangqi_move_running">正在落子并复核…</string>
     <string name="xiangqi_move_aborted">落子前的棋盘核对失败，未继续自动输入。请重新识别。</string>
     <string name="xiangqi_move_unverified">已发送触摸，但截图未确认结果；自动操作已暂停，请手动检查棋盘，不要重复点击。</string>
     <string name="xiangqi_move_verified">落子已由新截图确认。</string>
@@ -3196,8 +3193,17 @@ MAA 不会因为取消勾选此选项而提前在局内结束探索</string>
     <string name="xiangqi_panel_more">展开棋盘详情</string>
     <string name="xiangqi_panel_less">收起棋盘详情</string>
     <string name="xiangqi_game_hint">建议走法</string>
-    <string name="xiangqi_game_hint_help">收起面板后，可在游戏棋盘上查看建议箭头。</string>
+    <string name="xiangqi_game_hint_help">推荐路线持续显示；检测到棋盘变化后自动清除。点击悬浮球或音量组合键可停止自动下棋。</string>
     <string name="xiangqi_player_side">下方己方：%1$s</string>
     <string name="xiangqi_visual_turn">白圈与高亮标记判断：轮到%1$s</string>
     <string name="xiangqi_wait_opponent">当前轮到对方，请等对方走完后重新识别。</string>
+    <string name="xiangqi_auto_one_move">识别并走一着</string>
+    <string name="xiangqi_auto_start">开始自动下棋</string>
+    <string name="xiangqi_auto_stop">停止自动下棋</string>
+    <string name="xiangqi_auto_thinking">自动下棋：正在分析…</string>
+    <string name="xiangqi_auto_wait_turn">自动下棋：等待对方落子或轮次标记…</string>
+    <string name="xiangqi_auto_wait_new_board">当前已无合法走法，等待新棋盘…</string>
+    <string name="xiangqi_auto_stopped">自动下棋已停止。</string>
+    <string name="xiangqi_automation_paused">操作已暂停：棋盘或轮次未确认，请检查画面后重新识别；详细原因已记录日志。</string>
+    <string name="xiangqi_auto_notification">自动识别并执行己方走法。可点击此通知返回应用，或点击停止。</string>
 </resources>

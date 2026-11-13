@@ -51,4 +51,30 @@ class XiangqiRulesTest {
         assertEquals(listOf("b2e2", "b9c7"), recovered.moves)
         assertEquals('w', recovered.side)
     }
+
+    @Test fun newOpeningAutomaticallyReplacesPreviousGame() {
+        val old = XiangqiGameSession.fromFen("${XiangqiRules.START_BOARD} w - - 17 9", listOf("b2e2", "b9c7"))
+        val fresh = XiangqiGameSession.reconnect(old, opening, 'w')!!
+        assertTrue(fresh.historyKnown)
+        assertTrue(fresh.moves.isEmpty())
+        assertEquals("${XiangqiRules.START_BOARD} w - - 0 1", fresh.initialFen)
+    }
+
+    @Test fun changedPuzzleUsesExplicitSearchBaselineWithoutInventingHistory() {
+        val puzzle = XiangqiRules.expand("3k5/5P3/3a1N3/9/9/2n6/9/9/9/3K2B2")
+        val snapshot = XiangqiGameSession.reconnect(XiangqiGameSession.opening(opening), puzzle, 'w')!!
+        assertEquals(puzzle, snapshot.rows)
+        assertFalse(snapshot.historyKnown)
+        assertEquals('w', snapshot.side)
+        assertNull(XiangqiGameSession.reconnect(snapshot, puzzle, null))
+    }
+
+    @Test fun connectedBoardsKeepKnownCountersAndMoves() {
+        val start = XiangqiGameSession.fromFen("${XiangqiRules.START_BOARD} w - - 17 9")
+        val after = XiangqiGameSession.fromFen(start.initialFen, listOf("b2e2", "b9c7")).rows
+        val session = XiangqiGameSession.reconnect(start, after, 'w')!!
+        assertEquals(start.initialFen, session.initialFen)
+        assertEquals(listOf("b2e2", "b9c7"), session.moves)
+        assertTrue(session.historyKnown)
+    }
 }

@@ -10,16 +10,17 @@ class XiangqiTrace(operation: String) {
     }
     val id = sequence.incrementAndGet()
     private val started = System.nanoTime()
+    val elapsedMs: Long get() = (System.nanoTime() - started) / 1_000_000
 
     init { event("start", "operation=$operation") }
 
     fun event(stage: String, details: String = "") {
         Timber.tag(TAG).i("flow=%d stage=%s elapsedMs=%d %s", id, stage,
-            (System.nanoTime() - started) / 1_000_000, details)
+            elapsedMs, details)
     }
 
     fun failure(stage: String, error: Throwable) {
         Timber.tag(TAG).e(error, "flow=%d stage=%s elapsedMs=%d", id, stage,
-            (System.nanoTime() - started) / 1_000_000)
+            elapsedMs)
     }
 }

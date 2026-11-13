@@ -36,7 +36,6 @@ import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
@@ -117,13 +116,9 @@ fun XiangqiTaskView(
 
     var selectedScene by rememberSaveable { mutableStateOf("standard") }
     var selectedSide by rememberSaveable { mutableStateOf<String?>(null) }
-    var freshPositionConfirmed by rememberSaveable { mutableStateOf(false) }
-    var offlineMoveConfirmed by rememberSaveable { mutableStateOf(false) }
     var showBoardDetails by rememberSaveable { mutableStateOf(false) }
     LaunchedEffect(recognition.result, recognition.detectedSide) {
         selectedSide = recognition.detectedSide?.toString()
-        freshPositionConfirmed = false
-        offlineMoveConfirmed = false
     }
     LaunchedEffect(Unit) {
         viewModel.refreshGameStatus(XIANGQI_CLIENT_TYPE)
@@ -438,13 +433,35 @@ fun XiangqiTaskView(
                             Text(stringResource(R.string.xiangqi_model_download))
                         }
                     }
+                    val ready = modelStatus == XiangqiModelStatus.Ready && viewModel.xiangqiEngineSupported &&
+                        ((runMode == RunMode.BACKGROUND && gameOnDisplay) ||
+                            (runMode == RunMode.FOREGROUND && accessibilityConnected && Build.VERSION.SDK_INT >= Build.VERSION_CODES.R))
+                    val busy = recognition.isRecognizing || recognition.isAnalyzing || recognition.isExecutingMove ||
+                        recognition.isAutoPlaying || recognition.isStoppingAutomation
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Button(
+                            enabled = ready && !busy && !recognition.inputUnverified,
+                            onClick = { viewModel.onAutoXiangqiMove(selectedSide?.singleOrNull()) },
+                            modifier = Modifier.weight(1f),
+                        ) { Text(stringResource(R.string.xiangqi_auto_one_move)) }
+                        OutlinedButton(
+                            enabled = recognition.isAutoPlaying || (ready && !busy && !recognition.inputUnverified),
+                            onClick = {
+                                if (recognition.isAutoPlaying) viewModel.onStopAutoXiangqi()
+                                else viewModel.onStartAutoXiangqi(selectedSide?.singleOrNull())
+                            },
+                            modifier = Modifier.weight(1f),
+                        ) { Text(stringResource(if (recognition.isAutoPlaying) R.string.xiangqi_auto_stop else R.string.xiangqi_auto_start)) }
+                    }
+                    recognition.automationStatus?.let { Text(it, style = MaterialTheme.typography.bodySmall) }
+                    recognition.moveError?.let { Text(it, color = MaterialTheme.colorScheme.error) }
                     Button(
                         enabled = modelStatus == XiangqiModelStatus.Ready &&
                             ((runMode == RunMode.BACKGROUND && gameOnDisplay) ||
                                 (runMode == RunMode.FOREGROUND &&
                                     accessibilityConnected && Build.VERSION.SDK_INT >= Build.VERSION_CODES.R)) &&
                             !recognition.isRecognizing && !recognition.isAnalyzing &&
-                            !recognition.isExecutingMove,
+                            !recognition.isExecutingMove && !recognition.isAutoPlaying && !recognition.isStoppingAutomation,
                         onClick = { viewModel.onRecognizeXiangqiBoard() },
                         modifier = Modifier.fillMaxWidth(),
                     ) {
@@ -492,7 +509,7 @@ fun XiangqiTaskView(
                     }
                     recognition.result?.let { result ->
                         val displayedAnalysis = recognition.analysis?.takeIf {
-                            (freshPositionConfirmed || recognition.session != null) &&
+                            !recognition.boardChanged && !recognition.inputUnverified &&
                                 recognition.historyError == null && selectedSide == it.side.toString()
                         }
                         val suggestedMove = displayedAnalysis?.let {
@@ -570,35 +587,19 @@ fun XiangqiTaskView(
                             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                 FilterChip(
                                     selected = selectedSide == "w",
-                                    enabled = recognition.session == null,
+                                    enabled = recognition.detectedSide == null && !recognition.isAutoPlaying,
                                     onClick = { selectedSide = "w" },
                                     label = { Text(stringResource(R.string.xiangqi_analysis_red)) },
                                 )
                                 FilterChip(
                                     selected = selectedSide == "b",
-                                    enabled = recognition.session == null,
+                                    enabled = recognition.detectedSide == null && !recognition.isAutoPlaying,
                                     onClick = { selectedSide = "b" },
                                     label = { Text(stringResource(R.string.xiangqi_analysis_black)) },
                                 )
                             }
                             if (selectedSide != null && selectedSide != result.playerSide.toString()) {
                                 Text(stringResource(R.string.xiangqi_wait_opponent), style = MaterialTheme.typography.bodySmall)
-                            }
-                            if (recognition.session == null) Row(verticalAlignment = Alignment.CenterVertically) {
-                                Checkbox(
-                                    checked = freshPositionConfirmed,
-                                    onCheckedChange = { freshPositionConfirmed = it },
-                                )
-                                Text(
-                                    text = stringResource(R.string.xiangqi_analysis_fresh_position),
-                                    style = MaterialTheme.typography.bodySmall,
-                                )
-                            }
-                            recognition.historyError?.let { Text(it, color = MaterialTheme.colorScheme.error) }
-                            if (recognition.historyError != null) {
-                                OutlinedButton(onClick = viewModel::onResetXiangqiHistory) {
-                                    Text(stringResource(R.string.xiangqi_history_reset))
-                                }
                             }
                             if (!viewModel.xiangqiEngineSupported) {
                                 Text(
@@ -608,11 +609,11 @@ fun XiangqiTaskView(
                                 )
                             }
                             Button(
-                                enabled = selectedSide == result.playerSide.toString() && (freshPositionConfirmed || recognition.session != null) &&
+                                enabled = selectedSide == result.playerSide.toString() && !recognition.boardChanged && !recognition.isAutoPlaying && !recognition.isStoppingAutomation &&
                                     recognition.historyError == null &&
                                     viewModel.xiangqiEngineSupported && !recognition.isAnalyzing &&
                                     !recognition.isExecutingMove,
-                                onClick = { selectedSide?.singleOrNull()?.let { viewModel.onAnalyzeXiangqiBoard(it, freshPositionConfirmed) } },
+                                onClick = { selectedSide?.singleOrNull()?.let { viewModel.onAnalyzeXiangqiBoard(it) } },
                                 modifier = Modifier.fillMaxWidth(),
                             ) {
                                 Text(stringResource(
@@ -647,22 +648,10 @@ fun XiangqiTaskView(
                                     )
                                 }
                                 if (suggestedMove != null) {
-                                    Row(verticalAlignment = Alignment.CenterVertically) {
-                                        Checkbox(
-                                            checked = offlineMoveConfirmed,
-                                            onCheckedChange = { offlineMoveConfirmed = it },
-                                        )
-                                        Text(
-                                            stringResource(R.string.xiangqi_move_offline_confirm),
-                                            style = MaterialTheme.typography.bodySmall,
-                                        )
-                                    }
                                     Button(
-                                        enabled = offlineMoveConfirmed && analysis.side == result.playerSide && !recognition.isExecutingMove,
+                                        enabled = analysis.side == result.playerSide && !recognition.isExecutingMove && !recognition.isAutoPlaying && !recognition.isStoppingAutomation && !recognition.inputUnverified,
                                         onClick = {
-                                            viewModel.onExecuteXiangqiMove(
-                                                offlineMoveConfirmed,
-                                            )
+                                            viewModel.onExecuteXiangqiMove()
                                         },
                                         modifier = Modifier.fillMaxWidth(),
                                     ) {
@@ -675,9 +664,6 @@ fun XiangqiTaskView(
                                         Text(stringResource(R.string.xiangqi_wait_opponent), style = MaterialTheme.typography.bodySmall)
                                     }
                                 }
-                            }
-                            recognition.moveError?.let {
-                                Text(it, color = MaterialTheme.colorScheme.error)
                             }
                             if (recognition.moveVerified) {
                                 Text(stringResource(R.string.xiangqi_move_verified))

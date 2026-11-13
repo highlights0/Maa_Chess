@@ -8,6 +8,7 @@ import android.graphics.Path
 import android.os.Build
 import android.os.Handler
 import android.os.Looper
+import android.os.SystemClock
 import android.view.Display
 import android.view.KeyEvent
 import android.view.accessibility.AccessibilityEvent
@@ -18,8 +19,9 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withTimeout
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import timber.log.Timber
-import java.io.ByteArrayOutputStream
 import java.util.concurrent.atomic.AtomicReference
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
@@ -61,41 +63,38 @@ class AccessibilityHelperService : AccessibilityService() {
 
         fun isGameInForeground(packageName: String): Boolean = instance?.currentPackage == packageName
 
-        suspend fun captureGameJpeg(expectedPackage: String): ByteArray {
+        private var lastScreenshotAt = 0L
+        private val screenshotMutex = Mutex()
+
+        suspend fun captureGameBitmap(expectedPackage: String): Bitmap = screenshotMutex.withLock {
             if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) {
                 throw IllegalStateException("前台截图需要 Android 11 或更高版本")
             }
             val service = instance ?: error("请先启用 Maa_Chess 无障碍服务")
-            return withTimeout(8_000L) {
+            withTimeout(8_000L) {
                 while (service.currentPackage != expectedPackage) delay(100)
-                delay(350)
+                val remaining = 350 - (SystemClock.uptimeMillis() - lastScreenshotAt)
+                if (remaining > 0) delay(remaining)
                 suspendCancellableCoroutine { continuation ->
                     if (service.currentPackage != expectedPackage) {
                         continuation.resumeWithException(IllegalStateException("当前画面不是天天象棋"))
                         return@suspendCancellableCoroutine
                     }
+                    lastScreenshotAt = SystemClock.uptimeMillis()
                     service.takeScreenshot(
                         Display.DEFAULT_DISPLAY,
                         service.mainExecutor,
                         object : TakeScreenshotCallback {
                             override fun onSuccess(result: ScreenshotResult) {
                                 try {
-                                    check(service.currentPackage == expectedPackage) { "截图时游戏已离开前台" }
-                                    val jpeg = result.hardwareBuffer.use { buffer ->
+                                    val bitmap = result.hardwareBuffer.use { buffer ->
+                                        check(service.currentPackage == expectedPackage) { "截图时游戏已离开前台" }
                                         val hardware = Bitmap.wrapHardwareBuffer(buffer, result.colorSpace)
                                             ?: error("无法读取前台截图")
-                                        val bitmap = hardware.copy(Bitmap.Config.ARGB_8888, false)
-                                        hardware.recycle()
-                                        try {
-                                            ByteArrayOutputStream().use { out ->
-                                                check(bitmap.compress(Bitmap.CompressFormat.JPEG, 92, out))
-                                                out.toByteArray()
-                                            }
-                                        } finally {
-                                            bitmap.recycle()
-                                        }
+                                        try { hardware.copy(Bitmap.Config.ARGB_8888, false) }
+                                        finally { hardware.recycle() }
                                     }
-                                    if (continuation.isActive) continuation.resume(jpeg)
+                                    continuation.resume(bitmap) { _, unused, _ -> unused.recycle() }
                                 } catch (error: Exception) {
                                     if (continuation.isActive) continuation.resumeWithException(error)
                                 }
@@ -119,15 +118,18 @@ class AccessibilityHelperService : AccessibilityService() {
             toX: Int,
             toY: Int,
         ) {
+            tapGamePoint(expectedPackage, fromX, fromY)
+            delay(120)
+            tapGamePoint(expectedPackage, toX, toY)
+        }
+
+        private suspend fun tapGamePoint(expectedPackage: String, x: Int, y: Int) {
             val service = instance ?: error("请先启用 Maa_Chess 无障碍服务")
             check(service.currentPackage == expectedPackage) { "当前画面不是天天象棋" }
             val gesture = GestureDescription.Builder().apply {
                 addStroke(GestureDescription.StrokeDescription(Path().apply {
-                    moveTo(fromX.toFloat(), fromY.toFloat())
-                }, 0, 80))
-                addStroke(GestureDescription.StrokeDescription(Path().apply {
-                    moveTo(toX.toFloat(), toY.toFloat())
-                }, 350, 80))
+                    moveTo(x.toFloat(), y.toFloat())
+                }, 0, 60))
             }.build()
             withTimeout(3_000L) {
                 suspendCancellableCoroutine<Unit> { continuation ->
@@ -169,6 +171,12 @@ class AccessibilityHelperService : AccessibilityService() {
 
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
         if (event?.eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) {
+            // Our non-focusable overlay also emits window events; it is not an app switch.
+            if (event.packageName?.toString() == BuildConfig.APPLICATION_ID &&
+                event.className?.toString()?.endsWith("Activity") != true) return
+            if (currentPackage != event.packageName?.toString()) {
+                com.aliothmoon.maameow.domain.xiangqi.XiangqiTrace("window").event("foreground", "package=${event.packageName} class=${event.className}")
+            }
             currentPackage = event.packageName?.toString()
             _foregroundPackage.value = currentPackage
         }

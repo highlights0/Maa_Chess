@@ -28,20 +28,21 @@ object XiangqiTurnCueDetector {
         val spacing = min((calibration.right - calibration.left) / 8, (calibration.bottom - calibration.top) / 9)
         val origins = mutableListOf<Pair<XiangqiSquare, Float>>()
         val destinations = mutableListOf<Pair<XiangqiSquare, Float>>()
-        val radius = ceil(spacing * 0.53).toInt()
         for (row in 0..9) for (col in 0..8) {
             val square = XiangqiSquare(row, col)
             val point = square.screenPoint(calibration, redAtTop)
             val empty = rows[row][col] == '.'
+            val radius = ceil(spacing * if (empty) 0.25 else 0.53).toInt()
+            val innerSquared = if (empty) 0.0 else spacing * spacing * 0.38 * 0.38
+            val outerSquared = spacing * spacing * if (empty) 0.25 * 0.25 else 0.53 * 0.53
             var count = 0
             var white = 0
             for (y in max(0, point.y - radius)..min(height - 1, point.y + radius)) {
                 for (x in max(0, point.x - radius)..min(width - 1, point.x + radius)) {
-                    val dx = (x - point.x) / spacing
-                    val dy = (y - point.y) / spacing
+                    val dx = x - point.x
+                    val dy = y - point.y
                     val distanceSquared = dx * dx + dy * dy
-                    if (if (empty) distanceSquared > 0.25 * 0.25
-                        else distanceSquared < 0.38 * 0.38 || distanceSquared > 0.53 * 0.53) continue
+                    if (distanceSquared < innerSquared || distanceSquared > outerSquared) continue
                     count++
                     val color = pixels[y * width + x]
                     val r = color ushr 16 and 255

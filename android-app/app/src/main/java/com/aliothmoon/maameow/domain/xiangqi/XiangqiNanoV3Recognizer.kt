@@ -93,6 +93,7 @@ data class XiangqiRecognitionResult(
     val redAtTopOnScreen: Boolean,
     val problemCode: String?,
     val turnCue: XiangqiTurnCue? = null,
+    val boardImage: XiangqiBoardImage? = null,
 ) {
     val playerSide: Char get() = if (redAtTopOnScreen) 'b' else 'w'
     val isComplete: Boolean
@@ -139,24 +140,40 @@ class XiangqiNanoV3Recognizer(
         trace: XiangqiTrace? = null,
     ): XiangqiRecognitionResult {
         require(jpeg.isNotEmpty()) { "截图数据为空" }
-        val modelFile = modelRepository.ensureModel()
         return withContext(Dispatchers.Default) {
             val bitmap = BitmapFactory.decodeByteArray(jpeg, 0, jpeg.size)
                 ?: throw IOException("无法解码象棋画面")
             trace?.event("inference.frame", "width=${bitmap.width} height=${bitmap.height} bytes=${jpeg.size}")
             try {
+                recognizeBitmap(bitmap, calibration, redAtTopOnScreen, trace)
+            } finally {
+                bitmap.recycle()
+            }
+        }
+    }
+
+    /** Caller owns the bitmap; avoids JPEG encoding/decoding in foreground mode. */
+    suspend fun recognizeBitmap(
+        bitmap: Bitmap,
+        calibration: XiangqiBoardCalibration,
+        redAtTopOnScreen: Boolean? = null,
+        trace: XiangqiTrace? = null,
+    ): XiangqiRecognitionResult {
+        val modelFile = modelRepository.ensureModel()
+        trace?.event("model.ready")
+        return withContext(Dispatchers.Default) {
                 val scaledCalibration = calibration.scaledTo(bitmap.width, bitmap.height)
                 scaledCalibration.validate(bitmap.width, bitmap.height)
                 trace?.event("inference.start", "calibration=$scaledCalibration")
                 val recognized = inferenceMutex.withLock {
                     if (redAtTopOnScreen != null) {
-                        infer(bitmap, scaledCalibration, redAtTopOnScreen, modelFile).publicResult
+                        infer(bitmap, scaledCalibration, redAtTopOnScreen, modelFile, trace).publicResult
                     } else {
-                        val normal = infer(bitmap, scaledCalibration, false, modelFile)
+                        val normal = infer(bitmap, scaledCalibration, false, modelFile, trace)
                         if (normal.orientationIsValid) {
                             normal.publicResult
                         } else {
-                            val flipped = infer(bitmap, scaledCalibration, true, modelFile)
+                            val flipped = infer(bitmap, scaledCalibration, true, modelFile, trace)
                             when {
                                 flipped.orientationIsValid -> flipped.publicResult
                                 flipped.publicResult.uncertainSquares.size < normal.publicResult.uncertainSquares.size -> flipped.publicResult
@@ -165,17 +182,14 @@ class XiangqiNanoV3Recognizer(
                         }
                     }
                 }
+                val pixels = IntArray(bitmap.width * bitmap.height)
+                bitmap.getPixels(pixels, 0, bitmap.width, 0, 0, bitmap.width, bitmap.height)
                 val cue = if (recognized.isComplete) {
-                    val pixels = IntArray(bitmap.width * bitmap.height)
-                    bitmap.getPixels(pixels, 0, bitmap.width, 0, 0, bitmap.width, bitmap.height)
                     XiangqiTurnCueDetector.detect(pixels, bitmap.width, bitmap.height, scaledCalibration,
                         recognized.rows, recognized.redAtTopOnScreen)
                 } else null
                 trace?.event("turn.cue", "player=${recognized.playerSide} lastMove=${cue?.lastMove?.iccs} lastSide=${cue?.lastSide} nextSide=${cue?.sideToMove} originWhite=${cue?.originWhiteRatio} destinationWhite=${cue?.destinationWhiteRatio}")
-                recognized.copy(turnCue = cue)
-            } finally {
-                bitmap.recycle()
-            }
+                recognized.copy(turnCue = cue, boardImage = XiangqiBoardImage.sample(pixels, bitmap.width, bitmap.height, scaledCalibration))
         }
     }
 
@@ -184,8 +198,10 @@ class XiangqiNanoV3Recognizer(
         calibration: XiangqiBoardCalibration,
         redAtTopOnScreen: Boolean,
         modelFile: File,
+        trace: XiangqiTrace?,
     ): InternalResult {
         val input = preprocess(bitmap, calibration, redAtTopOnScreen)
+        trace?.event("inference.preprocessed", "flipped=$redAtTopOnScreen")
         val activeSession = getSession(modelFile)
         val directBuffer = ByteBuffer.allocateDirect(input.size * Float.SIZE_BYTES)
             .order(ByteOrder.nativeOrder())
@@ -199,6 +215,7 @@ class XiangqiNanoV3Recognizer(
             longArrayOf(1, 3, INPUT_HEIGHT.toLong(), INPUT_WIDTH.toLong()),
         ).use { inputTensor ->
             activeSession.run(mapOf(inputName!! to inputTensor)).use { result ->
+                trace?.event("inference.output")
                 val tensor = result.get(outputName!!).orElse(null) as? OnnxTensor
                     ?: throw IOException("nano-v3 模型输出不是 Tensor")
                 val shape = (tensor.info as TensorInfo).shape

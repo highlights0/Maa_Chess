@@ -3123,7 +3123,7 @@
     <string name="bottom_nav_records">기보</string>
     <string name="settings_game_package_xiangqi">중국 장기(샹치)</string>
     <string name="xiangqi_task_title">샹치 작업</string>
-    <string name="xiangqi_task_subtitle">일반 대국 또는 퍼즐을 선택하고 게임을 실행한 뒤 보드를 인식하세요. 차례를 확인하면 추천 경로를 볼 수 있습니다. 오프라인에서는 한 수를 두고 새 화면으로 검증할 수 있습니다.</string>
+    <string name="xiangqi_task_subtitle">기보 인식, 지속 경로 표시, 한 수 실행 및 오프라인 연속 자동 대국을 지원합니다.</string>
     <string name="xiangqi_scene_standard">일반 대국</string>
     <string name="xiangqi_scene_puzzle">퍼즐 도전</string>
     <string name="xiangqi_status_busy">게임 요청 처리 중…</string>
@@ -3137,7 +3137,7 @@
     <string name="xiangqi_preview_hint">미리보기를 누르면 전체 화면에서 게임을 터치할 수 있습니다. 백그라운드 모드에는 Shizuku 또는 Root 권한이 필요합니다.</string>
     <string name="xiangqi_foreground_hint">전경 모드: 게임 보드에서 이 화면으로 돌아와 인식을 누르세요. 앱이 게임으로 전환해 캡처한 뒤 돌아오기를 시도합니다. 접근성 서비스가 필요하며 휴대전화 해상도는 변경하지 않습니다.</string>
     <string name="xiangqi_task_note_title">현재 기능 범위</string>
-    <string name="xiangqi_task_note_message">휴대전화의 표준 초반 보드에서 백그라운드 인식과 ARM64 Pikafish 추천을 검증했습니다. 전경 캡처와 한 수 자동 착수는 기기 검증이 필요합니다. 차례는 수동으로 확인해야 합니다.</string>
+    <string name="xiangqi_task_note_message">새 기보로 자동 전환합니다. 관측하지 않은 기록은 알 수 없으며 해당 기록의 반복 판정은 지원하지 않습니다.</string>
     <string name="xiangqi_record_title">기보 기록</string>
     <string name="xiangqi_record_empty_title">기록이 없습니다</string>
     <string name="xiangqi_record_empty_message">기보 수집 기능이 구현되면 인식된 국면, 착수 기록 및 AI 분석 결과가 여기에 표시됩니다.</string>
@@ -3162,7 +3162,7 @@
     <string name="xiangqi_recognition_incomplete">인식 미완료: %1$d개 칸을 확인해야 합니다</string>
     <string name="xiangqi_recognition_fen">보드 FEN: %1$s</string>
     <string name="xiangqi_recognition_confidence">평균 신뢰도: %1$.1f%%</string>
-    <string name="xiangqi_recognition_move_guard">불확실한 칸은 엔진에 전달하지 않습니다. 오프라인 확인과 새 화면 대조 후 한 수만 자동으로 둡니다.</string>
+    <string name="xiangqi_recognition_move_guard">오프라인 연습 및 퍼즐에서 사용하세요. 실행 전 화면을 확인하고 실행 후 검증합니다. 차례가 불명확하면 중지합니다.</string>
 
     <string name="xiangqi_recognition_error_generic">자세한 원인은 앱 로그에 기록되었습니다. 스크린샷, 보드 보정 및 모델 파일을 확인하세요.</string>
     <string name="xiangqi_recognition_generals_missing">홍/흑 장군을 신뢰성 있게 인식하지 못했습니다. 이 국면은 엔진에 전달할 수 없습니다.</string>
@@ -3170,7 +3170,6 @@
     <string name="xiangqi_analysis_side">현재 어느 쪽 차례인가요?</string>
     <string name="xiangqi_analysis_red">홍</string>
     <string name="xiangqi_analysis_black">흑</string>
-    <string name="xiangqi_analysis_fresh_position">새 대국 또는 퍼즐의 시작임을 확인합니다.</string>
     <string name="xiangqi_analysis_arm64_only">Pikafish 분석은 현재 ARM64 기기에서만 지원됩니다.</string>
     <string name="xiangqi_analysis_action">추천 수 받기</string>
     <string name="xiangqi_analysis_running">분석 중…</string>
@@ -3178,26 +3177,33 @@
     <string name="xiangqi_analysis_details">깊이: %1$s; 점수: %2$s (현재 차례 기준)</string>
     <string name="xiangqi_analysis_variation">참고 변화: %1$s</string>
     <string name="xiangqi_analysis_error">엔진 분석에 실패했습니다. 판, 차례, 엔진 파일 및 앱 로그를 확인하세요.</string>
-    <string name="xiangqi_move_offline_confirm">현재 오프라인 연습 또는 퍼즐이며 앱이 이 수를 자동으로 둘 수 있음을 확인합니다.</string>
-    <string name="xiangqi_move_action">추천 수 두기 및 화면 확인</string>
-    <string name="xiangqi_move_running">확인 후 착수 중…</string>
+    <string name="xiangqi_move_action">추천 수 자동 실행</string>
+    <string name="xiangqi_move_running">실행 및 검증 중…</string>
     <string name="xiangqi_move_aborted">입력 전 보드 확인에 실패하여 자동 착수를 중단했습니다. 다시 인식하세요.</string>
     <string name="xiangqi_move_unverified">터치 입력을 보냈지만 새 화면에서 착수를 확인하지 못했습니다. 자동 동작이 일시 중지되었습니다. 다시 누르기 전에 보드를 확인하세요.</string>
     <string name="xiangqi_move_verified">새 화면에서 착수를 확인했습니다.</string>
     <string name="xiangqi_history_status">기록 중: 확인된 %1$d수. 합법적인 보드 변화에 따라 차례를 갱신합니다.</string>
-    <string name="xiangqi_history_discontinuity">보드 변화를 확인하지 못했습니다. 다시 인식하거나 새 대국 또는 퍼즐이라면 새 보드를 선택하세요.</string>
+    <string name="xiangqi_history_discontinuity">기보가 변경되었습니다. 다시 인식하면 자동 전환됩니다.</string>
     <string name="xiangqi_history_import_error">가져오기 실패. 전체 FEN, 선택적인 moves 목록 및 현재 보드와의 일치를 확인하세요.</string>
     <string name="xiangqi_history_import_label">전체 FEN (선택적으로 moves와 ICCS 수 추가)</string>
     <string name="xiangqi_history_import_action">대국 기록 가져오기</string>
-    <string name="xiangqi_history_reset">새 보드</string>
     <string name="xiangqi_panel_lock">패널 위치 잠금 전환</string>
     <string name="xiangqi_panel_close">장기 패널 접기</string>
     <string name="xiangqi_panel_open_app">Maa_Chess를 열어 장기 작업을 초기화하세요.</string>
     <string name="xiangqi_panel_more">보드 세부 정보 표시</string>
     <string name="xiangqi_panel_less">보드 세부 정보 숨기기</string>
     <string name="xiangqi_game_hint">추천 수</string>
-    <string name="xiangqi_game_hint_help">패널을 접으면 게임 보드에서 추천 화살표를 볼 수 있습니다.</string>
+    <string name="xiangqi_game_hint_help">기보가 바뀔 때까지 추천 경로를 표시합니다. 플로팅 버튼 또는 음량 단축키로 자동 대국을 중지합니다.</string>
     <string name="xiangqi_player_side">아래쪽 내 편: %1$s</string>
     <string name="xiangqi_visual_turn">흰색 이동 표시에 따른 차례: %1$s</string>
     <string name="xiangqi_wait_opponent">상대 차례입니다. 상대가 둔 후 다시 인식하세요.</string>
+    <string name="xiangqi_auto_one_move">인식 후 한 수 실행</string>
+    <string name="xiangqi_auto_start">자동 대국 시작</string>
+    <string name="xiangqi_auto_stop">자동 대국 중지</string>
+    <string name="xiangqi_auto_thinking">자동 대국: 분석 중…</string>
+    <string name="xiangqi_auto_wait_turn">상대 수 또는 차례 표시 대기 중…</string>
+    <string name="xiangqi_auto_wait_new_board">합법적인 수가 없습니다. 새 기보 대기 중…</string>
+    <string name="xiangqi_auto_stopped">자동 대국을 중지했습니다.</string>
+    <string name="xiangqi_automation_paused">기보 또는 차례를 확인할 수 없어 중지했습니다. 게임 확인 후 다시 인식하세요. 자세한 내용은 로그에 있습니다.</string>
+    <string name="xiangqi_auto_notification">내 차례를 인식하여 자동 실행합니다. 탭하여 앱을 열거나 중지하세요.</string>
 </resources>

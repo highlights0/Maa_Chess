@@ -53,6 +53,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
 import com.aliothmoon.maameow.constant.Packages
 import com.aliothmoon.maameow.domain.xiangqi.XiangqiMove
 import kotlinx.coroutines.launch
@@ -84,6 +85,12 @@ class OverlayController(
     private val gameHints = XiangqiHintOverlay(context)
     private var gameHintJob: Job? = null
     fun setXiangqiCaptureActive(active: Boolean) { capturingXiangqi.value = active }
+    fun canObserveXiangqi(): Boolean = _isActive.value && !mainPanelVisible.value && !capturingXiangqi.value
+    fun showXiangqiAutomationControl() {
+        if (!_isActive.value) show(OverlayControlMode.FLOAT_BALL)
+        hideMainPanel()
+        showFloatBall()
+    }
     fun attachXiangqiViewModel(viewModel: BackgroundTaskViewModel?) {
         xiangqiViewModel.value = viewModel
         gameHintJob?.cancel()
@@ -97,11 +104,11 @@ class OverlayController(
                 val analysis = state.analysis
                 val move = if (allowed && mode == RunMode.FOREGROUND && pkg == Packages["Xiangqi"] &&
                     result?.isComplete == true && analysis != null && state.historyError == null &&
-                    !state.isRecognizing && !state.isExecutingMove) {
+                    !state.inputUnverified && !state.boardChanged && !state.isExecutingMove) {
                     XiangqiMove.parse(analysis.bestMove, result.rows, analysis.side)
                 } else null
                 result to move
-            }.collect { (result, move) ->
+            }.distinctUntilChanged().collect { (result, move) ->
                 if (result != null && move != null) gameHints.show(result, move) else gameHints.hide()
             }
         }
@@ -423,6 +430,12 @@ class OverlayController(
     }
 
     fun onFloatBallClick() {
+        if (xiangqiViewModel.value?.xiangqiRecognition?.value?.isAutoPlaying == true) {
+            xiangqiViewModel.value?.onStopAutoXiangqi()
+            hideFloatBall()
+            showMainPanel()
+            return
+        }
         if (_countdownState.value is CountdownState.Counting) {
             handleCountdownClick()
             return
@@ -563,6 +576,7 @@ class OverlayController(
     }
 
     suspend fun hideAll() {
+        xiangqiViewModel.value?.onStopAutoXiangqi()
         hideMainPanel()
         hideFloatBall()
         borderOverlayManager.hide()
@@ -571,6 +585,9 @@ class OverlayController(
     }
 
     fun toggleMainPanel() {
+        if (xiangqiViewModel.value?.xiangqiRecognition?.value?.isAutoPlaying == true) {
+            xiangqiViewModel.value?.onStopAutoXiangqi()
+        }
         val mainPanelShowing = FloatingX.controlOrNull(MAIN_PANEL_TAG)?.isShow() == true
         if (mainPanelShowing) {
             hideMainPanel()

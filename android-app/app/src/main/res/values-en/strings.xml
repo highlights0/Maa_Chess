@@ -3066,7 +3066,7 @@ MAA will not end an in-progress exploration early because this option is uncheck
     <string name="bottom_nav_records">Records</string>
     <string name="settings_game_package_xiangqi">Tiantian Xiangqi</string>
     <string name="xiangqi_task_title">Xiangqi Tasks</string>
-    <string name="xiangqi_task_subtitle">Choose a standard game or puzzle, launch the game, and recognize the board. Confirm the side to move to see a suggested route. Offline play can execute one move and verify it with a new screenshot.</string>
+    <string name="xiangqi_task_subtitle">Recognize the board, keep route hints visible, play once, or start continuous auto play in offline practice and puzzles.</string>
     <string name="xiangqi_scene_standard">Standard match</string>
     <string name="xiangqi_scene_puzzle">Puzzle challenge</string>
     <string name="xiangqi_status_busy">Processing game request…</string>
@@ -3080,7 +3080,7 @@ MAA will not end an in-progress exploration early because this option is uncheck
     <string name="xiangqi_preview_hint">Tap the preview to view and control the game full screen. Background mode requires Shizuku or Root.</string>
     <string name="xiangqi_foreground_hint">Foreground mode: return here from the game board and tap Recognize. The app will switch back to the game to capture it, then try to return. This needs Accessibility and does not change the phone resolution.</string>
     <string name="xiangqi_task_note_title">Current scope</string>
-    <string name="xiangqi_task_note_message">Background recognition and ARM64 Pikafish suggestions were verified on a phone opening board. Foreground capture and one-move execution still need device validation. The side to move must be confirmed manually.</string>
+    <string name="xiangqi_task_note_message">New boards switch automatically. Unobserved history is unknown; analysis cannot adjudicate repetition from that history.</string>
     <string name="xiangqi_record_title">Game records</string>
     <string name="xiangqi_record_empty_title">No records yet</string>
     <string name="xiangqi_record_empty_message">Recognized positions, move history, and AI analysis will appear here after game-record capture is implemented.</string>
@@ -3105,7 +3105,7 @@ MAA will not end an in-progress exploration early because this option is uncheck
     <string name="xiangqi_recognition_incomplete">Recognition incomplete: %1$d squares need review</string>
     <string name="xiangqi_recognition_fen">Board FEN: %1$s</string>
     <string name="xiangqi_recognition_confidence">Mean confidence: %1$.1f%%</string>
-    <string name="xiangqi_recognition_move_guard">Uncertain squares are never sent to the engine. A single move is played only after offline confirmation and a fresh screenshot check.</string>
+    <string name="xiangqi_recognition_move_guard">Use automation in offline practice or puzzles. The screen is checked before input and verified afterward. Unknown turns pause play.</string>
 
     <string name="xiangqi_recognition_error_generic">Details were written to the app log. Check the screenshot, board calibration, and model file.</string>
     <string name="xiangqi_recognition_generals_missing">The red or black general could not be identified reliably; this position cannot be sent to the engine.</string>
@@ -3113,7 +3113,6 @@ MAA will not end an in-progress exploration early because this option is uncheck
     <string name="xiangqi_analysis_side">Whose turn is it?</string>
     <string name="xiangqi_analysis_red">Red</string>
     <string name="xiangqi_analysis_black">Black</string>
-    <string name="xiangqi_analysis_fresh_position">I confirm this is a new game or puzzle start.</string>
     <string name="xiangqi_analysis_arm64_only">Pikafish analysis currently supports ARM64 devices only.</string>
     <string name="xiangqi_analysis_action">Get suggested move</string>
     <string name="xiangqi_analysis_running">Analyzing…</string>
@@ -3121,26 +3120,33 @@ MAA will not end an in-progress exploration early because this option is uncheck
     <string name="xiangqi_analysis_details">Depth: %1$s; score: %2$s (side-to-move view)</string>
     <string name="xiangqi_analysis_variation">Principal variation: %1$s</string>
     <string name="xiangqi_analysis_error">Engine analysis failed. Check the board, side to move, and engine files, then inspect the app log.</string>
-    <string name="xiangqi_move_offline_confirm">I confirm this is offline practice or a puzzle and allow the app to play this move.</string>
-    <string name="xiangqi_move_action">Play suggested move and verify</string>
-    <string name="xiangqi_move_running">Checking and playing…</string>
+    <string name="xiangqi_move_action">Play recommended move</string>
+    <string name="xiangqi_move_running">Playing and verifying…</string>
     <string name="xiangqi_move_aborted">The board check failed before input. No automatic move was sent. Recognize again.</string>
     <string name="xiangqi_move_unverified">Touch input was sent, but the new screenshot did not confirm the move. Automation is paused. Check the board manually before trying again.</string>
     <string name="xiangqi_move_verified">The move was confirmed by a new screenshot.</string>
     <string name="xiangqi_history_status">Game history is active: %1$d confirmed moves. The turn updates from legal board changes.</string>
-    <string name="xiangqi_history_discontinuity">The board change could not be confirmed. Recognize again, or choose New board if you started a new game or puzzle.</string>
+    <string name="xiangqi_history_discontinuity">Board changed. Recognize again to switch automatically.</string>
     <string name="xiangqi_history_import_error">Import failed. Check the full FEN, optional moves list, and that they match the visible board.</string>
     <string name="xiangqi_history_import_label">Full FEN (optionally followed by moves and ICCS moves)</string>
     <string name="xiangqi_history_import_action">Import game record</string>
-    <string name="xiangqi_history_reset">New board</string>
     <string name="xiangqi_panel_lock">Toggle panel position lock</string>
     <string name="xiangqi_panel_close">Collapse chess panel</string>
     <string name="xiangqi_panel_open_app">Open Maa_Chess to initialize the chess task.</string>
     <string name="xiangqi_panel_more">Show board details</string>
     <string name="xiangqi_panel_less">Hide board details</string>
     <string name="xiangqi_game_hint">Suggested move</string>
-    <string name="xiangqi_game_hint_help">Collapse the panel to see the suggested arrow on the game board.</string>
+    <string name="xiangqi_game_hint_help">The route stays visible until the board changes. Tap the floating ball or volume shortcut to stop auto play.</string>
     <string name="xiangqi_player_side">Your side at the bottom: %1$s</string>
     <string name="xiangqi_visual_turn">White move markers indicate: %1$s to move</string>
     <string name="xiangqi_wait_opponent">It is the opponent\'s turn. Recognize again after their move.</string>
+    <string name="xiangqi_auto_one_move">Recognize and play once</string>
+    <string name="xiangqi_auto_start">Start auto play</string>
+    <string name="xiangqi_auto_stop">Stop auto play</string>
+    <string name="xiangqi_auto_thinking">Auto play: analyzing…</string>
+    <string name="xiangqi_auto_wait_turn">Auto play: waiting for opponent or turn markers…</string>
+    <string name="xiangqi_auto_wait_new_board">No legal moves; waiting for a new board…</string>
+    <string name="xiangqi_auto_stopped">Auto play stopped.</string>
+    <string name="xiangqi_automation_paused">Paused: board or turn is unconfirmed. Check the game and recognize again. Details are in the logs.</string>
+    <string name="xiangqi_auto_notification">Recognizes and plays your side. Tap to open the app, or use Stop.</string>
 </resources>
