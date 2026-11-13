@@ -28,7 +28,8 @@ import com.aliothmoon.maameow.presentation.LocalFloatingWindowContext
 import com.aliothmoon.maameow.presentation.ProvideInputFocusManager
 import com.aliothmoon.maameow.presentation.components.LocalPagerPreloadState
 import com.aliothmoon.maameow.presentation.components.PagerPreloadState
-import com.aliothmoon.maameow.presentation.view.panel.ExpandedControlPanel
+import com.aliothmoon.maameow.presentation.view.xiangqi.XiangqiForegroundPanel
+import com.aliothmoon.maameow.presentation.viewmodel.BackgroundTaskViewModel
 import com.aliothmoon.maameow.schedule.model.CountdownState
 import com.aliothmoon.maameow.service.AccessibilityHelperService
 import com.aliothmoon.maameow.theme.MaaMeowTheme
@@ -51,6 +52,9 @@ import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
+import com.aliothmoon.maameow.constant.Packages
+import com.aliothmoon.maameow.domain.xiangqi.XiangqiMove
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import timber.log.Timber
@@ -74,6 +78,34 @@ class OverlayController(
 
     private val _isLocked = MutableStateFlow(true)
     private val _isActive = MutableStateFlow(false)
+    private val xiangqiViewModel = MutableStateFlow<BackgroundTaskViewModel?>(null)
+    private val mainPanelVisible = MutableStateFlow(false)
+    private val capturingXiangqi = MutableStateFlow(false)
+    private val gameHints = XiangqiHintOverlay(context)
+    private var gameHintJob: Job? = null
+    fun setXiangqiCaptureActive(active: Boolean) { capturingXiangqi.value = active }
+    fun attachXiangqiViewModel(viewModel: BackgroundTaskViewModel?) {
+        xiangqiViewModel.value = viewModel
+        gameHintJob?.cancel()
+        gameHints.hide()
+        if (viewModel != null) gameHintJob = scope.launch {
+            val visible = combine(_isActive, mainPanelVisible, capturingXiangqi) { active, panel, capture ->
+                active && !panel && !capture
+            }
+            combine(viewModel.xiangqiRecognition, appSettings.runMode, AccessibilityHelperService.foregroundPackage, visible) { state, mode, pkg, allowed ->
+                val result = state.result
+                val analysis = state.analysis
+                val move = if (allowed && mode == RunMode.FOREGROUND && pkg == Packages["Xiangqi"] &&
+                    result?.isComplete == true && analysis != null && state.historyError == null &&
+                    !state.isRecognizing && !state.isExecutingMove) {
+                    XiangqiMove.parse(analysis.bestMove, result.rows, analysis.side)
+                } else null
+                result to move
+            }.collect { (result, move) ->
+                if (result != null && move != null) gameHints.show(result, move) else gameHints.hide()
+            }
+        }
+    }
     val isActive: StateFlow<Boolean> = _isActive.asStateFlow()
     private var calculatedPanelLayout: Pair<Int, Int>? = null
     private var orientation = context.resources.configuration.orientation
@@ -251,13 +283,15 @@ class OverlayController(
                         LocalFloatingWindowContext provides true,
                         LocalPagerPreloadState provides remember { PagerPreloadState() },
                         LocalDensity provides Density(
-                            density = baseDensity.density * effectiveScale / 100f,
+                            density = baseDensity.density,
                             fontScale = UiScale.clampOverlayFontScale(baseDensity.fontScale),
                         )
                     ) {
                         ProvideInputFocusManager {
                             val isLocked by _isLocked.collectAsStateWithLifecycle()
-                            ExpandedControlPanel(
+                            val chess by xiangqiViewModel.collectAsStateWithLifecycle()
+                            XiangqiForegroundPanel(
+                                viewModel = chess,
                                 onClose = ::onCloseControlPanel,
                                 onHome = { Misc.bringAppToFront(context) },
                                 isLocked = isLocked,
@@ -279,13 +313,8 @@ class OverlayController(
 
     private fun calculatePanelLayout(config: Configuration): Pair<Int, Int> {
         val density = context.resources.displayMetrics.density
-        val height =
-            config.screenHeightDp * density * if (config.orientation == Configuration.ORIENTATION_LANDSCAPE) {
-                0.85
-            } else {
-                0.6
-            }
-        val width = config.screenWidthDp * density * 0.85
+        val height = minOf(config.screenHeightDp * 0.55f, 500f) * density
+        val width = minOf(config.screenWidthDp * 0.72f, 320f) * density
         return width.toInt() to height.toInt()
     }
 
@@ -416,6 +445,7 @@ class OverlayController(
 
     fun showMainPanel() {
         scope.launch {
+            mainPanelVisible.value = true
             fwViewModelOwner.start()
             FloatingX.controlOrNull(MAIN_PANEL_TAG)?.show()
         }
@@ -427,6 +457,7 @@ class OverlayController(
 
     /** 主线程调用 */
     private fun hideMainPanelNow() {
+        mainPanelVisible.value = false
         val control = FloatingX.controlOrNull(MAIN_PANEL_TAG)
         if (control?.isShow() == true) {
             control.hide()

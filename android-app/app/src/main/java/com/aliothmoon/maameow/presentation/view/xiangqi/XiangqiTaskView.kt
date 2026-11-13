@@ -43,6 +43,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -98,6 +99,7 @@ private const val XIANGQI_CLIENT_TYPE = "Xiangqi"
 fun XiangqiTaskView(
     viewModel: BackgroundTaskViewModel,
     isActivePage: () -> Boolean = { true },
+    floatingPanel: Boolean = false,
 ) {
     val appSettings: AppSettingsManager = koinInject()
     val compositionService: MaaCompositionService = koinInject()
@@ -117,8 +119,9 @@ fun XiangqiTaskView(
     var selectedSide by rememberSaveable { mutableStateOf<String?>(null) }
     var freshPositionConfirmed by rememberSaveable { mutableStateOf(false) }
     var offlineMoveConfirmed by rememberSaveable { mutableStateOf(false) }
-    LaunchedEffect(recognition.result) {
-        selectedSide = null
+    var showBoardDetails by rememberSaveable { mutableStateOf(false) }
+    LaunchedEffect(recognition.result, recognition.detectedSide) {
+        selectedSide = recognition.detectedSide?.toString()
         freshPositionConfirmed = false
         offlineMoveConfirmed = false
     }
@@ -135,7 +138,7 @@ fun XiangqiTaskView(
         displayResolution
     }
 
-    if (taskState.isFullscreenMonitor) {
+    if (!floatingPanel && taskState.isFullscreenMonitor) {
         BackHandler { viewModel.onToggleFullscreenMonitor() }
         Box(
             modifier = Modifier
@@ -224,11 +227,11 @@ fun XiangqiTaskView(
         modifier = Modifier
             .fillMaxSize()
             .padding(horizontal = 16.dp)
-            .windowInsetsPadding(MaaWindowInsets.topBar),
+            .then(if (floatingPanel) Modifier else Modifier.windowInsetsPadding(MaaWindowInsets.topBar)),
         contentPadding = PaddingValues(top = 12.dp, bottom = 24.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        item {
+        if (!floatingPanel) item {
             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Text(
                     text = stringResource(R.string.xiangqi_task_title),
@@ -242,7 +245,7 @@ fun XiangqiTaskView(
             }
         }
 
-        item {
+        if (!floatingPanel) item {
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 colors = CardDefaults.cardColors(
@@ -329,7 +332,7 @@ fun XiangqiTaskView(
             }
         }
 
-        item {
+        if (!floatingPanel) item {
             if (runMode == RunMode.BACKGROUND) {
                 Column(
                     modifier = Modifier.fillMaxWidth(),
@@ -391,7 +394,7 @@ fun XiangqiTaskView(
                     modifier = Modifier.padding(16.dp),
                     verticalArrangement = Arrangement.spacedBy(10.dp),
                 ) {
-                    Text(
+                    if (!floatingPanel) Text(
                         text = stringResource(R.string.xiangqi_recognition_title),
                         style = MaterialTheme.typography.titleMedium,
                     )
@@ -409,7 +412,7 @@ fun XiangqiTaskView(
                             stringResource(R.string.xiangqi_recognition_error_generic),
                         )
                     }
-                    Row(verticalAlignment = Alignment.CenterVertically) {
+                    if (!floatingPanel || modelStatus != XiangqiModelStatus.Ready) Row(verticalAlignment = Alignment.CenterVertically) {
                         Text(
                             text = modelStatusText,
                             modifier = Modifier.weight(1f),
@@ -439,7 +442,6 @@ fun XiangqiTaskView(
                         enabled = modelStatus == XiangqiModelStatus.Ready &&
                             ((runMode == RunMode.BACKGROUND && gameOnDisplay) ||
                                 (runMode == RunMode.FOREGROUND &&
-                                    gameStatus == AppAliveStatus.ALIVE &&
                                     accessibilityConnected && Build.VERSION.SDK_INT >= Build.VERSION_CODES.R)) &&
                             !recognition.isRecognizing && !recognition.isAnalyzing &&
                             !recognition.isExecutingMove,
@@ -490,7 +492,8 @@ fun XiangqiTaskView(
                     }
                     recognition.result?.let { result ->
                         val displayedAnalysis = recognition.analysis?.takeIf {
-                            freshPositionConfirmed && selectedSide == it.side.toString()
+                            (freshPositionConfirmed || recognition.session != null) &&
+                                recognition.historyError == null && selectedSide == it.side.toString()
                         }
                         val suggestedMove = displayedAnalysis?.let {
                             XiangqiMove.parse(it.bestMove, result.rows, it.side)
@@ -508,6 +511,10 @@ fun XiangqiTaskView(
                             color = if (result.isComplete) MaterialTheme.colorScheme.primary
                             else MaterialTheme.colorScheme.error,
                         )
+                        if (floatingPanel) TextButton(onClick = { showBoardDetails = !showBoardDetails }) {
+                            Text(stringResource(if (showBoardDetails) R.string.xiangqi_panel_less else R.string.xiangqi_panel_more))
+                        }
+                        if (!floatingPanel || showBoardDetails) {
                         XiangqiBoardPreview(
                             rows = result.rows,
                             redAtTopOnScreen = result.redAtTopOnScreen,
@@ -541,7 +548,8 @@ fun XiangqiTaskView(
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
-                        Text(
+                        }
+                        if (!floatingPanel || showBoardDetails) Text(
                             text = stringResource(R.string.xiangqi_recognition_move_guard),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -554,16 +562,18 @@ fun XiangqiTaskView(
                             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                 FilterChip(
                                     selected = selectedSide == "w",
+                                    enabled = recognition.session == null,
                                     onClick = { selectedSide = "w" },
                                     label = { Text(stringResource(R.string.xiangqi_analysis_red)) },
                                 )
                                 FilterChip(
                                     selected = selectedSide == "b",
+                                    enabled = recognition.session == null,
                                     onClick = { selectedSide = "b" },
                                     label = { Text(stringResource(R.string.xiangqi_analysis_black)) },
                                 )
                             }
-                            Row(verticalAlignment = Alignment.CenterVertically) {
+                            if (recognition.session == null) Row(verticalAlignment = Alignment.CenterVertically) {
                                 Checkbox(
                                     checked = freshPositionConfirmed,
                                     onCheckedChange = { freshPositionConfirmed = it },
@@ -573,6 +583,12 @@ fun XiangqiTaskView(
                                     style = MaterialTheme.typography.bodySmall,
                                 )
                             }
+                            recognition.historyError?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+                            if (recognition.historyError != null) {
+                                OutlinedButton(onClick = viewModel::onResetXiangqiHistory) {
+                                    Text(stringResource(R.string.xiangqi_history_reset))
+                                }
+                            }
                             if (!viewModel.xiangqiEngineSupported) {
                                 Text(
                                     text = stringResource(R.string.xiangqi_analysis_arm64_only),
@@ -581,10 +597,11 @@ fun XiangqiTaskView(
                                 )
                             }
                             Button(
-                                enabled = selectedSide != null && freshPositionConfirmed &&
+                                enabled = selectedSide != null && (freshPositionConfirmed || recognition.session != null) &&
+                                    recognition.historyError == null &&
                                     viewModel.xiangqiEngineSupported && !recognition.isAnalyzing &&
                                     !recognition.isExecutingMove,
-                                onClick = { selectedSide?.singleOrNull()?.let(viewModel::onAnalyzeXiangqiBoard) },
+                                onClick = { selectedSide?.singleOrNull()?.let { viewModel.onAnalyzeXiangqiBoard(it, freshPositionConfirmed) } },
                                 modifier = Modifier.fillMaxWidth(),
                             ) {
                                 Text(stringResource(
@@ -600,7 +617,8 @@ fun XiangqiTaskView(
                                     text = stringResource(R.string.xiangqi_analysis_bestmove, analysis.bestMove),
                                     style = MaterialTheme.typography.titleMedium,
                                 )
-                                Text(
+                                if (floatingPanel) Text(stringResource(R.string.xiangqi_game_hint_help), style = MaterialTheme.typography.bodySmall)
+                                if (!floatingPanel || showBoardDetails) Text(
                                     text = stringResource(
                                         R.string.xiangqi_analysis_details,
                                         analysis.depth?.toString() ?: "?",
@@ -608,7 +626,7 @@ fun XiangqiTaskView(
                                     ),
                                     style = MaterialTheme.typography.bodySmall,
                                 )
-                                if (analysis.variation.isNotEmpty()) {
+                                if ((!floatingPanel || showBoardDetails) && analysis.variation.isNotEmpty()) {
                                     Text(
                                         text = stringResource(
                                             R.string.xiangqi_analysis_variation,
@@ -633,7 +651,6 @@ fun XiangqiTaskView(
                                         onClick = {
                                             viewModel.onExecuteXiangqiMove(
                                                 offlineMoveConfirmed,
-                                                freshPositionConfirmed,
                                             )
                                         },
                                         modifier = Modifier.fillMaxWidth(),

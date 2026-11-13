@@ -22,16 +22,21 @@
 - 天天象棋包名已在用户提供的 MuMu 诊断中核实：`com.tencent.qqgame.xq`（4.3.0.2）。
 - 初始后台分辨率使用用户设备的 900×1600、240 DPI 竖屏配置。
 - 标准对局 / 残局闯关入口、棋谱页占位和客户端包名设置入口。
+- nano-v3 模型随 APK 提供，首次启动离线安装并校验；手机无需访问模型下载站。
+- 前台悬浮面板已改为象棋识别与推荐操作，默认紧凑显示；收起面板可在游戏棋盘上显示推荐箭头。
+- 已加入本地走法合法性复核；内部状态可根据唯一合法的一着或两着棋盘变化更新行棋方。用户无需维护或导入记录。
+- 自动输入前连续核对棋盘，输入坐标转换回实际显示尺寸；输入后等待稳定截图，并允许对手快速回应。
+- 识别、引擎与触摸流程日志按流程编号持续保存，关闭调试模式也会保留。
 
 ## 尚未完成
 
 - 天天象棋大厅、标准对局和残局闯关的自动场景识别。
 - 棋盘自动定位与自动校准；当前 Android 端先使用 MuMu 900×1600 四角校准。
-- 自动识别行棋方、维护增量走法历史。
-- Pikafish Android x86_64 引擎、自动行棋方识别与中途局面历史管理。
-- 走法合法性复核、起点 / 终点触控、动画等待和落子后复识别闭环。
+- 单张未知中途棋盘的行棋方与规则历史判定；当前仅能从标准开局、人工确认起点和连续合法变化中确定。
+- Pikafish Android x86_64 引擎的 APK 集成与实机验收（已本地交叉编译，尚未验证运行）。
+- 起点选中态识别、连续自动对弈，以及最新前台箭头和单步复核的完整实机验收。
 
-**重要边界：** Android 任务页已接入游戏启动、前台/后台显示、后台帧采集、nano-v3 棋盘识别及 ARM64 Pikafish 建议入口；后者要求用户确认行棋方和新局面起点，仍待实机验收。MuMu 实机识别准确率、自动行棋方识别和自动落子闭环尚未完成，不会自动点击游戏内菜单或自动对弈。MAA-Meow 中的 Arknights `AsstAppendTask` 任务链不是象棋任务引擎；象棋识别与执行使用本项目独立 Xiangqi Core，并通过受控 MaaFramework pipeline / custom action 接入。
+**重要边界：** ARM64 手机上已验证后台标准开局识别与 Pikafish 建议。最新前台面板、游戏内箭头和单步落子由用户继续实测；未知局面不能自动输入。不会自动点击游戏内菜单或连续对弈。MAA-Meow 中的 Arknights `AsstAppendTask` 任务链不是象棋任务引擎；象棋识别与执行使用本项目独立 Xiangqi Core。
 
 ## 仓库结构
 
@@ -57,6 +62,8 @@ PowerShell：
 ```powershell
 cd android-app
 python scripts/setup_maa_core.py --clean
+python ../src/maa_xiangqi/model_download.py --output app/src/main/assets/xiangqi-nano-v3.onnx
+python scripts/setup_pikafish.py
 .\gradlew.bat :app:testDebugUnitTest :app:assembleDebug
 ```
 

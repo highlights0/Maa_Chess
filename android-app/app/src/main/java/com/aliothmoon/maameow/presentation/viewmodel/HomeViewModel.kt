@@ -296,7 +296,7 @@ class HomeViewModel(
 
                 // 检查必要权限
                 val currentMode = appSettingsManager.overlayControlMode.value
-                if (!state.remoteAccessGranted) {
+                if (appSettingsManager.runMode.value != RunMode.FOREGROUND && !state.remoteAccessGranted) {
                     _uiState.update { it.copy(isLoading = false) }
                     _effects.send(
                         UiEffect.toast(
@@ -309,8 +309,7 @@ class HomeViewModel(
 
                 val missingPermissions = buildList {
                     if (!state.overlay) add(application.getString(R.string.home_permission_overlay))
-                    if (!state.storage) add(application.getString(R.string.home_permission_storage))
-                    if (currentMode == OverlayControlMode.ACCESSIBILITY && !state.accessibility) {
+                    if (!state.accessibility) {
                         add(application.getString(R.string.home_permission_accessibility))
                     }
                 }

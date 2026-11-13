@@ -334,7 +334,7 @@ fun HomeView(
                     PermissionCard(
                         modifier = Modifier.onboardingTarget(OnboardingTarget.PERMISSIONS),
                         permissionState = permissionState,
-                        isShowAccessibility = uiState.runMode == RunMode.FOREGROUND && uiState.overlayControlMode == OverlayControlMode.ACCESSIBILITY,
+                        isShowAccessibility = uiState.runMode == RunMode.FOREGROUND,
                         isGranting = uiState.isGranting,
                         onRequestRemoteAccess = {
                             // Root 各家管理器不同，引导不了，照旧直接请求

@@ -51,10 +51,15 @@ class AccessibilityHelperService : AccessibilityService() {
 
         private val _isConnected = MutableStateFlow(false)
         val isConnected: StateFlow<Boolean> = _isConnected.asStateFlow()
+        private val _foregroundPackage = MutableStateFlow<String?>(null)
+        val foregroundPackage: StateFlow<String?> = _foregroundPackage.asStateFlow()
 
         fun expectGameWindow() {
             instance?.currentPackage = null
+            _foregroundPackage.value = null
         }
+
+        fun isGameInForeground(packageName: String): Boolean = instance?.currentPackage == packageName
 
         suspend fun captureGameJpeg(expectedPackage: String): ByteArray {
             if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) {
@@ -165,6 +170,7 @@ class AccessibilityHelperService : AccessibilityService() {
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
         if (event?.eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) {
             currentPackage = event.packageName?.toString()
+            _foregroundPackage.value = currentPackage
         }
     }
 
@@ -247,6 +253,7 @@ class AccessibilityHelperService : AccessibilityService() {
     override fun onDestroy() {
         super.onDestroy()
         instance = null
+        _foregroundPackage.value = null
         _isConnected.value = false
         Timber.d("AccessibilityHelperService destroyed")
     }

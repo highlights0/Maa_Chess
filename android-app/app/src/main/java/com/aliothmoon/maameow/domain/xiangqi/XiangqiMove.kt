@@ -17,11 +17,11 @@ fun XiangqiSquare.screenPoint(
 }
 
 data class XiangqiMove(val from: XiangqiSquare, val to: XiangqiSquare) {
+    val iccs: String get() = "${'a' + from.col}${9 - from.row}${'a' + to.col}${9 - to.row}"
     fun isObservedAfter(before: List<String>, after: List<String>): Boolean =
         before.size == 10 && after.size == 10 &&
             before.all { it.length == 9 } && after.all { it.length == 9 } &&
-            after[from.row][from.col] == '.' &&
-            after[to.row][to.col] == before[from.row][from.col]
+            XiangqiRules.apply(before, this) == after
 
     companion object {
         fun parse(iccs: String, rows: List<String>, side: Char): XiangqiMove? {

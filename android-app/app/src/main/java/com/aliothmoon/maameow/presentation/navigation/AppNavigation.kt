@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -100,6 +101,10 @@ fun AppNavigation(
     mainTabNavigator: MainTabNavigator = koinInject(),
     appEventsViewModel: AppEventsViewModel = koinViewModel(),
 ) {
+    DisposableEffect(backgroundTaskViewModel, overlayController) {
+        overlayController.attachXiangqiViewModel(backgroundTaskViewModel)
+        onDispose { overlayController.attachXiangqiViewModel(null) }
+    }
     val navController = rememberNavController()
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentNavRoute = navBackStackEntry?.destination?.route

@@ -32,13 +32,14 @@ sealed interface XiangqiModelStatus {
 /**
  * Downloads the pinned upstream model to app-private storage.
  *
- * The model is not packaged into the APK. A completed download is only made
- * visible after both its exact size and SHA-256 have been verified.
+ * The APK includes a verified model for offline installation. Custom builds
+ * without the asset can still download it; both paths verify size and SHA-256.
  */
 class XiangqiModelRepository(
     context: Context,
     private val httpClient: OkHttpClient,
 ) {
+    private val assets = context.applicationContext.assets
     companion object {
         const val MODEL_SIZE_BYTES = 31_101_356L
         const val MODEL_SHA256 =
@@ -56,20 +57,24 @@ class XiangqiModelRepository(
     val status: StateFlow<XiangqiModelStatus> = _status.asStateFlow()
 
     suspend fun refreshStatus() {
+        val trace = XiangqiTrace("model.prepare")
         mutex.withLock {
             withContext(Dispatchers.IO) {
-                _status.value = if (isValidModel(modelFile)) {
-                    XiangqiModelStatus.Ready
-                } else {
-                    XiangqiModelStatus.Missing
+                _status.value = try {
+                    if (isValidModel(modelFile) || installPackagedModel()) XiangqiModelStatus.Ready
+                    else XiangqiModelStatus.Missing
+                } catch (error: Exception) {
+                    trace.failure("model.install", error)
+                    XiangqiModelStatus.Failed(error.message ?: error.javaClass.simpleName)
                 }
+                trace.event("model.status", "status=${_status.value}")
             }
         }
     }
 
     suspend fun ensureModel(): File = mutex.withLock {
         withContext(Dispatchers.IO) {
-            if (isValidModel(modelFile)) {
+            if (isValidModel(modelFile) || installPackagedModel()) {
                 _status.value = XiangqiModelStatus.Ready
                 return@withContext modelFile
             }
@@ -79,7 +84,28 @@ class XiangqiModelRepository(
 
     suspend fun downloadModel(): File = ensureModel()
 
+    private fun installPackagedModel(): Boolean {
+        val input = try {
+            assets.open("xiangqi-nano-v3.onnx")
+        } catch (_: java.io.FileNotFoundException) {
+            return false
+        }
+        modelFile.parentFile?.mkdirs()
+        val temporary = File(modelFile.parentFile, "${modelFile.name}.install")
+        val trace = XiangqiTrace("model.install-offline")
+        try {
+            input.use { source -> temporary.outputStream().use { source.copyTo(it) } }
+            check(isValidModel(temporary)) { "Packaged Xiangqi model checksum mismatch" }
+            check(temporary.renameTo(modelFile)) { "Cannot install packaged Xiangqi model" }
+            trace.event("complete", "bytes=${modelFile.length()} checksum=verified")
+            return true
+        } finally {
+            temporary.delete()
+        }
+    }
+
     private fun downloadLocked(): File {
+        val trace = XiangqiTrace("model.download")
         modelFile.parentFile?.let { directory ->
             if (!directory.exists() && !directory.mkdirs()) {
                 throw IOException("无法创建棋子识别模型目录：${directory.absolutePath}")
@@ -102,6 +128,7 @@ class XiangqiModelRepository(
                 }
                 val body = response.body ?: throw IOException("模型下载响应没有内容")
                 val declaredLength = body.contentLength()
+                trace.event("download.response", "http=${response.code} declaredBytes=$declaredLength")
                 if (declaredLength > 0 && declaredLength != MODEL_SIZE_BYTES) {
                     throw IOException("模型文件长度异常：服务器声明 ${declaredLength} bytes")
                 }
@@ -139,8 +166,10 @@ class XiangqiModelRepository(
             }
 
             _status.value = XiangqiModelStatus.Ready
+            trace.event("complete", "bytes=${modelFile.length()} checksum=verified")
             return modelFile
         } catch (error: Exception) {
+            trace.failure("download", error)
             _status.value = XiangqiModelStatus.Failed(
                 error.message ?: error.javaClass.simpleName,
             )

@@ -34,6 +34,7 @@ __pycache__/
 
 # MaaResource
 /app/src/main/assets/MaaSync
+/app/src/main/assets/xiangqi-nano-v3.onnx
 /app/src/main/jniLibs/*/*.so
 !/app/src/main/jniLibs/*/libjnidispatch.so
 

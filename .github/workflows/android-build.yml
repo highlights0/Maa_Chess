@@ -66,6 +66,9 @@ jobs:
           chmod +x ./gradlew
           ./gradlew :app:testDebugUnitTest
 
+      - name: 下载并校验 APK 内置象棋识别模型
+        run: python src/maa_xiangqi/model_download.py --output android-app/app/src/main/assets/xiangqi-nano-v3.onnx
+
       - name: Lint 并编译 Debug APK
         working-directory: android-app
         run: ./gradlew :app:lintDebug :app:assembleDebug --stacktrace

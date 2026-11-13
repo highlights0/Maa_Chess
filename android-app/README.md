@@ -18,11 +18,14 @@ Maa_Chess 的 Android 原生应用。该工程直接基于 [Aliothmoon/MAA-Meow]
 - 后台模式复用 MAA-Meow 的虚拟显示和远端启动服务；已运行于主屏的游戏会尝试移入目标虚拟显示器。
 - 天天象棋包名：`com.tencent.qqgame.xq`，可在设置中覆盖。
 - 天天象棋后台显示初始分辨率：900×1600，240 DPI。
-- 已加入 ONNX Runtime Android，nano-v3 模型按需下载到应用私有目录并进行 SHA-256 校验。
+- 已加入 ONNX Runtime Android，nano-v3 模型随 APK 分发，首次运行离线安装到应用私有目录并进行 SHA-256 校验；不再要求手机访问模型站点。
 - 已加入棋盘识别入口：后台从虚拟显示采帧，前台经无障碍服务截图；分别使用已实测的 MuMu 900×1600 与手机 1080×2400 四角校准。棋盘展示中文棋子名、FEN 和不确定位置。
 - 已在 ARM64 真机标准开局验证 Pikafish 建议入口：完整识别后需人工确认行棋方及新局面起点，显示走法箭头、ICCS 坐标、深度、评分和参考变化。
 - 已加入离线场景单步落子入口：输入前连续截图核对棋盘，输入后再次截图复核；前台采集与落子仍需实机验证，行棋方仍需人工确认。
 - 标准对局和残局闯关入口已建立；当前选择只表示测试场景，不会自动操作游戏内菜单。
+- 前台悬浮操作面板已改为象棋识别、棋盘与建议走法界面，与任务页共用状态；截图和触摸期间隐藏浮层，不要求 Root / Shizuku 或外部存储权限。
+- 已加入本地棋规与整盘变化校验。标准开局自动确定红先；内部状态只接受唯一合法的一着或两着变化，用户无需维护棋局记录。
+- 前台面板默认收起棋盘详情；推荐箭头可直接显示在游戏画面，截图与触摸期间隐藏。识别、分析、输入和停止原因始终写入 `XiangqiFlow` 日志。
 
 ## 重要架构边界
 
@@ -43,6 +46,7 @@ MAA-Meow 中的 Arknights `MaaCore` 任务类型（`StartUp`、`Fight`、`Copilo
 
 ```powershell
 python scripts/setup_maa_core.py --clean
+python ../src/maa_xiangqi/model_download.py --output app/src/main/assets/xiangqi-nano-v3.onnx
 ```
 
 该脚本下载 MAA Core Android 预编译库和资源，并部署到 `app/src/main/jniLibs` 与 `app/src/main/assets/MaaSync/MaaResource`。它的 `--clean` 会清空生成的原生库，所以完成后再运行 `python scripts/setup_pikafish.py`。这些生成文件不应提交到 Git。

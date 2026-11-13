@@ -2,6 +2,7 @@ package com.aliothmoon.maameow.presentation.state
 
 import com.aliothmoon.maameow.domain.xiangqi.XiangqiRecognitionResult
 import com.aliothmoon.maameow.domain.xiangqi.XiangqiAnalysis
+import com.aliothmoon.maameow.domain.xiangqi.XiangqiGameSession
 
 data class XiangqiRecognitionUiState(
     val isRecognizing: Boolean = false,
@@ -13,4 +14,7 @@ data class XiangqiRecognitionUiState(
     val isExecutingMove: Boolean = false,
     val moveError: String? = null,
     val moveVerified: Boolean = false,
+    val session: XiangqiGameSession? = null,
+    val detectedSide: Char? = null,
+    val historyError: String? = null,
 )

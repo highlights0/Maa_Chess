@@ -134,15 +134,18 @@ class XiangqiNanoV3Recognizer(
         jpeg: ByteArray,
         calibration: XiangqiBoardCalibration = XiangqiBoardCalibration.MUMU_900X1600,
         redAtTopOnScreen: Boolean? = null,
+        trace: XiangqiTrace? = null,
     ): XiangqiRecognitionResult {
         require(jpeg.isNotEmpty()) { "截图数据为空" }
         val modelFile = modelRepository.ensureModel()
         return withContext(Dispatchers.Default) {
             val bitmap = BitmapFactory.decodeByteArray(jpeg, 0, jpeg.size)
                 ?: throw IOException("无法解码象棋画面")
+            trace?.event("inference.frame", "width=${bitmap.width} height=${bitmap.height} bytes=${jpeg.size}")
             try {
                 val scaledCalibration = calibration.scaledTo(bitmap.width, bitmap.height)
                 scaledCalibration.validate(bitmap.width, bitmap.height)
+                trace?.event("inference.start", "calibration=$scaledCalibration")
                 inferenceMutex.withLock {
                     if (redAtTopOnScreen != null) {
                         infer(bitmap, scaledCalibration, redAtTopOnScreen, modelFile).publicResult

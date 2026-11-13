@@ -17,6 +17,7 @@ data class XiangqiAnalysis(
     val depth: Int?,
     val score: String?,
     val variation: List<String>,
+    val positionCommand: String,
 )
 
 /** Runs the pinned arm64 release from Android's executable native-library directory. */
@@ -36,15 +37,40 @@ class PikafishAnalyzer(context: Context) : AutoCloseable {
 
     val isSupported: Boolean get() = binary.isFile
 
-    suspend fun analyze(board: String, side: Char): XiangqiAnalysis = withContext(Dispatchers.IO) {
-        val fen = XiangqiEnginePosition.freshFen(board, side)
+    suspend fun analyze(session: XiangqiGameSession, trace: XiangqiTrace = XiangqiTrace("engine")): XiangqiAnalysis = withContext(Dispatchers.IO) {
+        val legal = XiangqiRules.legalMoves(session.rows, session.side).map { it.iccs }.toSet()
+        require(legal.isNotEmpty()) { "No legal moves remain" }
         mutex.withLock {
             try {
                 start()
+                trace.event("engine.ready", "localLegalMoves=${legal.size}")
                 send("ucinewgame")
                 send("isready")
                 waitFor("readyok", 10_000)
-                send("position fen $fen")
+                send(session.positionCommand)
+                send("d")
+                send("isready")
+                var engineFen: String? = null
+                val verifyDeadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(10)
+                while (true) {
+                    val line = readLine(verifyDeadline)
+                    if (line.startsWith("info string CRITICAL ERROR")) throw IOException(line)
+                    if (line.startsWith("Fen: ")) engineFen = line.removePrefix("Fen: ")
+                    if (line == "readyok") break
+                }
+                require(engineFen?.split(' ')?.take(2) == listOf(XiangqiRules.board(session.rows), session.side.toString())) {
+                    "Engine history does not match the observed board"
+                }
+                send("go perft 1")
+                val engineLegal = mutableSetOf<String>()
+                while (true) {
+                    val line = readLine(verifyDeadline)
+                    Regex("^([a-i][0-9][a-i][0-9]): ").find(line)?.let { engineLegal += it.groupValues[1] }
+                    if (line.startsWith("Nodes searched:")) break
+                    if (line.startsWith("info string CRITICAL ERROR")) throw IOException(line)
+                }
+                require(engineLegal == legal) { "Local and engine legal moves disagree" }
+                trace.event("engine.position-verified", "legalMoves=${engineLegal.size} fen=$engineFen")
                 send("go movetime 1000")
                 var depth: Int? = null
                 var score: String? = null
@@ -63,13 +89,14 @@ class PikafishAnalyzer(context: Context) : AutoCloseable {
                     }
                     if (line.startsWith("bestmove ")) {
                         val move = line.split(' ').getOrNull(1) ?: throw IOException("Missing bestmove")
-                        XiangqiEnginePosition.requireMoveOnBoard(board, side, move)
-                        return@withLock XiangqiAnalysis(side, move, depth, score, variation)
+                        require(move in legal) { "Engine returned an illegal move" }
+                        return@withLock XiangqiAnalysis(session.side, move, depth, score, variation, session.positionCommand)
                     }
                 }
                 @Suppress("UNREACHABLE_CODE")
                 throw IOException("Missing bestmove")
             } catch (error: Exception) {
+                trace.failure("engine", error)
                 close()
                 throw error
             }

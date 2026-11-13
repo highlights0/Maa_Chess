@@ -579,8 +579,8 @@
     <string name="home_overlay_mode_floatball_desc">플로팅 볼을 탭하여 패널을 전환합니다</string>
     <string name="home_overlay_mode_accessibility">단축키 모드</string>
     <string name="home_overlay_mode_float_ball">플로팅 볼 모드</string>
-    <string name="home_overlay_open">제어 패널 열기</string>
-    <string name="home_overlay_close">제어 패널 닫기</string>
+    <string name="home_overlay_open">장기 패널 열기</string>
+    <string name="home_overlay_close">장기 패널 닫기</string>
 
     <!-- home: action buttons -->
     <string name="home_btn_open_shizuku">Shizuku 바로가기</string>
@@ -2421,9 +2421,9 @@
     <string name="onboarding_status_title">상태 개요</string>
     <string name="onboarding_status_body">여기에서 화면 해상도, 리소스 및 앱 버전, 서비스 연결 상태를 확인할 수 있습니다.\n서비스 연결에 성공해야 작업을 정상적으로 시작할 수 있습니다</string>
     <string name="onboarding_run_mode_title">실행 모드</string>
-    <string name="onboarding_run_mode_body">• 백그라운드 실행 모드(권장): 게임이 가상 디스플레이에서 실행되어 휴대폰을 다른 용도로 쓸 수 있지만, 화면을 켜 둔 채 잠금을 해제한 상태를 유지해야 합니다\n• 포그라운드 실행 모드: 게임이 기기 화면에서 실행되며, 해상도를 변경하고 가로 방향으로 설정한 뒤 플로팅 창으로 제어합니다</string>
+    <string name="onboarding_run_mode_body">• 백그라운드 모드: 가상 화면에서 게임을 실행하며 Shizuku / Root가 필요합니다\n• 전경 모드: 기기 화면의 세로 방향에서 장기 패널로 인식하고 조작합니다. 휴대전화 해상도를 변경하지 않습니다.</string>
     <string name="onboarding_permissions_title">권한</string>
-    <string name="onboarding_permissions_body">먼저 여기에서 Shizuku / Root 권한을 부여하세요. 실행의 전제 조건입니다.\nShizuku / Root 권한을 부여하면 플로팅 창, 알림, 배터리 최적화 화이트리스트가 자동으로 설정됩니다. 접근성은 포그라운드 모드에서 볼륨 키 제어를 사용할 때만 필요합니다</string>
+    <string name="onboarding_permissions_body">백그라운드 화면에는 Shizuku / Root가 필요합니다.\n전경 장기 패널에는 오버레이 권한이 필요하며 캡처와 입력에는 Maa_Chess 접근성 서비스를 활성화해야 합니다.</string>
     <string name="onboarding_bg_preview_title">실시간 화면</string>
     <string name="onboarding_bg_preview_body">백그라운드 모드에서는 게임 화면이 여기에 실시간으로 표시됩니다.\n한 번 탭하면 전체 화면으로 보고 직접 조작할 수 있으며, 작업 실행 중 홈 화면으로 나가면 자동으로 화면 속 화면(PIP)으로 전환됩니다</string>
     <string name="onboarding_bg_panel_tabs_title">패널 전환</string>
@@ -3144,11 +3144,11 @@
 
     <string name="xiangqi_recognition_title">보드 인식 (기기 내 모델)</string>
     <string name="xiangqi_model_checking">로컬 모델 확인 중…</string>
-    <string name="xiangqi_model_missing">인식 모델이 아직 다운로드되지 않았습니다 (31 MB)</string>
+    <string name="xiangqi_model_missing">인식 모델이 준비되지 않았습니다</string>
     <string name="xiangqi_model_ready">인식 모델 검증 및 준비 완료</string>
     <string name="xiangqi_model_downloading">모델 다운로드 중: %1$d / %2$d MB</string>
     <string name="xiangqi_model_failed">모델 준비 실패: %1$s</string>
-    <string name="xiangqi_model_download">인식 모델 다운로드 및 검증</string>
+    <string name="xiangqi_model_download">인식 모델 준비 및 검증</string>
     <string name="xiangqi_recognition_action">현재 보드 인식</string>
     <string name="xiangqi_recognition_running">보드 인식 중…</string>
     <string name="xiangqi_recognition_foreground_accessibility">전경 화면 캡처에는 Maa_Chess 접근성 서비스가 필요합니다.</string>
@@ -3170,7 +3170,7 @@
     <string name="xiangqi_analysis_side">현재 어느 쪽 차례인가요?</string>
     <string name="xiangqi_analysis_red">홍</string>
     <string name="xiangqi_analysis_black">흑</string>
-    <string name="xiangqi_analysis_fresh_position">새 대국 또는 퍼즐의 시작임을 확인합니다(rule60 = 0, 전체 수 = 1). 진행 중인 대국에는 선택하지 마세요.</string>
+    <string name="xiangqi_analysis_fresh_position">새 대국 또는 퍼즐의 시작임을 확인합니다.</string>
     <string name="xiangqi_analysis_arm64_only">Pikafish 분석은 현재 ARM64 기기에서만 지원됩니다.</string>
     <string name="xiangqi_analysis_action">추천 수 받기</string>
     <string name="xiangqi_analysis_running">분석 중…</string>
@@ -3184,4 +3184,17 @@
     <string name="xiangqi_move_aborted">입력 전 보드 확인에 실패하여 자동 착수를 중단했습니다. 다시 인식하세요.</string>
     <string name="xiangqi_move_unverified">터치 입력을 보냈지만 새 화면에서 착수를 확인하지 못했습니다. 자동 동작이 일시 중지되었습니다. 다시 누르기 전에 보드를 확인하세요.</string>
     <string name="xiangqi_move_verified">새 화면에서 착수를 확인했습니다.</string>
+    <string name="xiangqi_history_status">기록 중: 확인된 %1$d수. 합법적인 보드 변화에 따라 차례를 갱신합니다.</string>
+    <string name="xiangqi_history_discontinuity">보드 변화를 확인하지 못했습니다. 다시 인식하거나 새 대국 또는 퍼즐이라면 새 보드를 선택하세요.</string>
+    <string name="xiangqi_history_import_error">가져오기 실패. 전체 FEN, 선택적인 moves 목록 및 현재 보드와의 일치를 확인하세요.</string>
+    <string name="xiangqi_history_import_label">전체 FEN (선택적으로 moves와 ICCS 수 추가)</string>
+    <string name="xiangqi_history_import_action">대국 기록 가져오기</string>
+    <string name="xiangqi_history_reset">새 보드</string>
+    <string name="xiangqi_panel_lock">패널 위치 잠금 전환</string>
+    <string name="xiangqi_panel_close">장기 패널 접기</string>
+    <string name="xiangqi_panel_open_app">Maa_Chess를 열어 장기 작업을 초기화하세요.</string>
+    <string name="xiangqi_panel_more">보드 세부 정보 표시</string>
+    <string name="xiangqi_panel_less">보드 세부 정보 숨기기</string>
+    <string name="xiangqi_game_hint">추천 수</string>
+    <string name="xiangqi_game_hint_help">패널을 접으면 게임 보드에서 추천 화살표를 볼 수 있습니다.</string>
 </resources>

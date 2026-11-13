@@ -317,8 +317,8 @@
     <string name="home_overlay_mode_floatball_desc">Tap the floating ball to toggle the panel</string>
     <string name="home_overlay_mode_accessibility">Shortcut Mode</string>
     <string name="home_overlay_mode_float_ball">Floating Ball Mode</string>
-    <string name="home_overlay_open">Open Control Panel</string>
-    <string name="home_overlay_close">Close Control Panel</string>
+    <string name="home_overlay_open">Open Chess Panel</string>
+    <string name="home_overlay_close">Close Chess Panel</string>
 
     <!-- home: action buttons -->
     <string name="home_btn_open_shizuku">Shizuku Shortcut</string>
@@ -2365,9 +2365,9 @@ MAA will not end an in-progress exploration early because this option is uncheck
     <string name="onboarding_status_title">Status Overview</string>
     <string name="onboarding_status_body">Shows screen resolution, resource and app versions, and the connection state of the service.\nTasks can only start properly once the service is connected.</string>
     <string name="onboarding_run_mode_title">Run Mode</string>
-    <string name="onboarding_run_mode_body">• Background mode (recommended): the game runs on a virtual display so you can keep using your phone, but the screen must stay on and unlocked\n• Foreground mode: the game runs on the device screen; the resolution needs changing and it is controlled in landscape through the floating window</string>
+    <string name="onboarding_run_mode_body">• Background mode: the game runs on a virtual display and requires Shizuku / Root\n• Foreground mode: the game runs in portrait on the phone screen, with a chess floating panel for recognition and input. The phone resolution is not changed.</string>
     <string name="onboarding_permissions_title">Permissions</string>
-    <string name="onboarding_permissions_body">Grant Shizuku / Root access here first — nothing works without it.\nOnce granted, overlay, notification and battery whitelist are acquired automatically; Accessibility is only needed for volume-key control in foreground mode.</string>
+    <string name="onboarding_permissions_body">Background display requires Shizuku / Root.\nThe foreground chess panel needs overlay permission. Capture and input require the Maa_Chess Accessibility service.</string>
     <string name="onboarding_bg_preview_title">Live View</string>
     <string name="onboarding_bg_preview_body">In background mode the game\'s picture shows up here in real time.\nTap to go fullscreen and control it by hand; going home while a task runs enters picture-in-picture automatically.</string>
     <string name="onboarding_bg_panel_tabs_title">Panels</string>
@@ -3087,11 +3087,11 @@ MAA will not end an in-progress exploration early because this option is uncheck
 
     <string name="xiangqi_recognition_title">Board recognition (on-device model)</string>
     <string name="xiangqi_model_checking">Checking local model…</string>
-    <string name="xiangqi_model_missing">Recognition model is not downloaded (31 MB)</string>
+    <string name="xiangqi_model_missing">Recognition model is not ready</string>
     <string name="xiangqi_model_ready">Recognition model verified and ready</string>
     <string name="xiangqi_model_downloading">Downloading model: %1$d / %2$d MB</string>
     <string name="xiangqi_model_failed">Model setup failed: %1$s</string>
-    <string name="xiangqi_model_download">Download and verify recognition model</string>
+    <string name="xiangqi_model_download">Prepare and verify recognition model</string>
     <string name="xiangqi_recognition_action">Recognize current board</string>
     <string name="xiangqi_recognition_running">Recognizing board…</string>
     <string name="xiangqi_recognition_foreground_accessibility">Foreground capture requires the Maa_Chess Accessibility service.</string>
@@ -3113,7 +3113,7 @@ MAA will not end an in-progress exploration early because this option is uncheck
     <string name="xiangqi_analysis_side">Whose turn is it?</string>
     <string name="xiangqi_analysis_red">Red</string>
     <string name="xiangqi_analysis_black">Black</string>
-    <string name="xiangqi_analysis_fresh_position">I confirm this is the start of a new game or puzzle (rule60 = 0, fullmove = 1). Do not select this for a game in progress.</string>
+    <string name="xiangqi_analysis_fresh_position">I confirm this is a new game or puzzle start.</string>
     <string name="xiangqi_analysis_arm64_only">Pikafish analysis currently supports ARM64 devices only.</string>
     <string name="xiangqi_analysis_action">Get suggested move</string>
     <string name="xiangqi_analysis_running">Analyzing…</string>
@@ -3127,4 +3127,17 @@ MAA will not end an in-progress exploration early because this option is uncheck
     <string name="xiangqi_move_aborted">The board check failed before input. No automatic move was sent. Recognize again.</string>
     <string name="xiangqi_move_unverified">Touch input was sent, but the new screenshot did not confirm the move. Automation is paused. Check the board manually before trying again.</string>
     <string name="xiangqi_move_verified">The move was confirmed by a new screenshot.</string>
+    <string name="xiangqi_history_status">Game history is active: %1$d confirmed moves. The turn updates from legal board changes.</string>
+    <string name="xiangqi_history_discontinuity">The board change could not be confirmed. Recognize again, or choose New board if you started a new game or puzzle.</string>
+    <string name="xiangqi_history_import_error">Import failed. Check the full FEN, optional moves list, and that they match the visible board.</string>
+    <string name="xiangqi_history_import_label">Full FEN (optionally followed by moves and ICCS moves)</string>
+    <string name="xiangqi_history_import_action">Import game record</string>
+    <string name="xiangqi_history_reset">New board</string>
+    <string name="xiangqi_panel_lock">Toggle panel position lock</string>
+    <string name="xiangqi_panel_close">Collapse chess panel</string>
+    <string name="xiangqi_panel_open_app">Open Maa_Chess to initialize the chess task.</string>
+    <string name="xiangqi_panel_more">Show board details</string>
+    <string name="xiangqi_panel_less">Hide board details</string>
+    <string name="xiangqi_game_hint">Suggested move</string>
+    <string name="xiangqi_game_hint_help">Collapse the panel to see the suggested arrow on the game board.</string>
 </resources>

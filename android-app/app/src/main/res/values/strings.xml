@@ -579,8 +579,8 @@
     <string name="home_overlay_mode_floatball_desc">点击悬浮球切换面板</string>
     <string name="home_overlay_mode_accessibility">快捷键模式</string>
     <string name="home_overlay_mode_float_ball">悬浮球模式</string>
-    <string name="home_overlay_open">打开操作面板</string>
-    <string name="home_overlay_close">关闭操作面板</string>
+    <string name="home_overlay_open">打开象棋操作面板</string>
+    <string name="home_overlay_close">关闭象棋操作面板</string>
 
     <!-- home: action buttons -->
     <string name="home_btn_open_shizuku">Shizuku快捷入口</string>
@@ -2421,9 +2421,9 @@ MAA 不会因为取消勾选此选项而提前在局内结束探索</string>
     <string name="onboarding_status_title">状态总览</string>
     <string name="onboarding_status_body">这里显示屏幕分辨率、资源与应用版本，以及服务的连接状态。\n服务连接成功后才能正常开始任务</string>
     <string name="onboarding_run_mode_title">运行模式</string>
-    <string name="onboarding_run_mode_body">• 后台模式（推荐）：游戏在虚拟显示器中运行，手机可以同时做别的事，但需要保持亮屏解锁\n• 前台模式：游戏在本机屏幕上运行，需要修改分辨率并横屏，通过悬浮窗控制</string>
+    <string name="onboarding_run_mode_body">• 后台模式：游戏在虚拟显示器中运行，手机可以同时做别的事，需要 Shizuku / Root\n• 前台模式：游戏在本机屏幕竖屏运行，通过象棋悬浮面板识别和操作；不会修改手机分辨率</string>
     <string name="onboarding_permissions_title">权限</string>
-    <string name="onboarding_permissions_body">先在这里完成 Shizuku / Root 授权，这是运行的前提。\n完成 Shizuku / Root 授权后，悬浮窗、通知、电池优化白名单会自动获取；无障碍仅前台模式的音量键控制需要</string>
+    <string name="onboarding_permissions_body">后台虚拟显示需要 Shizuku / Root。\n前台象棋面板需要悬浮窗权限；截图和触摸需要启用 Maa_Chess 无障碍服务，无需修改系统分辨率。</string>
     <string name="onboarding_bg_preview_title">实时画面</string>
     <string name="onboarding_bg_preview_body">后台模式下游戏画面将实时显示在这里。\n点一下可以全屏查看和手动操作；任务运行中回到桌面会自动进入画中画</string>
     <string name="onboarding_bg_panel_tabs_title">面板切换</string>
@@ -3144,11 +3144,11 @@ MAA 不会因为取消勾选此选项而提前在局内结束探索</string>
 
     <string name="xiangqi_recognition_title">棋盘识别（Android 本地模型）</string>
     <string name="xiangqi_model_checking">正在检查本地模型…</string>
-    <string name="xiangqi_model_missing">识别模型尚未下载（31 MB）</string>
+    <string name="xiangqi_model_missing">识别模型尚未就绪</string>
     <string name="xiangqi_model_ready">识别模型已校验并就绪</string>
     <string name="xiangqi_model_downloading">正在下载模型：%1$d / %2$d MB</string>
     <string name="xiangqi_model_failed">模型准备失败：%1$s</string>
-    <string name="xiangqi_model_download">下载并校验识别模型</string>
+    <string name="xiangqi_model_download">准备并校验识别模型</string>
     <string name="xiangqi_recognition_action">识别当前棋盘</string>
     <string name="xiangqi_recognition_running">正在识别棋盘…</string>
     <string name="xiangqi_recognition_foreground_accessibility">前台棋盘截图需要启用 Maa_Chess 无障碍服务。</string>
@@ -3170,7 +3170,13 @@ MAA 不会因为取消勾选此选项而提前在局内结束探索</string>
     <string name="xiangqi_analysis_side">当前轮到哪方行棋？</string>
     <string name="xiangqi_analysis_red">红方</string>
     <string name="xiangqi_analysis_black">黑方</string>
-    <string name="xiangqi_analysis_fresh_position">我确认这是新对局或残局的起点（rule60 为 0，回合数为 1）。中途局面请不要勾选。</string>
+    <string name="xiangqi_analysis_fresh_position">我确认这是全新对局或残局关卡的起点。</string>
+    <string name="xiangqi_history_status">已建立棋局记录，已确认 %1$d 着；行棋方随合法棋盘变化自动更新。</string>
+    <string name="xiangqi_history_discontinuity">暂时无法确认棋盘变化，请再次识别；如果已经切换新对局或关卡，请选择“这是新棋盘”。</string>
+    <string name="xiangqi_history_import_error">导入失败：请检查完整 FEN、可选的 moves 走法列表，并确认它们与当前棋盘一致。</string>
+    <string name="xiangqi_history_import_label">完整 FEN（可追加 moves 和 ICCS 走法）</string>
+    <string name="xiangqi_history_import_action">导入棋局记录</string>
+    <string name="xiangqi_history_reset">这是新棋盘</string>
     <string name="xiangqi_analysis_arm64_only">当前仅支持 ARM64 设备上的 Pikafish 分析。</string>
     <string name="xiangqi_analysis_action">获取推荐走法</string>
     <string name="xiangqi_analysis_running">正在分析…</string>
@@ -3184,4 +3190,11 @@ MAA 不会因为取消勾选此选项而提前在局内结束探索</string>
     <string name="xiangqi_move_aborted">落子前的棋盘核对失败，未继续自动输入。请重新识别。</string>
     <string name="xiangqi_move_unverified">已发送触摸，但截图未确认结果；自动操作已暂停，请手动检查棋盘，不要重复点击。</string>
     <string name="xiangqi_move_verified">落子已由新截图确认。</string>
+    <string name="xiangqi_panel_lock">切换面板位置锁定</string>
+    <string name="xiangqi_panel_close">收起象棋面板</string>
+    <string name="xiangqi_panel_open_app">请先回到 Maa_Chess 主界面初始化象棋任务。</string>
+    <string name="xiangqi_panel_more">展开棋盘详情</string>
+    <string name="xiangqi_panel_less">收起棋盘详情</string>
+    <string name="xiangqi_game_hint">建议走法</string>
+    <string name="xiangqi_game_hint_help">收起面板后，可在游戏棋盘上查看建议箭头。</string>
 </resources>

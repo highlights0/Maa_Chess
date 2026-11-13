@@ -82,3 +82,11 @@
 - **引擎**：官方 Android arm64 可执行文件，SHA-256 `6c06b8752e10c1ed605fa836d2c9bbf885e9c402b216023040ddf4586f4320b1`，GPL-3.0。许可证文本随 APK 放在 `assets/pikafish/COPYING`。
 - **NNUE 权重**：SHA-256 `7d13d73569a9b571ba0eb20cf1596247bc2a42738967e61afef6482b231e900e`。上游权重另附使用条款，包括未经许可不得商用；条款随 APK 放在 `assets/pikafish/NNUE-License.md`。
 - **构建方式**：`scripts/setup_pikafish.py` 下载并校验发布包，将引擎与权重复制到被 Git 忽略的构建输入目录；这两个大文件不直接提交到 Git。
+
+## Chinese Chess Recognition nano-v3
+
+- **源码**：[TheOne1006/chinese-chess-recognition](https://github.com/TheOne1006/chinese-chess-recognition)。
+- **发布者与版本**：Hugging Face `yolo12138/Chinese_Chess_Recognition`，固定 revision `4bcaf91777effa645040ee76d008d45c2ffc03f3`。
+- **许可证**：上游发布页声明 MIT；APK 的 `assets/xiangqi/LICENSE.txt` 保留许可证和归属。
+- **模型**：`nano_v3-0319.onnx`，31,101,356 bytes，SHA-256 `da66ba9809f15127f8ae729b1755e42ee61c100c4f9979ce0ef13602ac471298`。
+- **分发方式**：CI 下载并校验后打包到 APK；首次运行离线安装到应用私有目录并再次校验。模型权重不提交到 Git。

@@ -46,4 +46,12 @@ class XiangqiMoveTest {
         assertEquals(false, move.isObservedAfter(opening, opening))
         assertEquals(false, move.isObservedAfter(opening, after.toMutableList().apply { set(7, "....p..C.") }))
     }
+
+    @Test fun downscaledCaptureCoordinatesReturnToNativeDisplaySize() {
+        val capture = XiangqiBoardCalibration.MUMU_900X1600.scaledTo(720, 1280)
+        assertEquals(
+            XiangqiScreenPoint(162, 1035),
+            XiangqiSquare(7, 1).screenPoint(capture.scaledTo(900, 1600), false),
+        )
+    }
 }
