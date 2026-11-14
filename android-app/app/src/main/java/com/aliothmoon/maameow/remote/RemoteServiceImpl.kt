@@ -5,6 +5,7 @@ import android.graphics.Bitmap
 import android.os.Build
 import android.os.ParcelFileDescriptor
 import android.os.Process
+import android.os.SystemClock
 import android.view.Surface
 import androidx.core.graphics.scale
 import com.aliothmoon.maameow.ITouchEventCallback
@@ -14,6 +15,7 @@ import com.aliothmoon.maameow.bridge.NativeBridgeLib
 import com.aliothmoon.maameow.constant.DefaultDisplayConfig
 import com.aliothmoon.maameow.constant.DisplayMode
 import com.aliothmoon.maameow.constant.MaaFiles
+import com.aliothmoon.maameow.domain.xiangqi.XiangqiDisplayGeometry
 import com.aliothmoon.maameow.maa.DriverClass
 import com.aliothmoon.maameow.maa.InputControlUtils
 import com.aliothmoon.maameow.remote.internal.ActivityUtils
@@ -41,6 +43,7 @@ import com.aliothmoon.maameow.third.Command
 import com.aliothmoon.maameow.third.FakeContext
 import com.aliothmoon.maameow.third.Ln
 import com.aliothmoon.maameow.third.Workarounds
+import com.aliothmoon.maameow.third.wrappers.ServiceManager
 import java.io.ByteArrayOutputStream
 import java.io.File
 import java.io.FileOutputStream
@@ -347,6 +350,40 @@ class RemoteServiceImpl : RemoteService.Stub() {
         val displayId = BackgroundDisplay.displayId()
         if (displayId != DefaultDisplayConfig.DISPLAY_NONE) {
             InputControlUtils.down(x, y, contact, displayId)
+        }
+    }
+
+    override fun getBackgroundDisplayGeometry(): IntArray? {
+        if (virtualDisplayMode.get() != DisplayMode.BACKGROUND) return null
+        val id = BackgroundDisplay.displayId()
+        if (id == DefaultDisplayConfig.DISPLAY_NONE) return null
+        return runCatching { ServiceManager.getDisplayManager().getDisplayInfo(id) }.onFailure {
+            Ln.w("$TAG: cannot query actual background display geometry", it)
+        }.getOrNull()?.let { info ->
+            intArrayOf(id, info.size().width(), info.size().height(), info.rotation())
+        }
+    }
+
+    override fun tapBackgroundGame(packageName: String?, expectedGeometry: IntArray?, x: Int, y: Int): Boolean {
+        val expected = XiangqiDisplayGeometry.fromWire(expectedGeometry)
+        if (expected == null || !expected.contains(x, y) ||
+            expected != XiangqiDisplayGeometry.fromWire(getBackgroundDisplayGeometry()) ||
+            packageName.isNullOrBlank() || !ActivityUtils.isAppOnDisplay(packageName, expected.displayId)) {
+            Ln.w("$TAG: Xiangqi tap rejected: display or game changed, or coordinate outside display")
+            return false
+        }
+        var down = false
+        var up = false
+        try {
+            down = InputControlUtils.down(x, y, 0, expected.displayId)
+            if (!down) return false
+            SystemClock.sleep(80)
+            up = InputControlUtils.up(x, y, 0, expected.displayId)
+            return up
+        } finally {
+            if (!up) runCatching { InputControlUtils.cancel(expected.displayId) }
+                .onFailure { Ln.w("$TAG: failed to cancel rejected Xiangqi touch", it) }
+            Ln.i("$TAG: Xiangqi tap display=$expected x=$x y=$y downAccepted=$down upAccepted=$up")
         }
     }
 

@@ -150,4 +150,10 @@ interface RemoteService {
 
     // 只在任务期间开，否则共用主屏组时主屏无法息屏
     void setUserActivityKeepAlive(boolean enabled) = 62;
+
+    // 当前后台显示器的实际逻辑坐标系：[displayId, width, height, rotation]，不可用返回 null
+    int[] getBackgroundDisplayGeometry() = 63;
+
+    // 象棋自动输入需确认目标坐标系未变，并同步返回 DOWN / UP 的系统注入结果
+    boolean tapBackgroundGame(String packageName, in int[] expectedGeometry, int x, int y) = 64;
 }

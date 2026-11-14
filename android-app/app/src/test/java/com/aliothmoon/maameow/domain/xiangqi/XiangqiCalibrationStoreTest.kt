@@ -14,6 +14,9 @@ class XiangqiCalibrationStoreTest {
     private val editor = mockk<SharedPreferences.Editor>(relaxed = true)
     private val context = mockk<Context>()
 
+    private fun XiangqiCalibrationStore.resolve(mode: RunMode, width: Int, height: Int) =
+        resolve(mode, width, height, IntArray(width * height))
+
     private fun store(): XiangqiCalibrationStore {
         every { context.getSharedPreferences("xiangqi_board_calibration", Context.MODE_PRIVATE) } returns preferences
         every { preferences.getString(any(), null) } answers { values[firstArg()] }
@@ -36,10 +39,11 @@ class XiangqiCalibrationStoreTest {
         assertThrows(XiangqiCalibrationRequired::class.java) { store.resolve(RunMode.FOREGROUND, 1080, 2200) }
     }
 
-    @Test fun measuredProfilesAndThumbnailToNativeInputMappingRemainAvailable() {
+    @Test fun matchingScreenSizeAloneNeverAuthorizesEstimatedCoordinates() {
         val store = store()
-        assertEquals(XiangqiBoardCalibration.PHONE_1080X2400, store.resolve(RunMode.FOREGROUND, 1080, 2400))
-        val capture = store.resolve(RunMode.BACKGROUND, 720, 1280)
+        assertThrows(XiangqiCalibrationRequired::class.java) { store.resolve(RunMode.FOREGROUND, 1080, 2400) }
+        assertThrows(XiangqiCalibrationRequired::class.java) { store.resolve(RunMode.BACKGROUND, 720, 1280) }
+        val capture = XiangqiBoardCalibration.MUMU_900X1600.scaledTo(720, 1280)
         val native = capture.scaledTo(900, 1600)
         assertEquals(66.0, native.left, 1e-7)
         assertEquals(363.0, native.top, 1e-7)

@@ -3224,7 +3224,7 @@
     <string name="xiangqi_auto_new_opening">새 초기 기보 확인</string>
     <string name="xiangqi_auto_wait_result">결과 또는 새 기보 대기 중…</string>
     <string name="xiangqi_calibration_action">보드 보정</string>
-    <string name="xiangqi_calibration_required">%1$d×%2$d 화면은 보드 보정이 필요합니다. 보드 보정에서 실제 교차점을 저장한 후 다시 인식하세요.</string>
+    <string name="xiangqi_calibration_required">%1$d×%2$d 화면에서 확실한 보드를 찾지 못했습니다. 보드 화면에서 다시 시도하고, 계속 실패하면 보드 보정으로 실제 교차점을 저장하세요.</string>
     <string name="xiangqi_calibration_first">나무 테두리가 아닌 보드의 왼쪽 위 최외곽 교차점을 누르세요. 게임 입력 없이 좌표만 설정합니다.</string>
     <string name="xiangqi_calibration_last">보드의 오른쪽 아래 최외곽 교차점을 누르세요.</string>
     <string name="xiangqi_calibration_review">두 모서리를 드래그하여 조정하세요. 9열×10행 격자가 모든 기물 중심을 지나는지 확인하고 저장하세요.</string>

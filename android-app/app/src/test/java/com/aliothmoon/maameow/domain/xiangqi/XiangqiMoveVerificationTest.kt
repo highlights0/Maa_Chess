@@ -57,6 +57,7 @@ class XiangqiMoveVerificationTest {
     @Test fun animationIncompleteAndUnexpectedBoardsAllExhaustThreeAttempts() = runTest {
         val captures = listOf<suspend () -> XiangqiRecognitionResult>(
             { throw XiangqiFrameNotReady("animation") },
+            { throw XiangqiCalibrationRequired(720, 1280) },
             { before.copy(uncertainSquares = listOf(move.from)) },
             { expected.copy(redAtTopOnScreen = true) },
         )

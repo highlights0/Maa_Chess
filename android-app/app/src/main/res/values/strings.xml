@@ -3224,7 +3224,7 @@ MAA 不会因为取消勾选此选项而提前在局内结束探索</string>
     <string name="xiangqi_auto_new_opening">已识别新开局</string>
     <string name="xiangqi_auto_wait_result">等待结算或新棋盘…</string>
     <string name="xiangqi_calibration_action">校准棋盘</string>
-    <string name="xiangqi_calibration_required">%1$d×%2$d 画面需要校准棋盘。点击“校准棋盘”，按实际交叉点保存后再识别。</string>
+    <string name="xiangqi_calibration_required">%1$d×%2$d 画面未找到可靠棋盘。请回到棋盘重试；仍失败可用“校准棋盘”保存实际交叉点。</string>
     <string name="xiangqi_calibration_first">点击棋盘左上角最外侧交叉点（不是木框边缘）。这里只设置坐标，不会点击游戏。</string>
     <string name="xiangqi_calibration_last">点击棋盘右下角最外侧交叉点。</string>
     <string name="xiangqi_calibration_review">可拖动两角调整。确认 9 列×10 行网格经过每个棋位中心后保存。</string>
